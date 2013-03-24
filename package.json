@@ -1,0 +1,22 @@
+{
+    "name": "chocolate",
+    "version": "0.0.1",
+    "description": "A simple webapp framework built on Node.js using Coffeescript",
+    "preferGlobal": "true",
+    "keywords": ["coffeescript", "framework", "online", "ide", "web", "app", "coffeekup", "jasmine", "ace", "mootools", "docco", "git", "impress"],
+    "homepage": "https://chocolatejs.org",
+    "repository": "git://github.com/jclevy/chocolatejs",
+    "bugs": { "url" : "http://github.com/jclevy/chocolatejs/issues"
+    },
+    "license":"MIT",
+    "bin": { "chocomake": "./bin/chocomake" },
+    "author": "Jean-Claude Levy",
+    "dependencies": {
+        "coffee-script": "1.6.2",
+        "bufferstream": "0.5.1",
+        "chokidar": "0.6.2",
+        "sqlite3": "2.1.7"
+    },
+    "engines": { "node": "*" },
+    "os" : [ "!win32" ]
+}
