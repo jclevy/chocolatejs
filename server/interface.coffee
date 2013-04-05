@@ -47,7 +47,10 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             when 'web', 'edit', 'help'
                 # render if instance of Chocokup
                 if result instanceof Chocokup
-                    result = result.render { backdoor_key }
+                    try
+                        result = result.render { backdoor_key }
+                    catch error
+                        return has500 error
                     
                 # Quirks mode in ie6
                 if /msie 6/i.test request.headers['user-agent']
@@ -66,7 +69,9 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     # `has500` will send an HTTP 500 error
     has500 = (error) ->
         if error?
-            send status : 500, headers : {"Content-Type": "text/plain"}, (response + error + "\n")
+            source = if (info = error.source)? then "Error in Module:" + info.module + ", with Function :" + info.method + '\n' else ''
+            line = if (info = error.location)? then "Coffeescript error at line:" + info.first_line + ", column:" + info.first_column + '\n' else ''
+            send status : 500, headers : {"Content-Type": "text/plain"}, body : source + line + error.stack + "\n"
             true
         else
             false
@@ -78,10 +83,14 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
 
     # `getMethodInfo` retrieve a method and its parameters from a required module
     getMethodInfo = (required, action) ->
-        module = require required
-        method = module[action] if module?
-        args = method.toString().match(/function\s+\w*\s*\((.*?)\)/)[1].split(/\s*,\s*/) if method?
-        {method, args}
+        try
+            module = require required
+            method = module[action] if module?
+            args = method.toString().match(/function\s+\w*\s*\((.*?)\)/)[1].split(/\s*,\s*/) if method?
+            {method, args}
+        catch error
+            error.source = module:required, method:action
+            {method:undefined, action:undefined, error}
         
     # `respondStatic` will send an HTTP response
     respondStatic = (status, headers, body) ->
@@ -157,14 +166,16 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             # if so is 'do' and what is public then authorize access  
             when 'do' 
                 if how is 'web'
-                    {method, args} = getMethodInfo required, what
+                    {method, args, error} = getMethodInfo required, what
+                    return if has500 error
                     if (method?) # TODO - should implement security checking
                         what_is_public = yes
     
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
                 if how is 'web' and where isnt 'ping'
-                    {method, args} = getMethodInfo required, 'interface'
+                    {method, args, error} = getMethodInfo required, 'interface'
+                    return if has500 error
                     if (method?) # TODO - should implement security checking
                         so = 'do'
                         what = 'interface'
@@ -240,7 +251,8 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                     module = require required 
                     method = module[action]
                 else if so is 'do'
-                    {method, args:expected_args} = getMethodInfo required, what
+                    {method, args:expected_args, error} = getMethodInfo required, what
+                    return if has500 error
                     if '__' in expected_args then params['__'] = {request, session, appdir, datadir}
                     args = []
                     args_index = 0

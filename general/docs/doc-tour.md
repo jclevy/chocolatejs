@@ -41,7 +41,7 @@ I also found that some of my goals where :
 My journey continued...
 
 In 2007, I wrote Ijax, a javascript framework based on Mootools, where I experimented some of my ideas:
-declarative user interface contexts.
+declarative user interface contexts. I used it in few web sites: [http://sefarim.fr]() and [http://sefarim.fr/hamore]()
 
 In 2011, after an exploration in the Python world, I decided to give javascript a last chance... And... I discovered Coffeescript (and then CoffeeKup).
 It was what I was looking for: only one programming language for every aspect of my programer's life,
@@ -57,4 +57,6 @@ I decided to integrate all those tools in one interface and I started to make in
 
 I called my web development environment **Chocolate.js**. 
 
-Why? Because I don't drink coffee!
+Why? 
+
+#### Because I don't drink coffee!

@@ -219,7 +219,7 @@ class Space
                 
                 # Check if `get` is already running for `container_id`. Postpone request if it is. Otherwise put a lock.
                 if @Relation.locked
-                    process.nextTick =>
+                    setImmediate =>
                         @Relation.get type, container_id, callback
                     return
                 else
@@ -421,7 +421,7 @@ class Space
                         count += -1
 
         wait = ->
-            process.nextTick =>        
+            setImmediate ->        
                 if count is 0 then callback? error else wait()
                 
         @create_object {uuid:@uuid(object), name:''}, (result, id) ->

@@ -31,8 +31,7 @@ class Sessions
                 if object.expires < now then delete store[key]
                 else next = if next < object.expires then next else object.expires
             
-            if next <= Infinity
-                setTimeout cleanup, next - (+new Date) + 1000
+            setTimeout cleanup, if next is Infinity then 60000 else next - (+new Date) + 1000
         
         setTimeout cleanup, 5000
         
@@ -87,7 +86,7 @@ class Session
 
 class World
     # Here is what we do when we create a new World !
-    constructor : (appdir = '.', port = 8026, key = 'privatekey.pem', cert = 'certificate.pem') ->
+    constructor : (appdir = '.', port, key, cert) ->
         datadir = appdir + (if appdir is '.' then '/www' else '') + '/data'
         
         cache = new Document.Cache datadir
@@ -95,16 +94,29 @@ class World
         
         space = new Reserve.Space datadir
 
+        # Get application Config for Http only server and base port, key and cert options
+        config = require('../' + datadir + '/config')
+        port ?= config.port
+        port ?= 8026
+        key ?= config.key
+        key ?= 'privatekey.pem'
+        cert ?= config.cert
+        cert ?= 'certificate.pem'
+
         # Https security options
-        options =
-            key: Fs.readFileSync datadir + '/' + key
-            cert: Fs.readFileSync datadir + '/' + cert
+        options = unless config.http_only
+                key: Fs.readFileSync datadir + '/' + key
+                cert: Fs.readFileSync datadir + '/' + cert
+            else
+                {}
+                
+        network = if config.http_only then Http else Https
             
-        # We create an Https server
+        # We create an Https or Http server
         #
         # It will receive an [HttpRequest](http://nodejs.org/docs/latest/api/all.html#http.ServerRequest)
         # and fills an [HttpResponse](http://nodejs.org/docs/latest/api/all.html#http.ServerResponse)
-        server = Https.createServer options, (request, response) ->
+        server = network.createServer options, (request, response) ->
             # If Node.js crashes unexpectedly, we will receive an `uncaughtException` and log it in a file
             process.on 'uncaughtException', (err) ->
                 Fs.createWriteStream(datadir + '/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
@@ -174,11 +186,12 @@ class World
         # Start our web server
         server.listen port
 
-        # Start Http server with redirection to Https
-        Http.createServer (request, response) ->
-                response.writeHead 302, {'Location': "https://#{request.headers.host}" }
-                response.end ''
-        .listen port+1
+        unless config.http_only
+            # Start Http server with redirection to Https
+            Http.createServer (request, response) ->
+                    response.writeHead 302, {'Location': "https://#{request.headers.host}" }
+                    response.end ''
+            .listen port+1
         
 #### Start
 # The main workflow service.

@@ -100,18 +100,22 @@ class Chocokup
                 
             id_class = new_id_class + (if id_class isnt '' then '.' else '') + id_class
 
+            flush = -> 
+                if (panel_info = @panel_infos[@panel_infos.length - 1]).footer_kept?
+                    {id_class, attributes, content} = panel_info.footer_kept ; panel id_class, attributes, content ; panel_info.footer_kept = undefined
+
+            content_ = if typeof content is "function" then => content.apply @ ; flush.apply @ else content
+            
             if proportion_keep isnt 'none' and @proportion is 'none'
-                element = div id_class, -> div 'space', attributes, content
+                div id_class, -> div 'space', attributes, content_
             else
-                element = div id_class, attributes, content
+                div id_class, attributes, content_
             
             @panel_index = panel_index_keep + 1
             @proportion = proportion_keep
             @orientation = orientation_keep
+
             @panel_infos.pop()
-            
-            element
-            
         box : ->
             { id_class, attributes, content } = verify arguments...
             
@@ -123,11 +127,12 @@ class Chocokup
             
             if attributes?.html5? then tag 'header', arguments...
             else
-                @panel_infos[@panel_infos.length - 1].hasHeader = true
+                panel_info = @panel_infos[@panel_infos.length - 1]
+                panel_info.hasHeader = true
                 id_class = 'header' + (if id_class isnt '' then '.' else '') + id_class
                 if attributes?.by?
                     id_class += '.by-' + attributes.by
-                    @panel_infos[@panel_infos.length - 1].header_by = attributes.by
+                    panel_info.header_by = attributes.by
                 panel id_class, attributes, content
 
         footer : ->
@@ -135,22 +140,24 @@ class Chocokup
             
             if attributes?.html5? then tag 'footer', arguments...
             else
-                @panel_infos[@panel_infos.length - 1].hasFooter = true
+                panel_info = @panel_infos[@panel_infos.length - 1]
+                panel_info.hasFooter = true
                 id_class = 'footer' + (if id_class isnt '' then '.' else '') + id_class
                 if attributes?.by?
                     id_class += '.by-' + attributes.by
-                    @panel_infos[@panel_infos.length - 1].footer_by = attributes.by
-                panel id_class, attributes, content
+                    panel_info.footer_by = attributes.by
+                panel_info.footer_kept = {id_class, attributes, content}
 
         body : ->
             { id_class, attributes, content } = verify arguments...
             
-            if @main_body_done?
+            if @panel_infos?.length > 0
                 new_id_class = 'body'
-                if @panel_infos[@panel_infos.length - 1].hasHeader isnt true then new_id_class += '.no-header'
-                if @panel_infos[@panel_infos.length - 1].hasFooter isnt true then new_id_class += '.no-footer'
-                if count = @panel_infos[@panel_infos.length - 1].header_by then new_id_class += ".with-#{count}-headers"
-                if count = @panel_infos[@panel_infos.length - 1].footer_by then new_id_class += ".with-#{count}-footers"
+                panel_info = @panel_infos[@panel_infos.length - 1]
+                if panel_info.hasHeader isnt true then new_id_class += '.no-header'
+                if panel_info.hasFooter isnt true then new_id_class += '.no-footer'
+                if count = panel_info.header_by then new_id_class += ".with-#{count}-headers"
+                if count = panel_info.footer_by then new_id_class += ".with-#{count}-footers"
                 id_class = new_id_class + (if id_class isnt '' then '.' else '') + id_class
                                 
                 panel id_class, attributes, content
@@ -173,7 +180,7 @@ class Chocokup
         locals = { locals } if Object.prototype.toString.apply(locals) isnt '[object Object]'
         locals.backdoor_key = options?.backdoor_key
         format = options?.format ? true
-        content_html = Coffeekup.render @content, main_body_done : @params?.main_body_done, panel_index : 1, webcontrol_index : 0, proportion : 'none', orientation : 'none', hardcode : Chocokup.helpers, params : @params, format : format, locals : locals
+        content_html = Coffeekup.render @content, panel_index : 1, webcontrol_index : 0, proportion : 'none', orientation : 'none', hardcode : Chocokup.helpers, params : @params, format : format, locals : locals
         body_html = Coffeekup.render @body_template, content : content_html, title : @title, panel_index : 1, proportion : 'none', orientation : 'none', hardcode : Chocokup.helpers, params : @params, format : format, locals : locals
         head_html = Coffeekup.render @head_template,  body :  body_html, title : @title, panel_index : 1, proportion : 'none', orientation : 'none', hardcode : Chocokup.helpers, params : @params, format : format, locals : locals
         if head_html is undefined then 'None' else '' + head_html
@@ -390,6 +397,12 @@ class Chocokup.Document extends Chocokup
                       .no-footer {
                         bottom:0px;
                       }
+                      .header.by-bootstrap, .footer.by-bootstrap {
+                        height:40px;
+                        line-height: inherit;
+                        margin: 0;
+                        padding: 0;
+                      }
                       .header.by-2, .footer.by-2 {
                         height:64px;
                       }
@@ -401,6 +414,12 @@ class Chocokup.Document extends Chocokup
                       }
                       .header.by-5, .footer.by-5 {
                         height:160px;
+                      }
+                      .header.by-10, .footer.by-10 {
+                        height:320px;
+                      }
+                      .with-bootstrap-headers {
+                        top:40px;
                       }
                       .with-2-headers {
                         top:64px;
@@ -414,6 +433,12 @@ class Chocokup.Document extends Chocokup
                       .with-5-headers {
                         top:160px;
                       }
+                      .with-10-headers {
+                        top:320px;
+                      }
+                      .with-bootstrap-footers {
+                        bottom:40px;
+                      }
                       .with-2-footers {
                         bottom:64px;
                       }
@@ -425,6 +450,9 @@ class Chocokup.Document extends Chocokup
                       }
                       .with-5-footers {
                         bottom:160px;
+                      }
+                      .with-10-footers {
+                        bottom:320px;
                       }
                       .inline {
                         position:relative;
@@ -452,7 +480,6 @@ class Chocokup.Panel extends Chocokup
     constructor: (@params, @content) ->
         super @params, @content
         @params = {} unless @params?
-        @params.main_body_done = true
 
 class Chocokup.Css
     @prefix = (css) -> (css.replace(/-\?-/g, p) for p in ['-webkit-', '-moz-', '-o-', '-ms-', '']).join '\n'

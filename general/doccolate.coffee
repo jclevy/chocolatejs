@@ -242,7 +242,7 @@ docco_template = template """
         max-width: <%= doc_max_width %>;
         min-width: <%= doc_min_width %>;
         min-height: 5px;
-        padding: 10px 25px 1px 50px;
+        padding: 0px 25px 1px 50px;
         overflow-x: hidden;
         vertical-align: top;
         text-align: left;

@@ -1,6 +1,6 @@
 {
     "name": "chocolate",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "description": "A simple webapp framework built on Node.js using Coffeescript",
     "preferGlobal": "true",
     "keywords": ["coffeescript", "framework", "online", "ide", "web", "app", "coffeekup", "jasmine", "ace", "mootools", "docco", "git", "impress"],
@@ -17,6 +17,6 @@
         "chokidar": "0.6.2",
         "sqlite3": "2.1.7"
     },
-    "engines": { "node": "*" },
+    "engines": { "node": ">=0.10.0" },
     "os" : [ "!win32" ]
 }

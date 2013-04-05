@@ -9,6 +9,7 @@ else
     mkdir $1/general
     mkdir $1/server
     mkdir $1/data
+    mkdir $1/static
     echo -e "exports.interface = () -> \n    ''" > $1/default.coffee
     echo {\"by\": {\"id\":{}, \"root\":[], \"Priority\":{}, \"Scope\":{}, \"Action\":{}, \"Intention\":{}, \"Wish\":{}, \"Need\":{}, \"Share\":{}}} > $1/data/newnotes_data.json
     openssl genrsa -out $1/data/privatekey.pem 1024 

@@ -51,6 +51,10 @@ Chocolate integrates :
 
 &nbsp;
 
+## Demo
+
+There is a non-writable demo at : <https://demo.chocolatejs.org/>
+
 ## Installation
 
 This procedure was tested as **root** on Debian 6.0
@@ -153,10 +157,10 @@ Answer asked questions to create a self-signed SSL certificate.
         check host nodejs with address 127.0.0.1
             start program = "/sbin/start chocolate"
             stop program = "/sbin/stop chocolate"
-                if failed port 8026 type TCPSSL protocol HTTP
-                    request /
-                    with timeout 10 seconds
-                    then restart
+            if failed port 8026 type TCPSSL protocol HTTP
+                request /
+                with timeout 10 seconds
+                then restart
          
      # unless it it's configured
      # please configure monit and then edit /etc/default/monit
@@ -190,6 +194,10 @@ You can change port number in /etc/init/chocolate.conf where you add the **port*
 
     exec sudo -u chocolate -i /usr/local/lib/node_modules/coffee-script/bin/coffee /usr/local/lib/node_modules/chocolate/server/monitor.coffee /home/chocolate/myapp 80 2>&1 >> /var/log/node.log
 
+You can also use a simple Http server by specifying options in the config.coffee file:
+
+    exports.http_only = yes
+    exports.port = 80
 
 ### Log on
 
@@ -239,9 +247,18 @@ Requests to Chocolate server follow theses rules (the Locco protocol):
 
 **https**
 
+By default, Chocolate uses Https:
+
 Http requests are redirected to https  
 Https server is located (by default) at port 8026  
 Http server is located at port Https+1 (8027)
+
+You can specify options in data/config.coffee file:
+
+    exports.http_only = yes or no
+    exports.port = <main port number>
+    exports.key = <key filename>
+    exports.cert = <cert filename>
 
 **Chocolate system services and files**
 
@@ -276,7 +293,7 @@ returns a web page with
 - **`so`** indicates the action type.
 
     - **`do`**:  execute an exported function in source file  
-        - parameters can be specified by position: 
+        - parameters can be specified by name or by position
     - **`move`**: 
         - if **`what`** is specified:  
         move **`what`** file's content to **`where`** file  
@@ -417,20 +434,7 @@ Copy the following code in the Chocokup Lab with the Dom panel:
         for i in [0..3] 
           button "#{i}"
 
-And you will see:
-
-<style>.readme_demobox {position:relative;width:400px;height:200px;background-color:white;border:3px grey groove;}</style><style>.readme_demobox .service.horizontal {width: 20%;}</style><style>.readme_demobox .center, .readme_demobox .middle {background-color:rgba(0,0,0,0.025);color:inherit;}</style><style>.readme_demobox .right, .readme_demobox .bottom {background-color:rgba(0,0,0,0.05);color:inherit;}</style><style>.readme_demobox .header, .readme_demobox .footer {background-color:rgba(0,0,0,0.1);color:inherit;}</style><style>.readme_demobox .space {position: absolute;left: 0;top: 0;right: 0;bottom: 0;width: auto;height: auto;overflow: hidden;}</style><style>.readme_demobox .header {position: absolute;height:32px;width:100%;overflow:hidden;top: 0px;bottom: auto;text-align:center;line-height: 32px;}</style><style>.readme_demobox .body {overflow:auto;-webkit-overflow-scrolling:touch;top:32px;bottom:32px;position:absolute;}</style><style>.readme_demobox .footer {position: absolute;height:32px;width:100%;overflow:hidden;top: auto;bottom: 0px;text-align:center;line-height: 32px;}</style<style>.readme_demobox .service.horizontal {width: 20%;}</style><style>.readme_demobox .served.horizontal {left: 20%;width: 60%;right: 20%;}</style><style>.readme_demobox .left {left: 0;right: auto;}</style><style>.readme_demobox .right {left: auto;right: 0;}</style>                      
-<div style="position:relative;width:200px;height:200px;background-color:white;">
-<div class="readme_demobox">
-<div class="space">
-<div class="space header">header</div>
-<div class="space footer">footer</div>
-<div class="space body">
-<button ijax-ui-type="button">0</button><button ijax-ui-type="button">1</button><button ijax-ui-type="button">2</button><button ijax-ui-type="button">3</button>
-</div>
-</div>
-</div>
-</div>
+And see...
 
 Then change **[0.\.3]** to **[0.\.6]** and see the result...
 
@@ -469,13 +473,13 @@ If you write a module that runs on server, you can create functions that you can
     exports.say_hello = (who = 'you', where = 'Paris') ->
         'hello ' + who + ' in ' + where
 
-This function can be call like this:
+This function can be called like this:
 
-`https://myserver/mymodule?say_hello` and display `hello you in Paris`
-`https://myserver/mymodule?say_hello&me` and display `hello me in Paris`
-`https://myserver/mymodule?say_hello&me&London` and display `hello me in London`
-`https://myserver/mymodule?say_hello&where=Madrid` and display `hello you in Madrid`
-`https://myserver/mymodule?say_hello&who=me&where=Madrid` and display `hello me in Madrid`
+`https://myserver/mymodule?say_hello` and display `hello you in Paris`  
+`https://myserver/mymodule?say_hello&me` and display `hello me in Paris`  
+`https://myserver/mymodule?say_hello&me&London` and display `hello me in London`  
+`https://myserver/mymodule?say_hello&where=Madrid` and display `hello you in Madrid`  
+`https://myserver/mymodule?say_hello&who=me&where=Madrid` and display `hello me in Madrid`  
     
 &nbsp;
 
@@ -517,17 +521,7 @@ which translates into:
       </div>
     </div>
     
-and displays as :
-
-<div style="position:relative;width:200px;height:200px;background-color:white;">
-<div class="readme_demobox">
-<div class="space">
-<div class="space service horizontal left"><div class="space">aside left</div></div>
-<div class="space service horizontal served center"><div class="space">main</div></div>
-<div class="space service horizontal right"><div class="space">aside right</div></div>
-</div>
-</div>
-</div>
+and displays as a main panel with a left and a right service panels.
 
 &nbsp;
 

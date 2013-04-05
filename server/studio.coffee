@@ -1034,6 +1034,10 @@ exports.enter = (__) ->
                             
             _ide.run_doccolate = ->
                 document.id('documentation-doccolate-panel').set 'html', if sources.current isnt '' then Doccolate.generate sources.current, editor.getSession().getValue() else ''
+            
+            _ide.error_message = (error) ->
+                line = if (info = error.location)? then '\n' + "at line:" + info.first_line + ", column:" + info.first_column + " (Coffeescript)" else ''
+                error + line
                 
             _ide.run_code = ->
                 selection = editor.getSelectionRange()
@@ -1046,7 +1050,7 @@ exports.enter = (__) ->
                     compiled = CoffeeScript.compile code
                     result = eval compiled
                 catch error
-                    result = error
+                    result = _ide.error_message error
                 
                 _ide.toggleMainPanel 'shared' unless document.id('toggle-shared').hasClass 'selected'
                 experiment_editor.focus()
@@ -1245,7 +1249,8 @@ exports.enter = (__) ->
                         orig_compiled = CoffeeScript.compile source, bare: true
                         document.id('experiment-js-panel').set 'html', Highlight.highlight('javascript', orig_compiled).value
                     catch e
-                        result = error = e
+                        error = e
+                        result = _ide.error_message error
                     
                     unless error?
                         try
@@ -1255,7 +1260,8 @@ exports.enter = (__) ->
                             else result = eval orig_compiled
                             document.id('experiment-debug-panel').removeClass('hilite-error').set 'html', __debug__display__evals__()
                         catch e
-                            result = error = e
+                            error = e
+                            result = _ide.error_message error
                             document.id('experiment-debug-panel').addClass('hilite-error') #.set 'text', error.stack + '\n\ndebugged : \n' + debugged + '\n\ncompiled : \n' + compiled
                         
                 document.id('experiment-run-panel').set 'text', result
@@ -1314,6 +1320,8 @@ exports.enter = (__) ->
                 setTimeout _ide.keep_uptodate, _ide.refresh_rate
                     
             window.addEvent 'domready', ->
+                Request.implement processScripts: (text) -> text
+                        
                 CoffeeScriptMode = require('ace/mode/coffee').Mode                    
                 coffeescriptMode = new CoffeeScriptMode()
                 
@@ -1332,12 +1340,15 @@ exports.enter = (__) ->
                 
                 experiment_editor = set_editor 'experiment-coffeescript-panel-editor'
                 experiment_editor.renderer.setShowGutter false
+
+                Acelang = require("ace/lib/lang")
                 experiment_editor.getSession().on 'change', ->
-                    _ide.compile_coffeescript_code()
+                    Acelang.delayedCall(_ide.compile_coffeescript_code).schedule 200
+                    
 
                 chocokup_editor = set_editor 'experiment-chocokup-panel-editor'
                 chocokup_editor.getSession().on 'change', ->
-                    _ide.compile_chocokup_code()                    
+                    Acelang.delayedCall(_ide.compile_chocokup_code).schedule 200
 
                 specolate_editor = set_editor 'specolate-panel-editor'
                 specolate_editor.getSession().on 'change', ->

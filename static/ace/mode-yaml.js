@@ -47,7 +47,9 @@ oop.inherits(Mode, TextMode);
 
 (function() {
 
-     this.getNextLineIndent = function(state, line, tab) {
+    this.lineCommentStart = "#";
+    
+    this.getNextLineIndent = function(state, line, tab) {
         var indent = this.$getIndent(line);
 
         if (state == "start") {
@@ -191,12 +193,7 @@ var MatchingBraceOutdent = function() {};
     };
 
     this.$getIndent = function(line) {
-        var match = line.match(/^(\s+)/);
-        if (match) {
-            return match[1];
-        }
-
-        return "";
+        return line.match(/^\s*/)[0];
     };
 
 }).call(MatchingBraceOutdent.prototype);
