@@ -177,12 +177,21 @@ class Chocokup
 
     render: (options) ->
         locals = options?.locals ? {}
+        if @params?.locals? 
+            locals[k] = v for k,v of @params.locals 
+            delete @params.locals
         locals = { locals } if Object.prototype.toString.apply(locals) isnt '[object Object]'
         locals.backdoor_key = options?.backdoor_key
+        
+        helpers = Chocokup.helpers
+        if @params?.helpers? 
+            helpers[k] = v for k,v of @params.helpers 
+            delete @params.helpers
+        
         format = options?.format ? true
-        content_html = Coffeekup.render @content, panel_index : 1, webcontrol_index : 0, proportion : 'none', orientation : 'none', hardcode : Chocokup.helpers, params : @params, format : format, locals : locals
-        body_html = Coffeekup.render @body_template, content : content_html, title : @title, panel_index : 1, proportion : 'none', orientation : 'none', hardcode : Chocokup.helpers, params : @params, format : format, locals : locals
-        head_html = Coffeekup.render @head_template,  body :  body_html, title : @title, panel_index : 1, proportion : 'none', orientation : 'none', hardcode : Chocokup.helpers, params : @params, format : format, locals : locals
+        content_html = Coffeekup.render @content, panel_index : 1, webcontrol_index : 0, proportion : 'none', orientation : 'none', hardcode : helpers, params : @params, format : format, locals : locals
+        body_html = Coffeekup.render @body_template, content : content_html, title : @title, panel_index : 1, proportion : 'none', orientation : 'none', hardcode : helpers, params : @params, format : format, locals : locals
+        head_html = Coffeekup.render @head_template,  body :  body_html, title : @title, panel_index : 1, proportion : 'none', orientation : 'none', hardcode : helpers, params : @params, format : format, locals : locals
         if head_html is undefined then 'None' else '' + head_html
 
 class Chocokup.Document extends Chocokup
@@ -480,6 +489,50 @@ class Chocokup.Panel extends Chocokup
     constructor: (@params, @content) ->
         super @params, @content
         @params = {} unless @params?
+
+Chocokup.Kups =
+    Tablet: ->
+        style """
+        .chocoblack {
+            background-color: #241A15;
+            border: 1px solid #080401;
+            -webkit-box-shadow: inset 0 0 15px #080401;
+            -moz-box-shadow: inset 0 0 15px #080401;
+            -o-box-shadow: inset 0 0 15px #080401;
+            box-shadow: inset 0 0 15px #080401;           
+        }
+        .chocomilk {
+            background-color:rgb(245, 242, 232);
+            border: 2px solid rgba(255, 204, 0, 0.3);
+            color: rgb(92, 75, 68);
+        }
+        .frame.chocomilk.round {
+            -webkit-box-shadow: inset 0 0 20px #080401;
+            -moz-box-shadow: inset 0 0 20px #080401;
+            -o-box-shadow: inset 0 0 20px #080401;
+            box-shadow: inset 0 0 20px #080401;    
+        } 
+        """
+        
+        panel "#.chocoblack", proportion:'third', ->
+            panel ->
+                panel proportion:'third', orientation: 'vertical', ->
+                    panel -> box "#.chocoblack", ""
+                    panel -> box "#.chocoblack", ""
+                    panel -> box "#.chocoblack", ""
+            panel ->
+                panel proportion:'third', orientation: 'vertical', ->
+                    panel -> box "#.chocoblack", ""
+                    panel ->
+                        box "#.chocomilk.round", ->
+                            table '#.fullscreen.expand', -> 
+                                td style:'text-align:center;vertical-align:middle;', -> kup()
+                    panel -> box "#.chocoblack", ""
+            panel ->
+                panel proportion:'third', orientation: 'vertical', ->
+                    panel -> box "#.chocoblack", ""
+                    panel -> box "#.chocoblack", ""
+                    panel -> box "#.chocoblack", ""
 
 class Chocokup.Css
     @prefix = (css) -> (css.replace(/-\?-/g, p) for p in ['-webkit-', '-moz-', '-o-', '-ms-', '']).join '\n'

@@ -268,22 +268,39 @@
     };
 
     Chocokup.prototype.render = function(options) {
-      var body_html, content_html, format, head_html, locals, _ref, _ref1;
+      var body_html, content_html, format, head_html, helpers, k, locals, v, _ref, _ref1, _ref2, _ref3, _ref4, _ref5;
 
       locals = (_ref = options != null ? options.locals : void 0) != null ? _ref : {};
+      if (((_ref1 = this.params) != null ? _ref1.locals : void 0) != null) {
+        _ref2 = this.params.locals;
+        for (k in _ref2) {
+          v = _ref2[k];
+          locals[k] = v;
+        }
+        delete this.params.locals;
+      }
       if (Object.prototype.toString.apply(locals) !== '[object Object]') {
         locals = {
           locals: locals
         };
       }
       locals.backdoor_key = options != null ? options.backdoor_key : void 0;
-      format = (_ref1 = options != null ? options.format : void 0) != null ? _ref1 : true;
+      helpers = Chocokup.helpers;
+      if (((_ref3 = this.params) != null ? _ref3.helpers : void 0) != null) {
+        _ref4 = this.params.helpers;
+        for (k in _ref4) {
+          v = _ref4[k];
+          helpers[k] = v;
+        }
+        delete this.params.helpers;
+      }
+      format = (_ref5 = options != null ? options.format : void 0) != null ? _ref5 : true;
       content_html = Coffeekup.render(this.content, {
         panel_index: 1,
         webcontrol_index: 0,
         proportion: 'none',
         orientation: 'none',
-        hardcode: Chocokup.helpers,
+        hardcode: helpers,
         params: this.params,
         format: format,
         locals: locals
@@ -294,7 +311,7 @@
         panel_index: 1,
         proportion: 'none',
         orientation: 'none',
-        hardcode: Chocokup.helpers,
+        hardcode: helpers,
         params: this.params,
         format: format,
         locals: locals
@@ -305,7 +322,7 @@
         panel_index: 1,
         proportion: 'none',
         orientation: 'none',
-        hardcode: Chocokup.helpers,
+        hardcode: helpers,
         params: this.params,
         format: format,
         locals: locals
@@ -382,6 +399,72 @@
     return Panel;
 
   })(Chocokup);
+
+  Chocokup.Kups = {
+    Tablet: function() {
+      style(".chocoblack {\n    background-color: #241A15;\n    border: 1px solid #080401;\n    -webkit-box-shadow: inset 0 0 15px #080401;\n    -moz-box-shadow: inset 0 0 15px #080401;\n    -o-box-shadow: inset 0 0 15px #080401;\n    box-shadow: inset 0 0 15px #080401;           \n}\n.chocomilk {\n    background-color:rgb(245, 242, 232);\n    border: 2px solid rgba(255, 204, 0, 0.3);\n    color: rgb(92, 75, 68);\n}\n.frame.chocomilk.round {\n    -webkit-box-shadow: inset 0 0 20px #080401;\n    -moz-box-shadow: inset 0 0 20px #080401;\n    -o-box-shadow: inset 0 0 20px #080401;\n    box-shadow: inset 0 0 20px #080401;    \n} ");
+      return panel("#.chocoblack", {
+        proportion: 'third'
+      }, function() {
+        panel(function() {
+          return panel({
+            proportion: 'third',
+            orientation: 'vertical'
+          }, function() {
+            panel(function() {
+              return box("#.chocoblack", "");
+            });
+            panel(function() {
+              return box("#.chocoblack", "");
+            });
+            return panel(function() {
+              return box("#.chocoblack", "");
+            });
+          });
+        });
+        panel(function() {
+          return panel({
+            proportion: 'third',
+            orientation: 'vertical'
+          }, function() {
+            panel(function() {
+              return box("#.chocoblack", "");
+            });
+            panel(function() {
+              return box("#.chocomilk.round", function() {
+                return table('#.fullscreen.expand', function() {
+                  return td({
+                    style: 'text-align:center;vertical-align:middle;'
+                  }, function() {
+                    return kup();
+                  });
+                });
+              });
+            });
+            return panel(function() {
+              return box("#.chocoblack", "");
+            });
+          });
+        });
+        return panel(function() {
+          return panel({
+            proportion: 'third',
+            orientation: 'vertical'
+          }, function() {
+            panel(function() {
+              return box("#.chocoblack", "");
+            });
+            panel(function() {
+              return box("#.chocoblack", "");
+            });
+            return panel(function() {
+              return box("#.chocoblack", "");
+            });
+          });
+        });
+      });
+    }
+  };
 
   Chocokup.Css = (function() {
     function Css() {}

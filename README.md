@@ -51,6 +51,30 @@ Chocolate integrates :
 
 &nbsp;
 
+## Version
+
+Chocolate v0.0.3 - 2013/04/19
+
+NEW FEATURES
+
+- Html support added in Studio
+- Nice interface to register/unregister access keys
+- Make Chocokup playgroud/sanbox independant in an iFrame
+- Make Git history follow files renames
+- Add file Rename/Delete services
+
+FIXED BUGS
+
+- make Http only Chocolate server really work!
+- make ?how=edit use file type to set correct Ace language parser
+- files could not be saved in static folder - static was only available to read file
+- locals variable can be declared in Chocokup param and not only in Chocokup.render
+- helpers variable can be declared in Chocokup to  provides helpers functions or sub-templates to a main template
+- clear Coffeescript JS panel when ther is an error
+- added __ parameter documentation
+
+See history in **CHANGELOG.md** file
+
 ## Demo
 
 There is a non-writable demo at : <https://demo.chocolatejs.org/>
@@ -446,7 +470,7 @@ You can create a module by pressing the `Create` button.
 It will create a module with the name you provide in the currently displayed folder.
 If you dont put a suffix the the filename, it will create a Coffescript file with .coffee suffix.
 
-Supported file types are: .coffee, .js, .css, .md
+Supported file types are: .coffee, .js, .html, .css, .md
 
 If you have asset files you want to be downloadable from the web (like images or js libraries), 
 put them in the `/static` folder.
@@ -468,7 +492,16 @@ If you create a general module (that can work on server and in browser), you wil
     _module = window ? module
     _module.exports = MyGeneralModule
 
-If you write a module that runs on server, you can create functions that you can call directly from the browser like this:
+The exported function `interface`, if present in your module, is used to return an HTML content if someone calls that module with no parameter:
+
+i.e., in module `mymodule.coffee`:
+
+    exports.interface = ->
+        '<div>Hello</div>'
+
+Will display `Hello` when called with `https://myserver/mymodule`
+
+You can write module that runs on server with functions that you can call directly from the browser like this:
 
     exports.say_hello = (who = 'you', where = 'Paris') ->
         'hello ' + who + ' in ' + where
@@ -480,7 +513,19 @@ This function can be called like this:
 `https://myserver/mymodule?say_hello&me&London` and display `hello me in London`  
 `https://myserver/mymodule?say_hello&where=Madrid` and display `hello you in Madrid`  
 `https://myserver/mymodule?say_hello&who=me&where=Madrid` and display `hello me in Madrid`  
-    
+
+Those function can declare a system parameter `__` which contains:
+
+      .appdir: application directory
+      .datadir: application data directory
+      .request: HTTP request object
+      .response: HTTP response object
+
+i.e.:
+
+    exports.check_appdir = (__) ->
+        "Application directory is:" + __.appdir
+
 &nbsp;
 
 ## Chocokup

@@ -105,18 +105,20 @@ class World
 
         # Https security options
         options = unless config.http_only
-                key: Fs.readFileSync datadir + '/' + key
-                cert: Fs.readFileSync datadir + '/' + cert
+                [
+                    key: Fs.readFileSync datadir + '/' + key
+                    cert: Fs.readFileSync datadir + '/' + cert
+                ]
             else
-                {}
+                []
                 
         network = if config.http_only then Http else Https
-            
+
         # We create an Https or Http server
         #
         # It will receive an [HttpRequest](http://nodejs.org/docs/latest/api/all.html#http.ServerRequest)
         # and fills an [HttpResponse](http://nodejs.org/docs/latest/api/all.html#http.ServerResponse)
-        server = network.createServer options, (request, response) ->
+        server = network.createServer.apply network, options.concat (request, response) ->
             # If Node.js crashes unexpectedly, we will receive an `uncaughtException` and log it in a file
             process.on 'uncaughtException', (err) ->
                 Fs.createWriteStream(datadir + '/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
@@ -165,7 +167,7 @@ class World
                 backdoor_key = if path[1] is '!' then path[2] else ''
                 where_index = 1 + if backdoor_key isnt '' then 2 else 0
                 where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
-                region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' then 'static' else 'app'
+                region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' and url.search is '' then 'static' else 'app'
                 where = where_path.join '/'
                 
                 session = sessions.get(request)

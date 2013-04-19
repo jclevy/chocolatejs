@@ -57,9 +57,9 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                     result = '<?xml version="1.0" encoding="iso-8859-1"?>\n' + result
                     
                 # Defaults to Unicode
-                if result.indexOf('</head>') > 0
+                if result.indexOf?('</head>') > 0
                     result = result.replace('</head>', '<meta http-equiv="content-type" content="text/html; charset=utf-8" /></head>')
-                else if result.indexOf('<body') > 0
+                else if result.indexOf?('<body') > 0
                     result = result.replace('<body', '<head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body')
                 else
                     result = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + result + '</body></html>'
@@ -131,12 +131,12 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                             respondStatic 200, headers, file
                         
             check_in_appdir = ->
-                if appdir isnt '.'
-                    required = Path.resolve appdir + '/' +  where
-                    if required.indexOf(Path.resolve(appdir) + '/static') is 0
-                        return Fs.exists required, (exists) ->
-                            if exists then returns required
-                            else returns_empty()
+                appdir_ = if appdir is '.' then 'www' else appdir
+                required = Path.resolve appdir_ + '/' +  where
+                if required.indexOf(Path.resolve(appdir_) + '/static') is 0
+                    return Fs.exists required, (exists) ->
+                        if exists then returns required
+                        else returns_empty()
                         
                 returns_empty()
             
@@ -219,6 +219,8 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             # Take care of the `move` action
             when 'move'
                 respondOnMoveFile = ->
+                    return respond '' if where is ''
+                    
                     File.getModifiedDate(where, {appdir}).on 'end', (modifiedDate) ->
                         respond if modifiedDate? then '' + modifiedDate else ''
                         
@@ -263,7 +265,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                        else args.push params[ '__' + args_index++ ]
 
                 produced = method args...
-
+                
                 if produced instanceof Events.EventEmitter
                     produced.on 'end', (answer) ->
                         respond answer
@@ -290,8 +292,17 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
 #### Key registration
 # `registerKey` provides a UI to register a system key in browser session cache
 exports.register_key = (__) ->
+    enter_kup = ->
+        form method:"post", ->
+            text "Enter your Key : "
+            input name:"key", type:"password"
+            
+    entered_kup = ->
+        text 'Key registered'
+    
     if __.request.method isnt 'POST'
-        '<form method="post">Enter your Key : <input name="key" type="password"></form>'
+        new Chocokup.Document 'Key registration', helpers:{kup:enter_kup}, Chocokup.Kups.Tablet
+
     else
         event = new Events.EventEmitter
 
@@ -303,17 +314,25 @@ exports.register_key = (__) ->
 
             __.session.keys.push Crypto.createHash('sha256').update(fields.key).digest('hex')
             
-            event.emit 'end', 'Key registered'
+            event.emit 'end', new Chocokup.Document 'Key registration', helpers:{kup:entered_kup}, Chocokup.Kups.Tablet
         
         event
 
 # `forgetKey` provides a UI to clear keys from browser session cache
 exports.forget_key = (__) ->
+    forget_kup = ->
+        form method:"post", ->
+            input name:"action", type:"submit", value:"Logoff"
+
+    forgeted_kup = ->
+        text 'Keys forgotten'
+    
+
     if __.request.method isnt 'POST'
-        '<form method="post"><input name="action" type="submit" value="Logoff"></form>'
+        new Chocokup.Document 'Key unregistration', helpers:{kup:forget_kup}, Chocokup.Kups.Tablet
     else
         __.session.keys = []
-        'Keys forgotten'
+        new Chocokup.Document 'Key unregistration', helpers:{kup:forgeted_kup}, Chocokup.Kups.Tablet
             
 
 

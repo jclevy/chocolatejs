@@ -120,6 +120,9 @@ exports.enter = (__) ->
             .hilite-error {
                 color: red;
             }
+            .padded {
+                padding: 8px;
+            }
 
             table.debug td {
                 padding:0px;
@@ -183,6 +186,7 @@ exports.enter = (__) ->
         script src:"/static/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ijax/doccolate.js", type:"text/javascript", charset:"utf-8"
@@ -202,14 +206,13 @@ exports.enter = (__) ->
                     panel '#main-panel', proportion:'served', ->
                         panel ->
                             footer ->
-                                panel proportion:'third', ->
+                                panel proportion:'half', ->
                                     box -> a '#do-git-commit', href:"#", onclick:"_ide.commit_to_git();", -> 'Commit'    
                                     box -> a '#do-file-create', href:"#", onclick:"_ide.create_file();", -> 'Create'    
-                                    box -> a '#do-file-move', href:"#", onclick:"_ide.move_file();", -> 'Move'
                             body ->
                                 panel proportion:'third', orientation:'vertical', ->
                                     panel ->
-                                        header -> box -> 'Opened files'
+                                        header -> box 'Opened files'
                                         body ->
                                             box '#.chocoblack.round', -> body '#open_files_list', ''
                                     panel -> 
@@ -230,7 +233,12 @@ exports.enter = (__) ->
                                                         span '#current_dir', ->
                                                     div '#dir_content', style:'margin-left:4px;', ->
                                     panel ->
-                                        header -> box -> 'Log'
+                                        header -> box 'Log'
+                                        footer ->
+                                            panel proportion:'third', ->
+                                                box -> a '#do-file-move', href:"#", onclick:"_ide.move_file();", -> 'Move'
+                                                box -> a '#do-file-rename', href:"#", onclick:"_ide.rename_file();", -> 'Rename'    
+                                                box -> a '#do-file-delete', href:"#", onclick:"_ide.delete_file();", -> 'Delete'
                                         body ->
                                             panel '#studio-messages-panel', -> 
                                                 box '#.chocoblack.round', -> body '#studio-messages', ->
@@ -278,7 +286,7 @@ exports.enter = (__) ->
                                                             panel '#experiment-html-panel-main', -> 
                                                                 box '#.white.round', -> body '#experiment-html-panel.source-code', ->
                                                             panel '#experiment-dom-panel-main.hidden', -> 
-                                                                box '#.white.round', -> body '#experiment-dom-panel', ->
+                                                                box '#.white.round', -> panel '#.padded', -> iframe '#experiment-dom-panel.expand.fullscreen.white-background', frameborder:'0', ->
                                             panel -> box '#.grey.round', -> body '#experiment-run-panel.source-code', ''
                                         panel '#documentation-panel.hidden', -> 
                                             box '#.chocomilk.round', -> body '#documentation-doccolate-panel', ->
@@ -305,13 +313,13 @@ exports.enter = (__) ->
                                     box -> a '#toggle-help', href:"#", onclick:"_ide.toggleServicesPanel('help');", -> 'Help'                                
                             body ->
                                 panel '#git-panel', ->
-                                        panel proportion:'half', orientation:'vertical', ->
-                                            panel '#git-code.expand', ->
-                                                box '#.chocoblack.round', -> body '#code-git-history', ->
-                                            panel '#git-spec.shrink', ->
-                                                header -> box -> 'Spec'
-                                                body ->
-                                                    box '#.chocoblack.round', -> body '#spec-git-history', ->
+                                    panel proportion:'half', orientation:'vertical', ->
+                                        panel '#git-code.expand', ->
+                                            box '#.chocoblack.round', -> body '#code-git-history', ->
+                                        panel '#git-spec.shrink', ->
+                                            header -> box -> 'Spec'
+                                            body ->
+                                                box '#.chocoblack.round', -> body '#spec-git-history', ->
                                 panel '#notes-panel.hidden', ''
 
                                 panel '#help-panel.hidden', ->
@@ -469,7 +477,7 @@ exports.enter = (__) ->
                         rel_new_dir = if new_dir is '.' then '' else new_dir + '/'
                         sources.available = {}
                         content = ["""<div><a href="#" onclick="javascript:_ide.goto_dir('#{parent_dir}');">..</a></div>""" if new_dir isnt '.']
-                        for item in directory when item.name[0] isnt '.' and (item.isDir or item.extension in ['.coffee', '.css', '.js', '.json', '.txt', '.markdown', '.md'])
+                        for item in directory when item.name[0] isnt '.' and (item.isDir or item.extension in ['.coffee', '.css', '.js', '.json', '.html', '.txt', '.markdown', '.md'])
                             unless _ide.is_spec_file item.name
                                 content.push ('<div>' + """<a href="#" onclick="javascript:#{if item.isDir then '_ide.goto_dir' else '_ide.open_file'}('#{(if new_dir isnt '.' then (new_dir + '/') else '') + item.name}');">#{item.name}</a>""" + '</div>')
                             else sources.available[rel_new_dir + item.name.replace '.spec', ''].has_spec_file = true
@@ -522,6 +530,7 @@ exports.enter = (__) ->
             _ide.display_spec_file = (path, overwrite) ->
                 # Load spec file in editor if present
                 item = sources.specs[path]
+                unless item? then path = ''
                 specolate_editor.setSession if path is '' then _ide.create_session '' else item.doc
                 document.id('specolate-result-panel').set 'text', if path is '' or item.spec_run_result is undefined then '' else item.spec_run_result.join '\n'
                 _ide.on_file_status_changed yes
@@ -535,6 +544,7 @@ exports.enter = (__) ->
                     when '.js' then 'javascript'
                     when '.json' then 'javascript'
                     when '.css' then 'css'
+                    when '.html' then 'html'
                     when '.txt' then 'text'
                     when '.markdown', '.md' then 'markdown'
                     else 'coffee'
@@ -611,6 +621,55 @@ exports.enter = (__) ->
                         _ide.goto_dir cur_dir, ->
                             _ide.open_file "#{cur_dir}/#{filename}"
                             _ide.display_message translate "File /#{cur_dir}/#{filename} was moved to /#{cur_dir}"
+
+            _ide.rename_file = ->
+                cur_dir = _ide.get_current_dir()
+                filename = previous_filename = _ide.get_basename sources.current
+                    
+                if filename is '' or not _ide.will_close_file sources.current then return
+                
+                rename_one = (source, dest, callback) ->
+                    new Request
+                        url: (if sofkey? then '/!/' + sofkey else '') + "/-/#{dest}?so=move&what=#{source}&how=raw"
+                        onSuccess: (responseText) -> callback?()
+                        onFailure: (xhr) -> _ide.display_message "Error with _ide.rename_file.rename_one() : #{xhr.status}"
+                    .get()
+
+                if filename = prompt translate("Current file is /#{sources.current}") + '\n\n' + translate "Enter a new filename"
+                    if _ide.get_extension(filename) is '' then filename += '.coffee'
+                    source = sources.current
+                    dest = cur_dir + '/' + filename
+                    
+                    if _ide.has_spec_file source then rename_one _ide.get_spec_filename(source), _ide.get_spec_filename(dest)
+                    
+                    rename_one source, dest, ->
+                        _ide.close_file sources.current, yes
+                        _ide.goto_dir cur_dir, ->
+                            _ide.open_file "#{cur_dir}/#{filename}"
+                            _ide.display_message translate "File /#{cur_dir}/#{previous_filename} was renamed to /#{filename}"
+
+            _ide.delete_file = ->
+                cur_dir = _ide.get_current_dir()
+                filename = _ide.get_basename sources.current
+                
+                if filename is '' or not _ide.will_close_file sources.current then return
+                
+                delete_one = (source, callback) ->
+                    new Request
+                        url: (if sofkey? then '/!/' + sofkey else '') + "/-/?so=move&what=#{source}&how=raw"
+                        onSuccess: (responseText) -> callback?()
+                        onFailure: (xhr) -> _ide.display_message "Error with _ide.delete_file.delete_one() : #{xhr.status}"
+                    .get()
+                    
+                if confirm translate("Current file is /#{sources.current}") + '\n\n' + translate "Confirm that you want to DELETE this file"
+                    source = sources.current
+                    
+                    if _ide.has_spec_file source then delete_one _ide.get_spec_filename(source)
+                    
+                    delete_one source, ->
+                        _ide.close_file sources.current, yes
+                        _ide.goto_dir cur_dir, ->
+                            _ide.display_message translate "File /#{cur_dir}/#{filename} was deleted"
 
             _ide.open_file = (path, with_spec_file) ->
                 if sources.isOpening then return
@@ -751,9 +810,9 @@ exports.enter = (__) ->
                 if path is '' then return
 
                 add_element = (item, history) ->
-                    new Element('div').adopt([new Element('div', html:item.source + ' - ' + item.date.toString('dd/MM/yyyy HH:mm:ss')) , new Element('div', style:'margin-left:16px;margin-bottom:8px;', html:"""<a href="#" onclick="_ide.load_file_from_git_history('#{item.sha}', #{item.is_spec})">#{item.message}</a>""")]).inject history, 'bottom'
+                    new Element('div').adopt([new Element('div', html:item.source + ' - ' + item.date.toString('dd/MM/yyyy HH:mm:ss')) , new Element('div', style:'margin-left:16px;margin-bottom:8px;', html:"""<a href="#" onclick="_ide.load_file_from_git_history('#{item.sha}', #{item.is_spec}, '#{item.name.renamed ? item.name.original}')">#{item.message}</a>""")]).inject history, 'bottom'
 
-                add_element {source:translate('local'), is_spec:no, date:new Date(sources.codes[sources.current].modifiedDate), sha:'', message:translate 'Last saved version' }, code_git_history
+                add_element {source:translate('local'), is_spec:no, date:new Date(sources.codes[sources.current].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:path} }, code_git_history
                 
                 new Request.JSON
                     url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=getAvailableCommits&path=' + path + '&how=raw'
@@ -763,7 +822,7 @@ exports.enter = (__) ->
                         if not _ide.has_spec_file sources.current then return
                         
                         spec_filename = _ide.get_spec_filename path
-                        add_element {source:translate('local'), is_spec:yes, date:new Date(sources.specs[spec_filename].modifiedDate), sha:'', message:translate 'Last saved version' }, spec_git_history
+                        add_element {source:translate('local'), is_spec:yes, date:new Date(sources.specs[spec_filename].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:spec_filename} }, spec_git_history
                         
                         new Request.JSON
                             url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=getAvailableCommits&path=' + spec_filename + '&how=raw'
@@ -778,13 +837,12 @@ exports.enter = (__) ->
                         _ide.display_message "Error with _ide.get_file_git_history(#{path}) : #{xhr.status}"
                 .get()
                 
-            _ide.load_file_from_git_history = (sha, is_spec) ->
+            _ide.load_file_from_git_history = (sha, is_spec, path) ->
                 if sources.isOpening then return
                 if not _ide.will_close_file sources.current then return
 
                 sources.isOpening = yes
                 
-                path = sources.current
                 if is_spec then path = _ide.get_spec_filename path
                 
                 if sha is ''
@@ -794,6 +852,7 @@ exports.enter = (__) ->
                 new Request
                     url: url
                     onSuccess: () ->
+                        path = sources.current
                         _ide.load_file path, @response.text, sha isnt ''
                         _ide[unless is_spec then 'display_code_file' else 'display_spec_file'] path, yes
                         
@@ -1243,7 +1302,9 @@ exports.enter = (__) ->
                 result = undefined
                 error = undefined
                 
-                if source.search(/\S/) is -1 then result = ''
+                if source.search(/\S/) is -1 
+                    result = ''
+                    document.id('experiment-js-panel').set 'html', ''
                 else
                     try
                         orig_compiled = CoffeeScript.compile source, bare: true
@@ -1269,12 +1330,10 @@ exports.enter = (__) ->
             _ide.compile_chocokup_code = ->
                 source = chocokup_editor.getSession().getValue()
                 try
-                    result = new Chocokup.Panel(source).render()
-                    document.id('experiment-html-panel').set 'text', result
-                    result.stripScripts (scripts, html) ->
-                        document.id('experiment-dom-panel').set 'html', html
-                        Browser.exec scripts
-                        chocokup_editor.focus()
+                    document.id('experiment-html-panel').set 'text', new Chocokup.Panel(source).render()
+                    iframe = document.id('experiment-dom-panel')
+                    (iframe.contentDocument || iframe.contentWindow.document).documentElement.innerHTML = new Chocokup.Document('Untitled', source).render()
+                    chocokup_editor.focus()
                     document.id('experiment-run-panel').set 'text', ''
                 catch error
                     document.id('experiment-run-panel').set 'text', error
@@ -1348,7 +1407,7 @@ exports.enter = (__) ->
 
                 chocokup_editor = set_editor 'experiment-chocokup-panel-editor'
                 chocokup_editor.getSession().on 'change', ->
-                    Acelang.delayedCall(_ide.compile_chocokup_code).schedule 200
+                    Acelang.delayedCall(_ide.compile_chocokup_code).schedule 350
 
                 specolate_editor = set_editor 'specolate-panel-editor'
                 specolate_editor.getSession().on 'change', ->

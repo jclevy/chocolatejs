@@ -65,7 +65,7 @@ exports.getModifiedDate = (path, __) ->
     
     # Then use the Fs `stat` service to get the file's last modification date
     Fs.stat resource_path, (error, stats) ->
-        return with_error event, '' if error
+        return with_error event, error if error
         event.emit 'end', Date.parse(stats.mtime)
     event
 
@@ -139,16 +139,19 @@ exports.readDirDownSync = (dir, __) ->
 exports.writeToFile = (path, data, __) ->
     event = new Events.EventEmitter
     
+    path = path.trim()
+    if path is '' then process.nextTick(-> with_error event, 'Warning: empty path in writeToFile') ; return event
+    
     normalized_path = normalize(path)
     file_pathname = exports.ensurePathExists normalized_path, __
-    
+
     # Create the file if non existent
-    if not Fs.existsSync file_pathname
+    unless Fs.existsSync file_pathname
         Fs.open file_pathname, 'a', '644', (err, fd) -> 
-            if not err?
+            unless err?
                 Fs.close fd, (err) ->
                     # Add the file in Git index
-                    new Git(cwd:__.appdir).add(normalized_path).on 'close', () ->
+                    new Git(cwd:__?.appdir ? '.').add(normalized_path).on 'close', () ->
                         # Write the file content
                         Fs.writeFile file_pathname, data ? '', (err) ->
                             event.emit 'end', err
@@ -165,21 +168,29 @@ exports.writeToFile = (path, data, __) ->
 # `moveFile` move a file content from a path to another one
 exports.moveFile = (from, to, __) ->
     event = new Events.EventEmitter
+    
+    from = from .trim()
+    to = to.trim()
+    if from is '' then process.nextTick(-> with_error event, 'Warning: empty from in moveFile') ; return event
+    
     curdir = (if __?.appdir then __.appdir + '/' else '')
     from = curdir + normalize from
-    to =  curdir + normalize to
+    to =  curdir + normalize to if to isnt ''
     # If file to move exists
     if Fs.existsSync from
         # Read its content
         Fs.readFile from, (err, data) ->
-            if not err?
+            unless err?
                 # Destroy the original file
                 Fs.unlink from, (err) ->
-                    if not err?
+                    unless err?
                         # Remove it from the Git index
-                        git = new Git cwd:__.appdir
+                        git = new Git cwd:__?.appdir ? '.'
                         handler = git.add u:null, from
                         handler.on 'close', () ->
+                            # Move is a Remove if to is ''
+                            return event.emit 'end', err if to is ''
+                            
                             # Create a file with a new name and the original content
                             handler = exports.writeToFile to, data, __
                             handler.on 'end', (err) ->
@@ -188,6 +199,31 @@ exports.moveFile = (from, to, __) ->
                         event.emit 'end', err
             else
                 event.emit 'end', err
+    else
+        event.emit 'end', 'Source file does not exists'
+    event
+
+#### removeFile
+
+# `removeFile` remove a file
+exports.removeFile = (path, __) ->
+    event = new Events.EventEmitter
+    path = (if __?.appdir then __.appdir + '/' else '') + normalize path
+    # If file to move exists
+    if Fs.existsSync path
+        unless err?
+            # Destroy the original file
+            Fs.unlink path, (err) ->
+                unless err?
+                    # Remove it from the Git index
+                    git = new Git cwd:__?.appdir ? '.'
+                    handler = git.add u:null, path
+                    handler.on 'close', () ->
+                        event.emit 'end', err
+                else
+                    event.emit 'end', err
+        else
+            event.emit 'end', err
     else
         event.emit 'end', 'Source file does not exists'
     event
@@ -210,7 +246,7 @@ exports.grep = (pattern, with_case, show_details, __) ->
     
     event = new Events.EventEmitter
     results = []
-    params = ['-r', '--include', "'*.coffee'", '--include', "'*.js'", '--include', "'*.css'", '--include', "'*.markdown'", '--include', "'*.md'", pattern, __.appdir,]
+    params = ['-r', '--include', "'*.coffee'", '--include', "'*.js'", '--include', "'*.css'", '--include', "'*.markdown'", '--include', "'*.md'", pattern, __?.appdir ? '.',]
     unless with_case then params = ['-i'].concat params
     unless show_details then params = ['-l'].concat params else params = ['-n'].concat params
     
@@ -231,7 +267,7 @@ exports.grep = (pattern, with_case, show_details, __) ->
 # `commitToHistory` commits current system files changes in Git repository 
 exports.commitToHistory = (message, __) ->
     event = new Events.EventEmitter
-    git = new Git cwd:__.appdir
+    git = new Git cwd:__?.appdir ? '.'
     handler = git.commit a:null, m:message
     handler.on 'close', () ->
         event.emit 'end', 'Done'
@@ -259,9 +295,9 @@ exports.loadFromHistory = (commit_sha, path, __) ->
 exports.getAvailableCommits = (path, __) ->
     commits = null
     event = new Events.EventEmitter
-    handler = new Git(cwd:__.appdir).commits(path)
+    handler = new Git(cwd:__?.appdir ? '.').commits(follow:null,'name-status':null, path)
     handler.on 'item', (commit) ->
-        (commits ?= []).push sha:commit.sha, date:commit.author.date, message:commit.message
+        (commits ?= []).push sha:commit.sha, date:commit.author.date, message:commit.message, name:commit.name
     handler.on 'close', ->
         event.emit 'end', commits ? '{}'
             
@@ -323,6 +359,11 @@ clientInterface = ->
             script src:"/static/mootools/mootools-core.js", type:"text/javascript", charset:"utf-8"
             script src:"/static/ace/ace.js", type:"text/javascript", charset:"utf-8"
             script src:"/static/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
             script src:"/static/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
     
             div '#ide', ->
@@ -396,7 +437,7 @@ clientInterface = ->
                             if /^comment/.test(token.type)
                                 return true
                             else 
-                                if not /^text/.test(token.type)
+                                unless /^text/.test(token.type)
                                     return false
                         false
                     
@@ -404,7 +445,7 @@ clientInterface = ->
                         range = editor.selection.getRange()
                         range.start.column = 0; range.start.row = start;
                         range.end.column = editor.session.doc.getLine(end - 1).length; range.end.row = end - 1
-                        if not range.isEmpty() then editor.session.addFold '...', range
+                        unless range.isEmpty() then editor.session.addFold '...', range
                         end + 1
                     
                     if scope is 'full'
@@ -451,6 +492,9 @@ clientInterface = ->
                 
                 _ide.refresh_rate = 2 * 60 * 1000
                 
+                _ide.get_extension = (path) ->
+                        if (path = path.substr(1 + path.indexOf '/')).indexOf('.') is -1 then '' else '.' + path.split('.')[-1..][0]
+                
                 keepUptodate = ->
                     new Request
                         url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=getModifiedDate&path=' + where + '&how=raw'
@@ -465,8 +509,16 @@ clientInterface = ->
                     
                 window.addEvent 'domready', ->
     
-                    CoffeeScriptMode = require('ace/mode/coffee').Mode                    
-                    coffeescriptMode = new CoffeeScriptMode()
+                    mode = 'ace/mode/' + switch _ide.get_extension where ? ''
+                        when '.coffee' then 'coffee'
+                        when '.js' then 'javascript'
+                        when '.json' then 'javascript'
+                        when '.css' then 'css'
+                        when '.html' then 'html'
+                        when '.txt' then 'text'
+                        when '.markdown', '.md' then 'markdown'
+                        else 'coffee'
+                    Mode = require(mode).Mode                    
                     
                     set_editor = (id) ->
                         e = ace.edit id
@@ -475,7 +527,7 @@ clientInterface = ->
                         setTimeout (-> e.setTheme 'ace/theme/coffee'; document.getElementById('ide').style.visibility = 'inherit'), 200
                         e.setShowInvisibles yes
                         
-                        e.getSession().setMode coffeescriptMode
+                        e.getSession().setMode new Mode()
                         e.getSession().setUseSoftTabs true
                         e
                         

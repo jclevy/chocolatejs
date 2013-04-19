@@ -466,6 +466,10 @@ class CommitsParser extends ItemsParser
         [/^\s\s\s\s(.*)/, (match) ->
             @item.message = (@item.message or "") + match[1]
             @item.short_message = @item.message[...80]]
+        [/^[A|C|D|M|R|T|U|X|B][0-9]*\s+(.+)/, (match) ->
+            [ _, filenames ] = match
+            [ original, renamed ] = filenames.split /\s+/ 
+            @item.name = { original, renamed }]
         [/^:(\S+) (\S+) ([0-9a-z]+) ([0-9a-z]+) (.+)\t(.+)/, (match) ->
             [ _, modea, modeb, shaa, shab, status, path ] = match
             (@item.changes ?= {})[path] = { modea, modeb, shaa, shab, status }]
