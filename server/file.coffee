@@ -50,13 +50,23 @@ exports.access = (where, backdoor_key, __) ->
 
 #### Public File services
 
+#### hasWriteAccess
+
+# `hasWriteAccess` checks if we have write access on `appdir`
+exports.hasWriteAccess = (path) ->
+    stats = Fs.statSync Path.resolve (if path? then path else '.')
+        
+    canWrite = (owner, inGroup, mode) ->
+        return  owner and (mode & 0x200) or     # User is owner and owner can write.
+                inGroup and (mode & 0x20) or    # User is in group and group can write.
+                (mode & 0x2)                    # Anyone can write.
+                
+    return 0 isnt canWrite (process.getuid() is stats.uid), (process.getgid() is stats.gid), stats.mode
+    
 #### getModifiedDate
 
 # `getModifiedDate` service receives `where`, a system file path, and returns the given file last modification date
 exports.getModifiedDate = (path, __) ->
-    
-    # Public services can receive parameters as string. Convert if...
-
     event = new Events.EventEmitter
     
     # First, it tries to resolve the `where` parameter to a local path
@@ -252,7 +262,6 @@ exports.grep = (pattern, with_case, show_details, __) ->
     
     command = (['grep'].concat params).join(' ')
     unless show_details then command += " | while read line; do stat -c '%n %Y' $line; done"
-    require('../general/debugate').log 'GREP:' + command
     grep  = require('child_process').exec command
     grep.stdout.on 'data', (data) -> results.push data
     grep.stderr.on 'data', (data) ->

@@ -1,4 +1,22 @@
+## v0.0.4 - (2013-05-03)
+
+--------------
+
+NEW FEATURES
+
+- simplified and enhanced Chocokup use in Chocodown : use `! chocokup` and `#! chocokup` in `code` block to execute Chocokup or to highlight and then execute Chocokup code
+- added JSON output type in Newnotes.Present (`as` parameter can be: paper, impress or json). It helps export Newnotes branches.
+- added `keypass` parameter inconfig.coffee file to enable master key (sofkey) bypass ; enable demonstration mode when used with access restriction on files
+
+FIXED BUGS
+
+- enhanced monitor.config to wait for child process to exit on SIGTERM before exiting ourself so that Upstart can cleanly stop us
+- Specolate did not work serverside because jasmine-node module was missing from package.json
+- Specolate was no working with appdir module specs and with nonexistent module
+
 ## v0.0.3 (2013-04-19)
+
+--------------
 
 NEW FEATURES
 

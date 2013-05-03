@@ -44,10 +44,10 @@ class Cache
     # `ensure` puts an object in cache if not already inside
     ensure : (key, object) ->
         @get(key) ? @put key, object
-    
+
     # `hibernate` serializes the cache in a file
     hibernate : -> 
-        Fs.writeFileSync @pathname(), JSON.stringify @store
+        try Fs.writeFileSync @pathname(), JSON.stringify @store
     
     # `awake` deserializes the cache from a file
     awake : ->

@@ -53,25 +53,19 @@ Chocolate integrates :
 
 ## Version
 
-Chocolate v0.0.3 - 2013/04/19
+Chocolate v0.0.4 - 2013/05/03
 
-NEW FEATURES
+NEW Features
 
-- Html support added in Studio
-- Nice interface to register/unregister access keys
-- Make Chocokup playgroud/sanbox independant in an iFrame
-- Make Git history follow files renames
-- Add file Rename/Delete services
+- simplified and enhanced Chocokup use in Chocodown : use `! chocokup` and `#! chocokup` in `code` block to execute Chocokup or to highlight and then execute Chocokup code
+- added JSON output type in Newnotes.Present (`as` parameter can be: paper, impress or json). It helps export Newnotes branches.
+- added `keypass` parameter inconfig.coffee file to enable master key (sofkey) bypass ; enable demonstration mode when used with access restriction on files
 
-FIXED BUGS
+BUGS
 
-- make Http only Chocolate server really work!
-- make ?how=edit use file type to set correct Ace language parser
-- files could not be saved in static folder - static was only available to read file
-- locals variable can be declared in Chocokup param and not only in Chocokup.render
-- helpers variable can be declared in Chocokup to  provides helpers functions or sub-templates to a main template
-- clear Coffeescript JS panel when ther is an error
-- added __ parameter documentation
+- enhanced monitor.config to wait for child process to exit on SIGTERM before exiting ourself so that Upstart can cleanly stop us
+- Specolate did not work serverside because jasmine-node module was missing from package.json
+- Specolate was no working with appdir module specs and with nonexistent module
 
 See history in **CHANGELOG.md** file
 
@@ -713,7 +707,7 @@ Read the complete Newnotes reference in Chocolate Studio Newnotes help panel.
 
 ## Road Map
 
-Chocolate is currently (2013/03) an experiment that needs to be completed and polished:
+Chocolate is currently (2013/05) an experiment that needs to be completed and polished:
 
  - user management
  - security management

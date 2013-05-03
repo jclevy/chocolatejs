@@ -63,6 +63,12 @@
           content: content
         };
       },
+      totext: function() {
+        var f;
+
+        f = eval("yield");
+        return f.apply(null, arguments);
+      },
       panel: function() {
         var attributes, content, content_, flush, id_class, new_id_class, orientation_keep, panel_index_keep, proportion_keep, _ref, _ref1, _ref2, _ref3,
           _this = this;
@@ -163,8 +169,11 @@
           }
         };
         content_ = typeof content === "function" ? function() {
-          content.apply(_this);
-          return flush.apply(_this);
+          var result;
+
+          result = content.apply(_this);
+          flush.apply(_this);
+          return result;
         } : content;
         if (proportion_keep !== 'none' && this.proportion === 'none') {
           div(id_class, function() {

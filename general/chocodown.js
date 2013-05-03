@@ -108,10 +108,6 @@ this.makeHtml = function(text) {
 	g_urls = new Array();
 	g_titles = new Array();
 	g_html_blocks = new Array();
-
-    // Check Compute blocks before everything
-    // +[foo][f].
-    text = _DoCompute(text);
     
 	// attacklab: Replace ~ with ~T
 	// This lets us use tilde as an escape char to avoid md5 hashes
@@ -660,61 +656,6 @@ var writeImageTag = function(wholeMatch,m1,m2,m3,m4,m5,m6,m7) {
 	return result;
 }
 
-var _DoCompute = function(text) {
-//
-// Turn Markdown compute date into Html.
-//
-
-    //
-	// First, handle reference-style compute data: +[language][data]
-	//
-
-	/*
-		text = text.replace(/
-		(						// wrap whole match in $1
-			+\[
-			(.*?)				// language = $2
-			\]
-
-			[ ]?				// one optional space
-			(?:\n[ ]*)?			// one optional newline followed by spaces
-
-            \(
-			(.*?)				// data = $3
-            \)
-		)
-		/g,writeComputeTag);
-	*/
-	text = text.replace(/(\+\[(.*?)\][ ]?(?:\n[ ]*)?\(([\s\S]*)\))/g,writeComputeTag);
-
-	return text;
-}
-
-var writeComputeTag = function(wholeMatch,m1,m2,m3) {
-    var whole_match = m1;
-	var language   = m2;
-	var data	 = m3;
-
-    result = '';
-    
-    switch (language) {
-        case 'Chocokup':
-            if (Showdown.Chocokup !== null){
-                if (data != '') {
-                    try {
-                          result = new Showdown.Chocokup.Panel(data).render({locals:{Chocokup:Showdown.Chocokup}});
-                    }
-                    catch (e) {
-                        result = 'Chocokup error: ' + e.message + ': ' + data;
-                    }
-                }
-            }
-            break;
-    }
-	
-	return result;
-}
-
 var _DoHeaders = function(text) {
 
 	// Setext-style headers:
@@ -933,7 +874,8 @@ var _DoCodeBlocks = function(text) {
 	
 	text = text.replace(/(?:\n\n|^)((?:(?:[ ]{4}|\t).*\n+)+)(\n*[ ]{0,3}[^ \t\n]|(?=~0))/g,
 		function(wholeMatch,m1,m2) {
-			var codeblock = m1;
+    		var codeblock = m1;
+    		var coderun = '';
 			var nextChar = m2;
 		
             codeblock =  _Outdent(codeblock);
@@ -941,32 +883,60 @@ var _DoCodeBlocks = function(text) {
 			codeblock = codeblock.replace(/^\n+/g,""); // trim leading newlines
 			codeblock = codeblock.replace(/\n+$/g,""); // trim trailing whitespace
 
-            if (Showdown.Highlight != null)
-            {
-                var lines = codeblock.split('\n');
-                var language = lines[0];
+            var lines = codeblock.split('\n');
+            var language = lines[0];
+            delete lines[0];
+            var done = false;
+            
+            if (Showdown.Chocokup !== null) {
+                switch (language) {
+                    case '#! chocokup': 
+                    case '! chocokup': 
+                        codeblock = lines.join('\n');
+                        try {
+                              coderun = new Showdown.Chocokup.Panel(codeblock).render({locals:{Chocokup:Showdown.Chocokup}});
+                        }
+                        catch (e) {
+                            coderun = 'Chocokup error: ' + e.message + ': ' + codeblock;
+                        }
+                        
+                        if (language !== '#! chocokup') {
+                            codeblock = '';
+                            done = true;
+                        }
+                        else
+                            language = '# chocokup';
+                        break;
+                }
+            }
+
+            if (!done && Showdown.Highlight !== null) {
                 switch (language)
                 {
                     case '# html':
-                    case '# xml' : language = 'xml'; delete lines[0]; break;
+                    case '# xml' : language = 'xml'; break;
                     case '# javascript':
-                    case '# js' : language = 'javascript'; delete lines[0]; break;
+                    case '# js' : language = 'javascript'; break;
+                    case '# chocokup':
                     case '# coffeescript':
                     case '# cs':
-                    case '# coffee': language = 'coffeescript'; delete lines[0]; break;
+                    case '# coffee': language = 'coffeescript'; break;
                     case '# css': language = 'css'; break;
-                    case '# markdown': language = 'markdown'; delete lines[0]; break;
+                    case '# markdown': language = 'markdown'; break;
                     default: language = '';
                 }
                 
-                if (language != '')
+                if (language != '') {
                     codeblock = "<pre class='source_code'>" + Showdown.Highlight.highlight(language, lines.join('\n')).value + "\n</pre>";
-                else
-                    codeblock = "<pre class='source_code'><code>" + _EncodeCode(codeblock) + "\n</code></pre>";
+                    done = true;
+                }
 			}
-            else
-                codeblock = "<pre><code>" + _EncodeCode(codeblock) + "\n</code></pre>";
+            
+            if (!done)
+                codeblock = "<pre class='source_code'><code>" + _EncodeCode(codeblock) + "\n</code></pre>";
 
+            codeblock += coderun
+            
 			return hashBlock(codeblock) + nextChar;
 		}
 	);

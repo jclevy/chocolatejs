@@ -1129,7 +1129,7 @@ exports.enter = (__) ->
                         list = client_result.log;
                     
                     request = new Request.JSON
-                        url: (if sofkey? then '/!/' + sofkey else '') + "/-/#{sources.current}?so=test&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{sources.current}?so=test&how=raw"
                         onSuccess: (server_result) ->
                             if server_result.count.total > 0 
                                 server_result.log[0] = translate 'On server :'

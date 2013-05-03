@@ -23,7 +23,7 @@ exports.cook = (request) ->
 # `exchange` operates the interface
 exports.exchange = (so, what, how, where, region, params, appdir, datadir, backdoor_key, request, session, send) ->
     
-    sofkey = require('../' + datadir + '/config').sofkey
+    config = require('../' + datadir + '/config')
     where = where.replace(/\.\.[\/]*/g, '')
     
     # `respond` will send the computed result as an Http Response.
@@ -75,11 +75,12 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             true
         else
             false
-            
+    
     # `hasSofkey` checks if requestor has the system sofkey which gives full rights access
-    hasSofkey = () ->
+    hasSofkey = ->
+        hasKeypass = config.keypass is on and File.hasWriteAccess(appdir) is no
         hashed_backdoor_key = if backdoor_key isnt '' then Crypto.createHash('sha256').update(backdoor_key).digest('hex') else ''
-        if sofkey in [hashed_backdoor_key, backdoor_key] or sofkey in session.keys then true else false         
+        if config.sofkey in [hashed_backdoor_key, backdoor_key] or config.sofkey in session.keys or hasKeypass then true else false         
 
     # `getMethodInfo` retrieve a method and its parameters from a required module
     getMethodInfo = (required, action) ->

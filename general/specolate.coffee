@@ -24,11 +24,11 @@ class Specolate
         else ''
         
     @get_extension = (path) ->
-        if (path = path.substr(1 + path.indexOf '/')).indexOf('.') is -1 then '' else '.' + path.split('.')[-1..][0]
+        if (path = path.substr(1 + path.lastIndexOf '/')).indexOf('.') is -1 then '' else '.' + path.split('.')[-1..][0]
 
     @get_spec_filename = (path) ->
         return '' if path is ''
-        return path.replace ext, '.spec' + ext if (ext = Specolate.get_extension path) isnt ''
+        return path.replace ext, '.spec' + ext if (ext = Specolate.get_extension path) not in ['', '.']
         return path + '.spec'
         
     @inspect: (reporter, module_filename, options, callback) ->
@@ -122,7 +122,7 @@ class Specolate
                     Events = require('events');
                     event = new Events.EventEmitter;
                     host.jasmine = require('jasmine-node');
-                    require('#{specolate_filename}');
+                    try { require('#{specolate_filename}'); } catch (_error) {}
                     host.jasmine.getEnv().reporter = reporter;
                     host.jasmine.getEnv().ijax = #{ijax_options};
                     host.jasmine.getEnv().execute();

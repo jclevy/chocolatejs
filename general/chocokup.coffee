@@ -34,6 +34,10 @@ class Chocokup
             # return verified arguments
             id_class:id_class, attributes:attributes, content:content
 
+        totext: ->
+            f = eval "yield"
+            f arguments...
+
         panel : ->
             { id_class, attributes, content } = verify arguments...
                 
@@ -104,7 +108,7 @@ class Chocokup
                 if (panel_info = @panel_infos[@panel_infos.length - 1]).footer_kept?
                     {id_class, attributes, content} = panel_info.footer_kept ; panel id_class, attributes, content ; panel_info.footer_kept = undefined
 
-            content_ = if typeof content is "function" then => content.apply @ ; flush.apply @ else content
+            content_ = if typeof content is "function" then => result = content.apply @ ; flush.apply @ ; result else content
             
             if proportion_keep isnt 'none' and @proportion is 'none'
                 div id_class, -> div 'space', attributes, content_

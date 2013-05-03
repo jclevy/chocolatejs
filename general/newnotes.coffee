@@ -2,7 +2,7 @@ Uuid = require './intentware/uuid'
 Chocokup = require './chocokup'
 Highlight = require './highlight'
 Chocodown = require './chocodown'
-        
+
 Newnotes = class
     @kup: ->
         id = Newnotes.panels.length
@@ -20,7 +20,6 @@ Newnotes = class
         }
         
         #newnotes-#{id}-note-panel ul {
-            list-style: none;
             margin-left: 0;
             padding-left: 1em;
         }
@@ -29,6 +28,17 @@ Newnotes = class
             margin: 10px;
             font-size: 0.8em;
             line-height: 1.4em;
+        }
+        
+        #newnotes-#{id}-note-panel li.note {
+            list-style: none;
+            line-height: 1em;
+        }
+        
+        #newnotes-#{id}-note-panel li {
+            list-style: disc;
+            list-style-position: inside;
+            line-height: 1.15em;
         }
         
         #newnotes-#{id}-note-panel li, #newnotes-#{id}-filter-list-body div {
@@ -726,13 +736,7 @@ Newnotes = class
         export: ->
             if @remove_if_empty() then @list()
             
-            data = do ->
-                data = 
-                    by:
-                        id : {}
-                        root: []
-                data.by[name] = {} for own name of Newnotes.Dimensions
-                data
+            data = Newnotes.new_data()
 
             for own uuid, note of @newnotes.data.by.id
                 data.by.id[uuid] = note.export()
@@ -821,7 +825,7 @@ Newnotes = class
                         bullet_char = if item.subs.length > 0 then '•' else '●'
                         priority = if item.note.dimensions.Priority? then "<span class='newnotes-priority-#{item.note.dimensions.Priority}'>#{bullet_char}</span>" else ''
                         
-                        classes = []
+                        classes = ['note']
                         classes.push 'selected' if selected
                         classes.push 'compacted' if is_compacted
                         
@@ -1181,9 +1185,9 @@ Newnotes = class
                 result.is_compacted = yes
             
             result
-                
+        
         export: ->
-            note = new Newnotes.Note @title, @parent, Object.clone(@dimensions), @uuid
+            note = new Newnotes.Note @title, @parent, Newnotes.clone(@dimensions), @uuid
             note.parent = note.parent.uuid if note.parent?
             note.subs.push item.uuid for item in @subs
             note.date =
@@ -1192,7 +1196,7 @@ Newnotes = class
             note
         
         @create: (item) ->
-            note = new Newnotes.Note item.title, item.parent, Object.clone(item.dimensions), item.uuid
+            note = new Newnotes.Note item.title, item.parent, Newnotes.clone(item.dimensions), item.uuid
             note.subs[i] = uuid for uuid, i in item.subs
             note.date =
                 creation: new Date Date.parse item.date.creation
@@ -1203,7 +1207,6 @@ Newnotes = class
             item.parent = data.by.id[item.parent] if item.parent?
             item.subs[i] = data.by.id[uuid] for uuid, i in item.subs
             item
-        
 
     @panels: []
     
@@ -1216,7 +1219,24 @@ Newnotes = class
         .stripScripts (scripts, html) ->
             document.id(options.element_id).set 'html', html
             Browser.exec scripts
-                
+
+    ## clone
+    #
+    # Basic deep clone function
+    @clone: (object) ->
+      return object unless object? and typeof object is "object"
+      cloned = new object.constructor
+      cloned[key] = Newnotes.clone object[key] for key of object
+      cloned
+
+    @new_data: ->
+        data = 
+            by:
+                id : {}
+                root: []
+        data.by[name] = {} for own name of Newnotes.Dimensions
+        data
+
     constructor: ->
         @path = []
         @filter = 
@@ -1238,18 +1258,10 @@ Newnotes = class
                     value: dimension.values[0]
                     searched: 'all'
             dimensions
-        @data = do ->
-            data = 
-                by:
-                    id : {}
-                    root: []
-            data.by[name] = {} for own name of Newnotes.Dimensions
-            data
+        @data = Newnotes.new_data()
                 
     clear: ->
-        @data.by.id = {}
-        @data.by.root = []
-        @data.by[name] = {} for own name of Newnotes.Dimensions
+        @data = Newnotes.new_data()
         return
 
     add: (title, after) ->
@@ -1415,7 +1427,6 @@ Newnotes = class
     @disconnected: ->
         "disconnected"
 
-
     @interface = (__) ->
         Newnotes.enter(__)
     
@@ -1512,9 +1523,8 @@ Newnotes = class
         
         data = JSON.parse require('fs').readFileSync require.resolve('../' + __.datadir + '/newnotes_data.json')
         
-        # We do not have Object.clone on server without Mootools
-        #for uuid, note of data.by.id
-        #    data.by.id[uuid] = Newnotes.Note.create note
+        for uuid, note of data.by.id
+            data.by.id[uuid] = Newnotes.Note.create note
         
         Chocodown.Chocokup ?= Chocokup
         Chocodown.Highlight ?= Highlight
@@ -1547,9 +1557,29 @@ Newnotes = class
             result = search where, note
             if result?
                 switch as 
+                    when 'json'
+                        data = Newnotes.new_data()
+            
+                        iterate = (uuid, note) ->
+                            unless data.by.id[uuid]?
+                                data.by.id[uuid] = note.export()
+                                (data.by[name][key] ?= []).push uuid for own name, key of note.dimensions
+                                
+                                iterate sub.uuid, sub for own i, sub of note.subs
+                        
+                        data.by.root.push result.uuid
+                        iterate result.uuid, result
+                        
+                        return JSON.stringify data
+                    
                     when 'paper'
                         kup = ->
                             iterate = (note, level) ->
+                                if (title = note.title)[0] is '$'
+                                    for own uuid, sub of note.subs
+                                        iterate sub, level + 1
+                                    return
+                                    
                                 li -> 
                                     text note.html_title
                                     if note.subs?.length > 0 
@@ -2638,6 +2668,11 @@ Newnotes = class
                     else
                         kup = ->
                             iterate = (note, level) ->
+                                if (title = note.title)[0] is '$'
+                                    for own uuid, sub of note.subs
+                                        iterate sub, level + 1
+                                    return
+                                    
                                 switch level
                                     when 0
                                         for own uuid, sub of note.subs

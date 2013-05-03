@@ -15,6 +15,16 @@ describe 'File', ->
             waitsFor (-> result?), 'File.writeToFile', 1000
             runs -> expect(result).toBe(on)
             
+        it 'should have write access on test file', ->
+            expect(File.hasWriteAccess datadir + '/' + test_path).toBe(yes)
+
+        it 'should have write access on appdir', ->
+            appdir = jasmine.getEnv().ijax.appdir
+            expect(File.hasWriteAccess appdir).toBe(yes)
+
+        it 'should have no write access on /root folder', ->
+            expect(File.hasWriteAccess '/root').toBe(no)
+
         it 'should get test file modification date', ->
             modifiedDate = undefined
             runs ->

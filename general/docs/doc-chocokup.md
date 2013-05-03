@@ -185,6 +185,36 @@ With a box you can make a panel have thick borders inside its parent block.
 
 &nbsp;
 
+----------------------------------------------------------------------------------
+
+## totext
+
+A function that yields a Chocokup kup as text, so that you can use it 
+with Chocokup `text` function.
+
+### Example
+
+    text ((totext -> span "#{i}").trim() for i in [1..5]).join ''
+    
+will become
+
+    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
+
+instead of
+
+    span "#{i}" for i in [1..5]
+
+that becomes
+
+    <span>1</span>
+    <span>2</span>
+    <span>3</span>
+    <span>4</span>
+    <span>5</span>
+
+&nbsp;
+
+
 ## Samples
 
 ----------------------------------------------------------------------------------
