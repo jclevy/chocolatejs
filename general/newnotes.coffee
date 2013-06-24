@@ -264,7 +264,7 @@ Newnotes = class
                             box -> panel ->
                                 newnotes_list()
                             panel ->
-                                header by:4, ->
+                                header by:10, ->
                                     newnotes_log_buttons float:yes
                                     newnotes_note_action()
                                     newnotes_note_attributes()
@@ -1518,7 +1518,7 @@ Newnotes = class
         """
 
     #### This is experimental !!!
-    @present: (where, as, __) ->
+    @present: (where, as, type, __) ->
         if window? then return ''
         
         data = JSON.parse require('fs').readFileSync require.resolve('../' + __.datadir + '/newnotes_data.json')
@@ -1574,23 +1574,89 @@ Newnotes = class
                     
                     when 'paper'
                         kup = ->
-                            iterate = (note, level) ->
+                            type = @params.type
+                            
+                            count_points = (note, level, css, sub_css) ->
+                                if level is 0 
+                                    div '.quiz.points', "Total points: #{iterate.quiz_total_point}"
+                                else
+                                    nb = note.subs.length
+                                    
+                                    return if css is '.leaf' or css is '.node' and sub_css is '.node'
+                                    
+                                    points = switch
+                                        when nb is 0
+                                            nbli = note.title.split('<br>').length
+                                            switch
+                                                when nbli < 6 then 1 
+                                                when nbli < 11 then 2 
+                                                else 5
+                                        when nb < 4 then 0.5
+                                        when nb < 8 then 1
+                                        when nb < 12 then 1
+                                        else 2
+                                    div '.quiz.points', "#{points} point#{if points > 1 then 's' else ''}"
+                                    iterate.quiz_total_point ?= 0
+                                    iterate.quiz_total_point += points
+                                                    
+                            iterate = (note, level, css) ->
                                 if (title = note.title)[0] is '$'
                                     for own uuid, sub of note.subs
                                         iterate sub, level + 1
                                     return
                                     
-                                li -> 
+                                if title is '---'
+                                    div style:"page-break-before:always", ->
+                                    return
+
+                                if title.substr(0,3) is '==='
+                                    div '.note', title.substr 3                                
+                                    return
+
+                                li ".#{type}#{css}", -> 
                                     text note.html_title
                                     if note.subs?.length > 0 
                                         size = Math.max 16 - 2 * level, 12
-                                        ul style:"font-size:#{size}pt", -> for own uuid, sub of note.subs
-                                            iterate sub, level + 1
+                                        ul style:"font-size:#{size}pt", ->
+                                            if level is 0 then sub_css = '.node'
+                                            else sub_css = '.leaf' ; for own uuid, sub of note.subs then if sub.subs.length > 0 then sub_css = '.node'
+                                            
+                                            for own uuid, sub of note.subs
+                                                iterate sub, level + 1, sub_css
+
+                                            if type is 'quiz' then count_points note, level, css, sub_css
+                                    else if type is 'quiz' and level > 0 then count_points note, level, css, ''
+
                                                     
-                            iterate @params.note, 0
+                            iterate @params.note, 0, '.root'
                         
-                        paper_html = new Chocokup.Panel(note:result, require:require, kup).render()
+                        paper_html = new Chocokup.Panel(note:result, require:require, type:type, kup).render()
                         paper_kup = ->
+                            style """
+                            li.quiz.leaf, li.quiz.root {
+                                list-style: none;
+                            }
+                            
+                            li.quiz.node {
+                                list-style: decimal;
+                                margin-top: 1.5em;
+                                margin-bottom: 1.5em;
+                            }
+                            
+                            li.quiz.node ul, div.note {
+                                margin-top: 0.6em;
+                            }
+                            
+                            li.quiz.leaf:before {
+                                content: '▢';
+                            }
+                            
+                            div.quiz.points {
+                                margin-top: 0.8em;
+                                font-size: 0.75em;
+                            }
+                            
+                            """
                             ul style:"font-size:20pt", ->
                                 text "#{@params.paper_html}"
                                     

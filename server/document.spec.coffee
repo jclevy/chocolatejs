@@ -10,7 +10,7 @@ unless window?
 
             
             it 'has a datadir available', ->
-                expect(datadir = jasmine.getEnv().ijax.datadir).not.toBeUndefined()
+                expect(datadir = jasmine.getEnv().__.datadir).not.toBeUndefined()
             
             it 'creates a Cache object', ->
                 cache = new Document.Cache datadir

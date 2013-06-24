@@ -78,12 +78,14 @@
     };
 
     Specolate.report = function(module_filename, options, callback) {
-      var context, error, event, host, ijax_options, k, reporter, result, specolate_filename, v, vm;
+      var context, error, event, host, k, reporter, result, specolate_filename, v, vm;
 
       if (!finished) {
         return '';
       }
-      host = typeof window !== "undefined" && window !== null ? window : {};
+      host = typeof window !== "undefined" && window !== null ? window : {
+        __: options
+      };
       event = null;
       log = [];
       log.failedCount = 0;
@@ -186,8 +188,7 @@
           context.require = require;
           context.global = context;
           context.global.global = context;
-          ijax_options = JSON.stringify(options);
-          event = vm.runInContext("var Events, event, k;\nEvents = require('events');\nevent = new Events.EventEmitter;\nhost.jasmine = require('jasmine-node');\ntry { require('" + specolate_filename + "'); } catch (_error) {}\nhost.jasmine.getEnv().reporter = reporter;\nhost.jasmine.getEnv().ijax = " + ijax_options + ";\nhost.jasmine.getEnv().execute();\nevent;", context, specolate_filename);
+          event = vm.runInContext("var Events, event, k;\nEvents = require('events');\nevent = new Events.EventEmitter;\nhost.jasmine = require('jasmine-node');\ntry { require('" + specolate_filename + "'); } catch (_error) {}\nhost.jasmine.getEnv().reporter = reporter;\nhost.jasmine.getEnv().__ = host.__;\nhost.jasmine.getEnv().execute();\nevent;", context, specolate_filename);
         } else {
           require('../' + specolate_filename);
           host.jasmine.getEnv().reporter = reporter;

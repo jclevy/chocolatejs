@@ -9,7 +9,7 @@ describe 'File', ->
         it 'should create a test file', ->
             result = undefined
             runs ->
-                datadir = jasmine.getEnv().ijax.datadir
+                datadir = jasmine.getEnv().__.datadir
                 event = File.writeToFile datadir + '/' + test_path, 'Some New Text Content'
                 event.on 'end', (err) -> result = err ? on
             waitsFor (-> result?), 'File.writeToFile', 1000
@@ -19,7 +19,7 @@ describe 'File', ->
             expect(File.hasWriteAccess datadir + '/' + test_path).toBe(yes)
 
         it 'should have write access on appdir', ->
-            appdir = jasmine.getEnv().ijax.appdir
+            appdir = jasmine.getEnv().__.appdir
             expect(File.hasWriteAccess appdir).toBe(yes)
 
         it 'should have no write access on /root folder', ->

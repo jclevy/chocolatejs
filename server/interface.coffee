@@ -10,6 +10,7 @@ Path = require 'path'
 Fs = require 'fs'
 Crypto = require 'crypto'
 File = require './file'
+Formidable = require 'formidable'
 Chocokup = require '../general/chocokup'
 
 #### Cook
@@ -25,6 +26,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     
     config = require('../' + datadir + '/config')
     where = where.replace(/\.\.[\/]*/g, '')
+    context = {request, session, appdir, datadir}
     
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
@@ -160,6 +162,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     # `exchangeClassic` is an interface with classic files (coffeescript or javascript)
     exchangeClassic = () ->
         required = '../' + (if region is 'system' or appdir is '.' then '' else appdir + '/' ) + where
+        __ = if region is 'system' or appdir is '.' then undefined else context
         
         what_is_public = no
 
@@ -198,8 +201,8 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                 switch how
                     # When `How` is 'web' or 'edit'
                     when 'web', 'edit'
-                        File.access(where, backdoor_key, {appdir}).on 'end', (html) ->
-                            respond html
+                        File.access(where, backdoor_key, __).on 'end', (html) ->
+                            respond html.error ? html
                     # when `How` is 'raw'
                     when 'raw', 'manifest'
                         # Read the file and returns it
@@ -219,36 +222,65 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                             
             # Take care of the `move` action
             when 'move'
-                respondOnMoveFile = ->
-                    return respond '' if where is ''
+                respondOnMoveFile = (count) ->
+                    return respond '' if where is '' or count is 0
                     
-                    File.getModifiedDate(where, {appdir}).on 'end', (modifiedDate) ->
-                        respond if modifiedDate? then '' + modifiedDate else ''
-                        
+                    results = []
+                    for index in [0...count ? 1]
+                        do ->
+                            filename = File.setFilenameSuffix where, if index > 0 then "_#{index}" else ''
+                            File.getModifiedDate(filename, __).on 'end', (modifiedDate) ->
+                                results.push {filename, modifiedDate} if modifiedDate?
+                                respond JSON.stringify results
+
                 # Check if the `what` is empty
                 if what is '' 
                     # If empty, take the input content from the POST data 
                     if request.method is 'POST'
-                        source = ''
-                        request.on 'data', (chunk) ->
-                            source += chunk
-                        request.on 'end', () ->          
-                            # When all POST data received, save new version
-                            File.writeToFile(where, source, {appdir}).on 'end', (err) ->
-                                if err? then respond err.toString() else respondOnMoveFile()
+                        content_type = request.headers['content-type']?.split(';')[0]
+                        switch content_type
+                            when 'multipart/form-data'
+                                form = new Formidable.IncomingForm()
+                                form.keepExtensions = yes
+                                form.parse request, (err, fields, files) ->
+                                    count = sent = received = 0
+                                    errs = []
+                                    count += 1 for name, file of files
+                                    for name, file of files
+                                        from = if __?.appdir? then Path.relative file.path, __.appdir else file.path
+                                        if Path.extname from is '' 
+                                            Fs.renameSync from, from = from + '.tmp'
+                                        to = unless err? then where else ''
+                                        event = File.moveFile from, File.setFilenameSuffix(to, if sent > 0 then "_#{sent}" else ''), __
+                                        event.on 'end', (err) ->
+                                            received += 1
+                                            errs.push err if err?
+                                            if received is count
+                                                if errs.length > 0 then respond errs.join('\n') else respondOnMoveFile count
+                                        sent += 1
+                            else
+                                source = chunks:[], length:0
+                                request.on 'data', (chunk) ->
+                                    source.chunks.push chunk
+                                    source.length += chunk.length
+                                    # test
+                                request.on 'end', () ->          
+                                    # When all POST data received, save new version
+                                    File.writeToFile(where, Buffer.concat(source.chunks, source.length), __).on 'end', (err) ->
+                                        if err? then respond err.toString() else respondOnMoveFile()
                     # If no POST date, create the `where` file with content from first parameter
                     else
-                        File.writeToFile(where, params._0, {appdir}).on 'end', ->
+                        File.writeToFile(where, params._0, __).on 'end', (err) ->
                             if err? then respond err.toString() else respondOnMoveFile()
                 # If specified, move the `what` content to the `where` content
                 else
-                    File.moveFile(what, where, {appdir}).on 'end', ->
+                    File.moveFile(what, where, __).on 'end', (err) ->
                         if err? then respond err.toString() else respondOnMoveFile()
                             
                 # Take care of the `test` and `do` actions
             when 'do', 'test'
                 if so is 'test'
-                    args = [(if how is 'raw' then 'json' else 'html'), required, {appdir, datadir}]
+                    args = [(if how is 'raw' then 'json' else 'html'), required, context]
                     required = '../general/specolate'
                     action = 'inspect'
                     module = require required 
@@ -256,7 +288,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                 else if so is 'do'
                     {method, args:expected_args, error} = getMethodInfo required, what
                     return if has500 error
-                    if '__' in expected_args then params['__'] = {request, session, appdir, datadir}
+                    if '__' in expected_args then params['__'] = context
                     args = []
                     args_index = 0
                     for arg_name in expected_args

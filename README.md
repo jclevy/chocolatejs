@@ -53,19 +53,24 @@ Chocolate integrates :
 
 ## Version
 
-Chocolate v0.0.4 - 2013/05/03
+Chocolate v0.0.5 - 2013/06/24
 
-NEW Features
+NEW FEATURES
 
-- simplified and enhanced Chocokup use in Chocodown : use `! chocokup` and `#! chocokup` in `code` block to execute Chocokup or to highlight and then execute Chocokup code
-- added JSON output type in Newnotes.Present (`as` parameter can be: paper, impress or json). It helps export Newnotes branches.
-- added `keypass` parameter inconfig.coffee file to enable master key (sofkey) bypass ; enable demonstration mode when used with access restriction on files
+- allow binary file in Locco 'move' verb
+- now specolate specs receive system context variable in jasmine.getEnv().__
+- allow file basic upload
+- allow list and open every file type
 
-BUGS
+FIXED BUGS
 
-- enhanced monitor.config to wait for child process to exit on SIGTERM before exiting ourself so that Upstart can cleanly stop us
-- Specolate did not work serverside because jasmine-node module was missing from package.json
-- Specolate was no working with appdir module specs and with nonexistent module
+- replace static strings in the Lab before Debug so that = and [ dont break
+- clean File.coffee code to allow all file types
+- reintroduced javascript execution in Chocokup lab (it disappeared with iframe usage)
+
+UPDATES
+
+- updated Ace to package 06.04.2013
 
 See history in **CHANGELOG.md** file
 

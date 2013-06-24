@@ -249,7 +249,7 @@
                     });
                     return panel(function() {
                       header({
-                        by: 4
+                        by: 10
                       }, function() {
                         newnotes_log_buttons({
                           float: true
@@ -2434,7 +2434,7 @@
       return "CACHE MANIFEST\n# v0.05.001\n# Files Timestamp\n#\n" + time_stamps + "\n\nCACHE:\n" + to_cache + "\n\nNETWORK:\n/static/ijax/\n/-/ping\n\nFALLBACK:\n/-/general/newnotes?connected /-/general/newnotes?disconnected";
     };
 
-    _Class.present = function(where, as, __) {
+    _Class.present = function(where, as, type, __) {
       var data, i, impress_html, impress_kup, iterate, key, kup, name, note, paper_html, paper_kup, result, returns, search, slides_html, slides_kup, str, title_compacted, uuid, _i, _j, _k, _len, _len1, _len2, _ref, _ref1, _ref2, _ref3, _ref4, _ref5, _ref6, _ref7, _ref8;
 
       if (typeof window !== "undefined" && window !== null) {
@@ -2541,7 +2541,50 @@
               return JSON.stringify(data);
             case 'paper':
               kup = function() {
-                iterate = function(note, level) {
+                var count_points;
+
+                type = this.params.type;
+                count_points = function(note, level, css, sub_css) {
+                  var nb, nbli, points, _ref9;
+
+                  if (level === 0) {
+                    return div('.quiz.points', "Total points: " + iterate.quiz_total_point);
+                  } else {
+                    nb = note.subs.length;
+                    if (css === '.leaf' || css === '.node' && sub_css === '.node') {
+                      return;
+                    }
+                    points = (function() {
+                      switch (false) {
+                        case nb !== 0:
+                          nbli = note.title.split('<br>').length;
+                          switch (false) {
+                            case !(nbli < 6):
+                              return 1;
+                            case !(nbli < 11):
+                              return 2;
+                            default:
+                              return 5;
+                          }
+                          break;
+                        case !(nb < 4):
+                          return 0.5;
+                        case !(nb < 8):
+                          return 1;
+                        case !(nb < 12):
+                          return 1;
+                        default:
+                          return 2;
+                      }
+                    })();
+                    div('.quiz.points', "" + points + " point" + (points > 1 ? 's' : ''));
+                    if ((_ref9 = iterate.quiz_total_point) == null) {
+                      iterate.quiz_total_point = 0;
+                    }
+                    return iterate.quiz_total_point += points;
+                  }
+                };
+                iterate = function(note, level, css) {
                   var sub, title, _ref9;
 
                   if ((title = note.title)[0] === '$') {
@@ -2553,7 +2596,17 @@
                     }
                     return;
                   }
-                  return li(function() {
+                  if (title === '---') {
+                    div({
+                      style: "page-break-before:always"
+                    }, function() {});
+                    return;
+                  }
+                  if (title.substr(0, 3) === '===') {
+                    div('.note', title.substr(3));
+                    return;
+                  }
+                  return li("." + type + css, function() {
                     var size, _ref10;
 
                     text(note.html_title);
@@ -2562,27 +2615,45 @@
                       return ul({
                         style: "font-size:" + size + "pt"
                       }, function() {
-                        var _ref11, _results;
+                        var sub_css, _ref11, _ref12;
 
-                        _ref11 = note.subs;
-                        _results = [];
-                        for (uuid in _ref11) {
-                          if (!__hasProp.call(_ref11, uuid)) continue;
-                          sub = _ref11[uuid];
-                          _results.push(iterate(sub, level + 1));
+                        if (level === 0) {
+                          sub_css = '.node';
+                        } else {
+                          sub_css = '.leaf';
+                          _ref11 = note.subs;
+                          for (uuid in _ref11) {
+                            if (!__hasProp.call(_ref11, uuid)) continue;
+                            sub = _ref11[uuid];
+                            if (sub.subs.length > 0) {
+                              sub_css = '.node';
+                            }
+                          }
                         }
-                        return _results;
+                        _ref12 = note.subs;
+                        for (uuid in _ref12) {
+                          if (!__hasProp.call(_ref12, uuid)) continue;
+                          sub = _ref12[uuid];
+                          iterate(sub, level + 1, sub_css);
+                        }
+                        if (type === 'quiz') {
+                          return count_points(note, level, css, sub_css);
+                        }
                       });
+                    } else if (type === 'quiz' && level > 0) {
+                      return count_points(note, level, css, '');
                     }
                   });
                 };
-                return iterate(this.params.note, 0);
+                return iterate(this.params.note, 0, '.root');
               };
               paper_html = new Chocokup.Panel({
                 note: result,
-                require: require
+                require: require,
+                type: type
               }, kup).render();
               paper_kup = function() {
+                style("li.quiz.leaf, li.quiz.root {\n    list-style: none;\n}\n\nli.quiz.node {\n    list-style: decimal;\n    margin-top: 1.5em;\n    margin-bottom: 1.5em;\n}\n\nli.quiz.node ul, div.note {\n    margin-top: 0.6em;\n}\n\nli.quiz.leaf:before {\n    content: '▢';\n}\n\ndiv.quiz.points {\n    margin-top: 0.8em;\n    font-size: 0.75em;\n}\n");
                 return ul({
                   style: "font-size:20pt"
                 }, function() {

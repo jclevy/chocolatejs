@@ -21,20 +21,19 @@ exports.access = (where, backdoor_key, __) ->
 
     # `backdoor_key` is a security key that gives access to all system services. If provided it is sent back in the editor.
 
-    # `__apppdir` is a system path variable giving access to the application directory.
-
     # This service is asynchronous, 
     # so it returns an EventEmitter to which it will send an `end` message when it will be ready to send the web editor back.
     event = new Events.EventEmitter
 
+    {where, path, error} = resolve where, __
+    if error? then process.nextTick(-> with_error event, error) ; return event
+    
     # First, get source file last modification date to pass it to the editor
-    exports.getModifiedDate(where).on 'end', (modifiedDate) ->
-        # Then, resolves the `where` parameter to a local path
-        resource_path = Path.resolve((if __?.appdir then __.appdir + '/' else '')  + normalize where)
+    exports.getModifiedDate(path).on 'end', (modifiedDate) ->
         # Read the source file
-        require('fs').readFile resource_path, (err, data) ->
+        Fs.readFile path, (err, data) ->
             # Retrieve the commit list associated to this file from the Git repository 
-            exports.getAvailableCommits(normalize(where), __).on 'end', (commits_list) ->
+            exports.getAvailableCommits(where, __).on 'end', (commits_list) ->
                 # Build commit Options list
                 commits = ''
                 for commit in commits_list
@@ -52,7 +51,7 @@ exports.access = (where, backdoor_key, __) ->
 
 #### hasWriteAccess
 
-# `hasWriteAccess` checks if we have write access on `appdir`
+# `hasWriteAccess` checks if we have write access on path
 exports.hasWriteAccess = (path) ->
     stats = Fs.statSync Path.resolve (if path? then path else '.')
         
@@ -66,34 +65,35 @@ exports.hasWriteAccess = (path) ->
 #### getModifiedDate
 
 # `getModifiedDate` service receives `where`, a system file path, and returns the given file last modification date
-exports.getModifiedDate = (path, __) ->
+exports.getModifiedDate = (where, __) ->
     event = new Events.EventEmitter
     
     # First, it tries to resolve the `where` parameter to a local path
-    try resource_path = Path.resolve (if __?.appdir then __.appdir + '/' else '') + normalize path
-    catch error then process.nextTick(-> with_error event, '') ; return event
+    {where, path, error} = resolve where, __
+    if error? then process.nextTick(-> with_error event, error) ; return event
     
     # Then use the Fs `stat` service to get the file's last modification date
-    Fs.stat resource_path, (error, stats) ->
+    Fs.stat path, (error, stats) ->
         return with_error event, error if error
         event.emit 'end', Date.parse(stats.mtime)
     event
 
 #### getDirContent
 
-# `getDirContent` returns the directory content as JSON string for the given path ; resolve relative to process.cwd() or __.appdir if provided
-exports.getDirContent = (path, __) ->
+# `getDirContent` returns the directory content as JSON string for the given `where` path ; resolve relative to process.cwd() or __.appdir if provided
+exports.getDirContent = (where, __) ->
     event = new Events.EventEmitter
     result = []
-    resource_path = Path.resolve (if __?.appdir then __.appdir + '/' else '') + path
-    Fs.readdir resource_path, (error, files) ->
+    {where, path, error} = resolve where, __
+    if error? then process.nextTick(-> with_error event, error) ; return event
+    Fs.readdir path, (error, files) ->
         return with_error event, error if error
         files = files.sort()
         file_index = 0
         get_file_stats = ->
             if file_index < files.length
                 filename = files[file_index++]
-                Fs.stat resource_path + '/' + filename, (error, stats) ->
+                Fs.stat path + '/' + filename, (error, stats) ->
                     return with_error event, error if error
                     
                     result.push name:filename, isDir:stats.isDirectory(), isFile:stats.isFile(), extension:Path.extname(filename), modifiedDate: Date.parse(stats.mtime)
@@ -120,6 +120,18 @@ exports.ensurePathExists = (path, __) ->
             
     file_pathname += (if file_pathname isnt '' then '/' else '') + file_name
 
+
+#### 
+
+# `setFilenameSuffix` append a suffix to a filename before the extension
+exports.setFilenameSuffix = (filename, suffix) ->
+    dirname = Path.dirname filename
+    if dirname is '.' then dirname = ''
+    if dirname isnt '' then dirname += '/'
+    ext = Path.extname filename
+    base = Path.basename filename, ext
+    dirname + base + suffix + ext
+                    
 #### readDirDownSync
 
 # `readDirDownSync` recursively read a directory and returns its content
@@ -152,7 +164,7 @@ exports.writeToFile = (path, data, __) ->
     path = path.trim()
     if path is '' then process.nextTick(-> with_error event, 'Warning: empty path in writeToFile') ; return event
     
-    normalized_path = normalize(path)
+    normalized_path = normalize path
     file_pathname = exports.ensurePathExists normalized_path, __
 
     # Create the file if non existent
@@ -210,7 +222,7 @@ exports.moveFile = (from, to, __) ->
             else
                 event.emit 'end', err
     else
-        event.emit 'end', 'Source file does not exists'
+        process.nextTick -> event.emit 'end', 'Source file does not exists'
     event
 
 #### removeFile
@@ -320,6 +332,24 @@ exports.getAvailableCommits = (path, __) ->
 # `normalize` adds .coffee extension to the provided `path` if it does not have one
 normalize = (path) -> if Path.extname(path) isnt '' then path else path + '.coffee'
 
+# `resolve`  tries to resolve the `where` parameter to a local path 
+resolve = (where, __) ->
+    where_ = where
+    
+    try path = Path.resolve (if __?.appdir then __.appdir + '/' else '') + where
+    catch error then return {where, path, error}
+    
+    unless Fs.existsSync path
+        path = normalize path
+        where = normalize where
+    
+    unless Fs.existsSync path
+        path = ''
+        where = where_
+        error = "File '#{where} does not exists'"
+    
+    {where, path, error}
+    
 #### with_error
 
 # `with_error` emits an `end` message containing the error message

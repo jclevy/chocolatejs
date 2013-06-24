@@ -8,7 +8,7 @@ unless window?
             space = undefined
             
             it 'should create a Space', ->
-                expect(space = new Reserve.Space(jasmine.getEnv().ijax.datadir, 'reserve.spec.db')).not.toBeUndefined()
+                expect(space = new Reserve.Space(jasmine.getEnv().__.datadir, 'reserve.spec.db')).not.toBeUndefined()
                 expect(space instanceof Reserve.Space).toBeTruthy()
             describe 'Path', ->
                 it 'should get an index from an int', ->

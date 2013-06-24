@@ -37,7 +37,7 @@ class Specolate
     @report: (module_filename, options, callback) ->
         if not finished then return ''
 
-        host = window ? {}
+        host = window ? {__:options}
         
         event = null
         log = []
@@ -111,12 +111,10 @@ class Specolate
                 vm = require('vm')
                 context = vm.createContext({reporter, host})
                 for own k,v of global then context[k] = v
-                
                 context.module = module
                 context.require = require
                 context.global = context
                 context.global.global = context
-                ijax_options = JSON.stringify options
                 event = vm.runInContext """
                     var Events, event, k;
                     Events = require('events');
@@ -124,7 +122,7 @@ class Specolate
                     host.jasmine = require('jasmine-node');
                     try { require('#{specolate_filename}'); } catch (_error) {}
                     host.jasmine.getEnv().reporter = reporter;
-                    host.jasmine.getEnv().ijax = #{ijax_options};
+                    host.jasmine.getEnv().__ = host.__;
                     host.jasmine.getEnv().execute();
                     event;
                     """, context, specolate_filename

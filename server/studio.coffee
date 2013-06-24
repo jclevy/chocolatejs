@@ -206,9 +206,15 @@ exports.enter = (__) ->
                     panel '#main-panel', proportion:'served', ->
                         panel ->
                             footer ->
-                                panel proportion:'half', ->
-                                    box -> a '#do-git-commit', href:"#", onclick:"_ide.commit_to_git();", -> 'Commit'    
+                                panel proportion:'third', ->
                                     box -> a '#do-file-create', href:"#", onclick:"_ide.create_file();", -> 'Create'    
+                                    box -> a '#do-git-commit', href:"#", onclick:"_ide.commit_to_git();", -> 'Commit'    
+                                    box -> 
+                                        a '#do-file-upload', href:"#", onclick:"_ide.upload_file('ask');", -> 
+                                            text 'Upload'
+                                        form "#form-file-upload", action:"", method:"post", enctype:"multipart/form-data", target:"frame-file-upload", ->
+                                            input "#input-file-upload", name:"input-file-upload", type:'file', onchange:"_ide.upload_file('send');"
+                                        iframe "#frame-file-upload", ->
                             body ->
                                 panel proportion:'third', orientation:'vertical', ->
                                     panel ->
@@ -236,8 +242,8 @@ exports.enter = (__) ->
                                         header -> box 'Log'
                                         footer ->
                                             panel proportion:'third', ->
-                                                box -> a '#do-file-move', href:"#", onclick:"_ide.move_file();", -> 'Move'
                                                 box -> a '#do-file-rename', href:"#", onclick:"_ide.rename_file();", -> 'Rename'    
+                                                box -> a '#do-file-move', href:"#", onclick:"_ide.move_file();", -> 'Move'
                                                 box -> a '#do-file-delete', href:"#", onclick:"_ide.delete_file();", -> 'Delete'
                                         body ->
                                             panel '#studio-messages-panel', -> 
@@ -379,9 +385,12 @@ exports.enter = (__) ->
                 path.split('/')[-1..][0]
             
             _ide.is_spec_file = (path) ->
+                suffix = '.spec'
                 index = path.lastIndexOf '.'
                 index = path.length if index < 0
-                path.substr(index - len = '.spec'.length, len) is '.spec'
+                result = path.substr(index - suffix.length, suffix.length)  is '.spec'
+                result = path.substr(index) is '.spec' unless result
+                result
             
             _ide.get_spec_filename = (path) ->
                 return '' if path is ''
@@ -471,13 +480,13 @@ exports.enter = (__) ->
             _ide.goto_dir = (new_dir, callback) ->
                 parent_dir = if (tmp_ = new_dir.split('/')[0...-1].join('/')) is '' then '.' else tmp_
                 new Request.JSON
-                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=getDirContent&path=' + new_dir + '&how=raw'
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getDirContent&' + new_dir + '&how=raw'
                     onSuccess: (directory) ->
                         return if directory.error?
                         rel_new_dir = if new_dir is '.' then '' else new_dir + '/'
                         sources.available = {}
                         content = ["""<div><a href="#" onclick="javascript:_ide.goto_dir('#{parent_dir}');">..</a></div>""" if new_dir isnt '.']
-                        for item in directory when item.name[0] isnt '.' and (item.isDir or item.extension in ['.coffee', '.css', '.js', '.json', '.html', '.txt', '.markdown', '.md'])
+                        for item in directory when item.name[0] isnt '.' # and (item.isDir or item.extension in ['.coffee', '.css', '.js', '.json', '.html', '.txt', '.markdown', '.md'])
                             unless _ide.is_spec_file item.name
                                 content.push ('<div>' + """<a href="#" onclick="javascript:#{if item.isDir then '_ide.goto_dir' else '_ide.open_file'}('#{(if new_dir isnt '.' then (new_dir + '/') else '') + item.name}');">#{item.name}</a>""" + '</div>')
                             else sources.available[rel_new_dir + item.name.replace '.spec', ''].has_spec_file = true
@@ -506,7 +515,6 @@ exports.enter = (__) ->
                 item = sources.available[path] ? name:_ide.get_basename(path), extension:_ide.get_extension(path), modifiedDate:sources.searched[path]?.modifiedDate ? 0, has_spec_file:false
                 sources[if is_spec then 'specs' else 'codes'][path] = { path, doc, from_history:from_history ? false, modified:from_history ? false, modifiedDate:item.modifiedDate, has_spec_file:item.has_spec_file }
                 
-
             _ide.display_code_file = (path, overwrite) ->
                 _ide.toggleMainDisplay 'main'
                 
@@ -547,7 +555,7 @@ exports.enter = (__) ->
                     when '.html' then 'html'
                     when '.txt' then 'text'
                     when '.markdown', '.md' then 'markdown'
-                    else 'coffee'
+                    else 'text'
                 Mode = require(mode).Mode                    
                 doc = new EditSession source
                 doc.setUndoManager new UndoManager()
@@ -585,7 +593,7 @@ exports.enter = (__) ->
                 if filename = prompt translate("Current directory is /#{cur_dir}") + '\n\n' + translate "Enter a filename"
                     if _ide.get_extension(filename) is '' then filename += '.coffee'
                     new Request
-                        url: (if sofkey? then '/!/' + sofkey else '') + "/-/#{cur_dir}/#{filename}?so=move&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{cur_dir}/#{filename}?so=move&how=raw"
                         onSuccess: (responseText) ->
                             _ide.goto_dir cur_dir, ->
                                 _ide.open_file "#{cur_dir}/#{filename}"
@@ -593,6 +601,30 @@ exports.enter = (__) ->
                         onFailure: (xhr) ->
                             _ide.display_message "Error with _ide.create_file() : #{xhr.status}"
                     .get()
+                    
+            _ide.upload_file = (step) -> 
+                cur_dir = _ide.get_current_dir()
+                form = document.getElementById('form-file-upload')
+                input = document.getElementById('input-file-upload')
+                iframe = document.getElementById('frame-file-upload')
+                on_iframe_load = -> _ide.upload_file 'done'
+                filename = _ide.get_basename input.value.replace /\\/g, '/'
+                switch step
+                    when 'ask'
+                        input.click()
+                    when 'send'
+                        if input.value isnt ''
+                            iframe.addEvent 'load', on_iframe_load
+                            form.action = '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{cur_dir}/#{filename}?so=move&how=raw"
+                            form.submit()
+                    when 'done'
+                        iframe.removeEvents 'load'
+                        form.action = ''
+                        input.value = ''
+                        _ide.goto_dir cur_dir, ->
+                            _ide.open_file "#{cur_dir}/#{filename}"
+                            _ide.display_message translate "File /#{cur_dir}/#{filename} was uploaded"
+                            
 
             _ide.move_file = ->
                 cur_dir = _ide.get_current_dir()
@@ -605,7 +637,7 @@ exports.enter = (__) ->
                 
                 move_one = (source, dest, callback) ->
                     new Request
-                        url: (if sofkey? then '/!/' + sofkey else '') + "/-/#{dest}?so=move&what=#{source}&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{dest}?so=move&what=#{source}&how=raw"
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.move_file.move_one() : #{xhr.status}"
                     .get()
@@ -630,7 +662,7 @@ exports.enter = (__) ->
                 
                 rename_one = (source, dest, callback) ->
                     new Request
-                        url: (if sofkey? then '/!/' + sofkey else '') + "/-/#{dest}?so=move&what=#{source}&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{dest}?so=move&what=#{source}&how=raw"
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.rename_file.rename_one() : #{xhr.status}"
                     .get()
@@ -762,7 +794,7 @@ exports.enter = (__) ->
                     
                     sources.searched = {}
                     new Request
-                        url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=grep&pattern=' + pattern + '&how=raw'
+                        url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?grep&pattern=' + pattern + '&how=raw'
                         onSuccess: (responseText) ->
                             lines = []
                             infos = responseText.replace(/\.\//g, '').split '\n'
@@ -776,7 +808,6 @@ exports.enter = (__) ->
                             document.id("studio-search").set 'html', ''
                             _ide.display_message "Error with _ide.search_in_files() : #{xhr.status}"
                     .get()
-
 
             _ide.on_content_changed = (is_spec) ->
                 _ide.run_doccolate() if not is_spec and document.id('toggle-doccolate').hasClass 'selected'
@@ -799,7 +830,7 @@ exports.enter = (__) ->
                     
             _ide.get_file_modified_date = (path, callback) ->
                 new Request
-                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=getModifiedDate&path=' + path + '&how=raw'
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getModifiedDate&' + path + '&how=raw'
                     onSuccess: (responseText) -> callback?(parseInt responseText) if responseText isnt ''
                     onFailure: (xhr) -> _ide.display_message "Error with _ide.get_file_modified_date() : #{xhr.status}"
                 .get()
@@ -815,7 +846,7 @@ exports.enter = (__) ->
                 add_element {source:translate('local'), is_spec:no, date:new Date(sources.codes[sources.current].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:path} }, code_git_history
                 
                 new Request.JSON
-                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=getAvailableCommits&path=' + path + '&how=raw'
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getAvailableCommits&' + path + '&how=raw'
                     onSuccess: (list) ->
                         for item in list then item.source = 'git'; item.is_spec = no; add_element item, code_git_history
                         
@@ -825,7 +856,7 @@ exports.enter = (__) ->
                         add_element {source:translate('local'), is_spec:yes, date:new Date(sources.specs[spec_filename].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:spec_filename} }, spec_git_history
                         
                         new Request.JSON
-                            url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=getAvailableCommits&path=' + spec_filename + '&how=raw'
+                            url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getAvailableCommits&' + spec_filename + '&how=raw'
                             onSuccess: (list) ->
                                 for item in list then item.source = 'git'; item.is_spec = yes; add_element item, spec_git_history
                                 
@@ -846,9 +877,9 @@ exports.enter = (__) ->
                 if is_spec then path = _ide.get_spec_filename path
                 
                 if sha is ''
-                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=load&path=' + path + '&how=raw'
+                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?load&' + path + '&how=raw'
                 else
-                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=loadFromHistory&commit_sha=' + sha + '&path=' + path + '&how=raw'
+                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?loadFromHistory&' + sha + '&' + path + '&how=raw'
                 new Request
                     url: url
                     onSuccess: () ->
@@ -865,7 +896,7 @@ exports.enter = (__) ->
                 
                 if message = prompt translate "Enter a message for your Git commit"
                     new Request
-                        url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=commitToHistory&message=' + message + '&how=raw'
+                        url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?commitToHistory&' + message + '&how=raw'
                         onSuccess: (responseText) ->
                             _ide.get_file_git_history sources.current
                             _ide.display_message translate "Files were commited to Git repository"
@@ -1238,13 +1269,19 @@ exports.enter = (__) ->
                     return "<table class='debug' cellspacing='0px'>" + lines.join('\\n') + "</table>" 
 
                     \n"""
-                lines = source.split '\n'
+
+                removed_quotes = []
+                prepared = source.replace /([^\\])("""|'''|"|')([\S\s]*?)([^\\])(\2)/g, (match, p1, p2, p3, p4, p5, offset) ->
+                    removed_quotes[offset] = p2 + p3 + p4 + p5
+                    p1 + "'quote#{offset}'"
+
+                lines = prepared.split '\n'
                 indent = 0
                 loop_entered = no
                 loop_entered_at_line = undefined
                 
                 for line, line_num in lines
-                    index = last_index = rindex = 0
+                    index = last_index = rindex = quote_index = 0
                     
                     new_indent = line.search /\S/
                     
@@ -1295,16 +1332,23 @@ exports.enter = (__) ->
                                 lindex += 1 if lindex >= 0
                             if lindex < 0 then lindex = 0
                             variable = line.substring lindex, rindex
-                            debugged += line.substring(last_index, rindex + step) + ' __debug__keep__ ' + line_num + ', ' + variable + ', "' + operator + '", "' + variable + '", '
+                            debugged += line.substring(last_index, rindex + step) + ' __debug__keep__ ' + line_num + ', ' + variable + ', "' + operator + "\", __debug__quote__start__#{quote_index}" + variable + "__debug__quote__end__#{quote_index++}, "
                             last_index = index = rindex + step
                     debugged += line.substring(last_index) + '\n'
                 
                 result = undefined
                 error = undefined
+
+                debugged = debugged.replace /'quote(\d+)'/g, (match, p1) ->
+                    removed_quotes[p1]
+
+                debugged = debugged.replace /__debug__quote__start__(\d+)([\S\s]*?)__debug__quote__end__\1/g, (match, p1, p2) ->
+                    '"' + p2.replace(/([^\\])"/g, '$1\\"') + '"'
                 
                 if source.search(/\S/) is -1 
                     result = ''
                     document.id('experiment-js-panel').set 'html', ''
+                    document.id('experiment-debug-panel').set 'html', ''
                 else
                     try
                         orig_compiled = CoffeeScript.compile source, bare: true
@@ -1332,7 +1376,10 @@ exports.enter = (__) ->
                 try
                     document.id('experiment-html-panel').set 'text', new Chocokup.Panel(source).render()
                     iframe = document.id('experiment-dom-panel')
-                    (iframe.contentDocument || iframe.contentWindow.document).documentElement.innerHTML = new Chocokup.Document('Untitled', source).render()
+                    iframeDoc = (iframe.contentDocument || iframe.contentWindow.document)
+                    iframeDoc.open()
+                    iframeDoc.write new Chocokup.Document('Untitled', source).render()
+                    iframeDoc.close()
                     chocokup_editor.focus()
                     document.id('experiment-run-panel').set 'text', ''
                 catch error
@@ -1357,7 +1404,7 @@ exports.enter = (__) ->
                         _ide.get_file_modified_date item.path, (new_modifiedDate) ->
                             if item.modifiedDate < new_modifiedDate
                                 unless item.modified
-                                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?sodowhat=load&path=' + item.path + '&how=raw'
+                                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?load&' + item.path + '&how=raw'
                                     new Request
                                         url: url
                                         onSuccess: () ->

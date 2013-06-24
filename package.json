@@ -1,6 +1,6 @@
 {
     "name": "chocolate",
-    "version": "0.0.4",
+    "version": "0.0.5",
     "description": "A simple webapp framework built on Node.js using Coffeescript",
     "preferGlobal": "true",
     "keywords": ["coffeescript", "framework", "online", "ide", "web", "app", "coffeekup", "jasmine", "ace", "mootools", "docco", "git", "impress"],
@@ -16,6 +16,7 @@
         "bufferstream": "0.5.1",
         "jasmine-node": "1.5.0",
         "chokidar": "0.6.2",
+        "formidable": "1.0.14",
         "sqlite3": "2.1.7"
     },
     "engines": { "node": ">=0.10.0" },

@@ -1,3 +1,24 @@
+## v0.0.5 - (2013-06-24)
+
+--------------
+
+NEW FEATURES
+
+- allow binary file in Locco 'move' verb
+- now specolate specs receive system context variable in jasmine.getEnv().__
+- allow file basic upload
+- allow list and open every file type
+
+FIXED BUGS
+
+- replace static strings in the Lab before Debug so that = and [ dont break
+- clean File.coffee code to allow all file types
+- reintroduced javascript execution in Chocokup lab (it disappeared with iframe usage)
+
+UPDATES
+
+- updated Ace to package 06.04.2013
+
 ## v0.0.4 - (2013-05-03)
 
 --------------
