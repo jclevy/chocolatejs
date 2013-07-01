@@ -1,5 +1,5 @@
 //
-// chocodown.js -- A slightly enhanced javascript port of Markdown based on:
+// chocodown.js -- A slightly enhanced javascript port of Markdown based on showdown.js
 // Copyright (c) 2013 Jean-Claude Levy.
 //
 // showdown.js -- A javascript port of Markdown.
@@ -892,21 +892,67 @@ var _DoCodeBlocks = function(text) {
                 switch (language) {
                     case '#! chocokup': 
                     case '! chocokup': 
+                    case '#! html': 
+                    case '! html': 
+                    case '#! javascript': 
+                    case '! javascript': 
+                    case '#! js': 
+                    case '! js': 
+                    case '#! coffeescript': 
+                    case '! coffeescript': 
+                    case '#! cs': 
+                    case '! cs': 
+                    case '#! coffee': 
+                    case '! coffee': 
+                    case '#! css': 
+                    case '! css': 
                         codeblock = lines.join('\n');
-                        try {
-                              coderun = new Showdown.Chocokup.Panel(codeblock).render({locals:{Chocokup:Showdown.Chocokup}});
-                        }
-                        catch (e) {
-                            coderun = 'Chocokup error: ' + e.message + ': ' + codeblock;
-                        }
                         
-                        if (language !== '#! chocokup') {
+                        switch (language)
+                        {
+                            case '#! chocokup':
+                            case '! chocokup':
+                                try {
+                                      coderun = new Showdown.Chocokup.Panel(codeblock).render({locals:{Chocokup:Showdown.Chocokup}});
+                                }
+                                catch (e) {
+                                    coderun = 'Chocokup error: ' + e.message + ': ' + codeblock;
+                                }
+                                break;
+                                
+                            case '#! coffeescript': 
+                            case '! coffeescript': 
+                            case '#! cs': 
+                            case '! cs': 
+                            case '#! coffee': 
+                            case '! coffee': 
+                                try {
+                                    coderun = "<script language='javascript'>" + CoffeeScript.compile(codeblock, {bare: true}) + "</script>";
+                                }
+                                catch (e) {
+                                    coderun = 'CoffeeScript error: ' + e.message + ': ' + codeblock;
+                                }                                break;
+                                                                
+                            case '#! javascript': 
+                            case '! javascript': 
+                            case '#! js': 
+                            case '! js':
+                                coderun = "<script language='javascript'>" + codeblock + "</script>";
+                                break;
+
+                            case '#! css': 
+                            case '! css': 
+                                coderun = "<style type='text/css'>" + codeblock + "</style>";
+                                break;
+
+                            default: coderun = codeblock;
+                        }
+
+                        if (language[0] !== '#') {
                             codeblock = '';
                             done = true;
                         }
-                        else
-                            language = '# chocokup';
-                        break;
+                        else language = language.replace('!', '');
                 }
             }
 

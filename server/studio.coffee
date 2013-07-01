@@ -117,29 +117,8 @@ exports.enter = (__) ->
                 font-size: 9pt;
                 line-height: 12pt;
             }
-            .hilite-error {
-                color: red;
-            }
             .padded {
                 padding: 8px;
-            }
-
-            table.debug td {
-                padding:0px;
-                border-left:solid gray 1px;
-            }
-            table.debug div {
-                height: 16px;
-                width: 50px;
-                overflow-x: auto;
-                text-align:center;
-            }
-            table.debug td.debug_var_names {
-                text-align: right;
-                border-left:initial;
-            }
-            table.debug td.debug_col_0 {
-                border-left:initial;
             }
             
             .ace-coffee.dimmed .ace_scroller {
@@ -162,7 +141,7 @@ exports.enter = (__) ->
             #specolate-panel-editor .ace_text-layer, #specolate-panel-editor .ace_gutter {
                 font-size: 9pt;
             }
-            #experiment-coffeescript-panel-editor .ace_text-layer, #experiment-chocokup-panel-editor .ace_text-layer,
+            #experiment-coffeescript-panel-editor .ace_text-layer, #experiment-chocodown-panel-editor .ace_text-layer,
             #notes-panel .ace_text-layer {
                 font-size: 9pt;
                 line-height: 12pt;
@@ -268,10 +247,10 @@ exports.enter = (__) ->
                                                     footer ->
                                                         panel proportion:'half', ->
                                                             box -> a '#toggle-coffeescript.selected', href:"#", onclick:"_ide.toggleExperimentPanel('coffeescript');", -> 'Coffeescript'
-                                                            box -> a '#toggle-chocokup', href:"#", onclick:"_ide.toggleExperimentPanel('chocokup');", -> 'Chocokup'                                                        
+                                                            box -> a '#toggle-chocodown', href:"#", onclick:"_ide.toggleExperimentPanel('chocodown');", -> 'Chocodown'                                                        
                                                     body -> 
                                                         box '#experiment-coffeescript-panel-main.chocoblack.round', -> panel '#experiment-coffeescript-panel-editor', ''
-                                                        box '#experiment-chocokup-panel-main.chocoblack.round.hidden', -> panel '#experiment-chocokup-panel-editor', ''
+                                                        box '#experiment-chocodown-panel-main.chocoblack.round.hidden', -> panel '#experiment-chocodown-panel-editor', ''
                                                 panel ->
                                                     panel '#experiment-coffeescript-compiled', ->
                                                         footer ->
@@ -282,8 +261,8 @@ exports.enter = (__) ->
                                                             panel '#experiment-js-panel-main', -> 
                                                                 box '#.white.round', -> body '#experiment-js-panel.source-code.dl-s-default', ->
                                                             panel '#experiment-debug-panel-main.hidden', -> 
-                                                                box '#.white.round', -> body '#experiment-debug-panel.source-code', ->
-                                                    panel '#experiment-chocokup-compiled.hidden', ->
+                                                                box '#.chocoblack.round', -> panel '#experiment-debug-panel.source-code', ''
+                                                    panel '#experiment-chocodown-compiled.hidden', ->
                                                         footer ->
                                                             panel proportion:'half', ->
                                                                 box -> a '#toggle-html.selected', href:"#", onclick:"_ide.toggleExperimentPanel('html');", -> 'Html'
@@ -342,9 +321,9 @@ exports.enter = (__) ->
                                                 box -> a '#toggle-help-newnotes', href:"#", onclick:"_ide.toggleHelpPanel('newnotes');", -> 'Newnotes'
                                         header '#.inline', ->
                                             panel proportion:'third', ->
+                                                box -> a '#toggle-help-chocodown', href:"#", onclick:"_ide.toggleHelpPanel('chocodown');", -> 'Chocodown'
                                                 box -> a '#toggle-help-mootools', href:"#", onclick:"_ide.toggleHelpPanel('mootools');", -> 'Mootools'
                                                 box -> a '#toggle-help-node', href:"#", onclick:"_ide.toggleHelpPanel('node');", -> 'Node'                                    
-                                                box -> a '#toggle-help-sqlite', href:"#", onclick:"_ide.toggleHelpPanel('sqlite');", -> 'Sqlite'
                                         body '#.with-3-headers', ->
                                             footer -> panel '#help-selector-panel.hidden', ->
                                                 select '#help-selector', onchange:"_ide.select_help_panel(true);", ->
@@ -357,11 +336,11 @@ exports.enter = (__) ->
                                                 panel '#help-newnotes-panel.hidden', -> box '#.chocomilk.round', -> body '#help-newnotes-display', ->
                                                 panel '#help-mootools-panel.hidden', -> box '#.chocomilk.round', -> body '#help-mootools-display', ->
                                                 panel '#help-node-panel.hidden', -> box '#.chocomilk.round', -> body '#help-node-display', ->
-                                                panel '#help-sqlite-panel.hidden', -> box '#.chocomilk.round', -> body '#help-sqlite-display', ->
+                                                panel '#help-chocodown-panel.hidden', -> box '#.chocomilk.round', -> body '#help-chocodown-display', ->
 
         coffeescript ->
             sofkey = _sofkey
-            editor = chocokup_editor = experiment_editor = specolate_editor = null
+            editor = chocodown_editor = debug_editor = experiment_editor = specolate_editor = null
             sources =
                 opened : []
                 # codes : { path, doc, from_history , modified, modifiedDate }
@@ -625,7 +604,6 @@ exports.enter = (__) ->
                             _ide.open_file "#{cur_dir}/#{filename}"
                             _ide.display_message translate "File /#{cur_dir}/#{filename} was uploaded"
                             
-
             _ide.move_file = ->
                 cur_dir = _ide.get_current_dir()
                 filename = _ide.get_basename sources.current
@@ -907,7 +885,8 @@ exports.enter = (__) ->
             _ide.resize_editors = ->
                 editor.resize()
                 experiment_editor.resize()
-                chocokup_editor.resize()
+                debug_editor.resize()
+                chocodown_editor.resize()
                 specolate_editor.resize()
 
             _ide.toggleFullscreen = ->
@@ -992,8 +971,8 @@ exports.enter = (__) ->
                     switch what
                         when 'js' then debug : 'add', js: 'remove'
                         when 'debug' then debug : 'remove', js: 'add'
-                        when 'coffeescript' then chocokup : 'add', coffeescript: 'remove'
-                        when 'chocokup' then chocokup : 'remove', coffeescript: 'add'
+                        when 'coffeescript' then chocodown : 'add', coffeescript: 'remove'
+                        when 'chocodown' then chocodown : 'remove', coffeescript: 'add'
                         when 'html' then dom : 'add', html: 'remove'
                         when 'dom' then dom : 'remove', html: 'add'
                         
@@ -1005,17 +984,18 @@ exports.enter = (__) ->
                     document.id('toggle-' + what).addClass 'selected'
                     experiment_editor.focus()
                 else 
-                if css_class.chocokup?
+                if css_class.chocodown?
                     document.id('experiment-coffeescript-panel-main')[css_class.coffeescript + 'Class']('hidden')
-                    document.id('experiment-chocokup-panel-main')[css_class.chocokup + 'Class']('hidden')
+                    document.id('experiment-chocodown-panel-main')[css_class.chocodown + 'Class']('hidden')
                     document.id('experiment-coffeescript-compiled')[css_class.coffeescript + 'Class']('hidden')
-                    document.id('experiment-chocokup-compiled')[css_class.chocokup + 'Class']('hidden')
+                    document.id('experiment-chocodown-compiled')[css_class.chocodown + 'Class']('hidden')
                     
-                    document.id(item).removeClass('selected') for item in ['toggle-coffeescript', 'toggle-chocokup']
+                    document.id(item).removeClass('selected') for item in ['toggle-coffeescript', 'toggle-chocodown']
                     document.id('toggle-' + what).addClass 'selected'
                     
                     experiment_editor.resize()
-                    chocokup_editor.resize()                    
+                    debug_editor.resize()
+                    chocodown_editor.resize()                    
                 else 
                 if css_class.html?
                     document.id('experiment-html-panel-main')[css_class.html + 'Class']('hidden')
@@ -1023,7 +1003,7 @@ exports.enter = (__) ->
                     
                     document.id(item).removeClass('selected') for item in ['toggle-html', 'toggle-dom']
                     document.id('toggle-' + what).addClass 'selected'
-                    chocokup_editor.focus()
+                    chocodown_editor.focus()
 
             _ide.toggleServicesPanel = (what) ->
                 list = ['git', 'notes', 'help']
@@ -1046,7 +1026,7 @@ exports.enter = (__) ->
                             Newnotes.create_panel element_id:'notes-panel', url: {load:load_url, save:save_url}, box_css_class:'chocoblack.round', inherit_selected_class:yes, ace_theme:'ace/theme/coffee', standalone:no
 
             _ide.toggleHelpPanel = (what) ->
-                list = ['chocolate', 'coffeescript', 'chocokup', 'specolate', 'doccolate', 'newnotes', 'mootools', 'node', 'sqlite']
+                list = ['chocolate', 'coffeescript', 'chocokup', 'specolate', 'doccolate', 'newnotes', 'mootools', 'node', 'chocodown']
                 
                 (document.id('help-' + item + '-panel').addClass('hidden') unless document.id('help-' + item + '-panel').hasClass('hidden')) for item in list
                 document.id('help-' + what + '-panel').removeClass('hidden')
@@ -1178,8 +1158,10 @@ exports.enter = (__) ->
                 source = experiment_editor.getSession().getValue()
                 
                 debugged = """__debug__evals__ = []
+                dbg = []
                 __debug__indent__lines__ = {}
                 __debug__indent__loop__ = 0
+                __debug__indent__curline__ = -1
                 
                 __debug__token__col__size__ = 0
                 
@@ -1204,21 +1186,21 @@ exports.enter = (__) ->
                         if __debug__loop__counts__[line] >= 10
                             __debug__loop__force__exit__ = yes; return no
                         
-                    __debug__loop__modified__ = no 
+                    __debug__loop__modified__ = no
                     
                     if __debug__indent__lines__[line] is undefined
                         __debug__indent__lines__[line] = __debug__indent__loop__
-                    else
-                        __debug__indent__lines__[line] = __debug__indent__loop__ + 1
-                        
-                    __debug__indent__loop__ = __debug__indent__lines__[line]
                     
                     return yes
-
                         
                 __debug__keep__ = (line, current_value, operator, token, new_value) ->
                     if __debug__loop__force__exit__ then return new_value
                     
+                    if __debug__indent__curline__ >= line 
+                        __debug__indent__loop__ += 1
+                        
+                    __debug__indent__curline__ = line
+
                     if current_value? and operator?
                         value = switch operator
                             when '+=' then current_value + new_value
@@ -1246,11 +1228,18 @@ exports.enter = (__) ->
                         item.tokens.push token
                         item.values[token] = []
                     item.values[token][__debug__indent__loop__] = value
-                    
+                    dbg.push token + '[' + __debug__indent__loop__ + '] = ' + value
+
                     if __debug__indent__loop__ is 0 or item.values[token][__debug__indent__loop__ - 1] isnt value then __debug__loop__modified__ = yes
 
                     new_value
                     
+                __debug__display__cell__ = (value, max) ->
+                    text = value.toString()
+                    len = text.length
+                    text = text.substr(0,max-3) + if len > max-3 then '...' else ''
+                    text += (' ' for i in [0...max - text.length]).join ''
+                
                 __debug__display__evals__ = ->
                     lines = []
                     for item in __debug__evals__
@@ -1258,15 +1247,16 @@ exports.enter = (__) ->
                         var_values = []
                         
                         for token in item.tokens
-                            for value, i in item.values[token] 
+                            for value, i in item.values[token]
                                 var_values[i] = [] unless var_values[i]?
                                 var_values[i].push value
                         for values, i in var_values then var_values[i] = var_values[i].join ', '
-                        var_values = ("<td class='debug_col_" + index + "'><div>" + value + "</div></td>" for value, index in var_values).join ''
+                        var_values = (" " + __debug__display__cell__(value, 7) + " |" for value, index in var_values).join ''
                         
-                        lines.push if var_names isnt '' then ('<tr><td class="debug_var_names">' + var_names + ' = </td>' + var_values + '</tr>') else '<tr><td class="debug_var_names"><div></div></td></tr>'
-                        
-                    return "<table class='debug' cellspacing='0px'>" + lines.join('\\n') + "</table>" 
+                        lines.push if var_names isnt '' then (__debug__display__cell__(var_names, 14) + ' = ' + var_values + '\n') else '\n'
+                    
+                    alert dbg.join ', '
+                    return lines.join('\\n')
 
                     \n"""
 
@@ -1348,7 +1338,7 @@ exports.enter = (__) ->
                 if source.search(/\S/) is -1 
                     result = ''
                     document.id('experiment-js-panel').set 'html', ''
-                    document.id('experiment-debug-panel').set 'html', ''
+                    debug_editor.setValue ''
                 else
                     try
                         orig_compiled = CoffeeScript.compile source, bare: true
@@ -1363,24 +1353,25 @@ exports.enter = (__) ->
                             result = eval compiled
                             if __debug__loop__force__exit__ then result = 'Inifite loop detected'
                             else result = eval orig_compiled
-                            document.id('experiment-debug-panel').removeClass('hilite-error').set 'html', __debug__display__evals__()
+                            debug_editor.setValue __debug__display__evals__(), -1
                         catch e
                             error = e
                             result = _ide.error_message error
-                            document.id('experiment-debug-panel').addClass('hilite-error') #.set 'text', error.stack + '\n\ndebugged : \n' + debugged + '\n\ncompiled : \n' + compiled
+                            #debug_editor.setValue error.stack + '\n\ndebugged : \n' + debugged + '\n\ncompiled : \n' + compiled
                         
                 document.id('experiment-run-panel').set 'text', result
 
-            _ide.compile_chocokup_code = ->
-                source = chocokup_editor.getSession().getValue()
+            _ide.compile_chocodown_code = ->
+                source = chocodown_editor.getSession().getValue()
                 try
-                    document.id('experiment-html-panel').set 'text', new Chocokup.Panel(source).render()
+                    html = new Chocodown.converter().makeHtml source
+                    document.id('experiment-html-panel').set 'text', html
                     iframe = document.id('experiment-dom-panel')
                     iframeDoc = (iframe.contentDocument || iframe.contentWindow.document)
                     iframeDoc.open()
-                    iframeDoc.write new Chocokup.Document('Untitled', source).render()
+                    iframeDoc.write html
                     iframeDoc.close()
-                    chocokup_editor.focus()
+                    chocodown_editor.focus()
                     document.id('experiment-run-panel').set 'text', ''
                 catch error
                     document.id('experiment-run-panel').set 'text', error
@@ -1431,30 +1422,43 @@ exports.enter = (__) ->
                 CoffeeScriptMode = require('ace/mode/coffee').Mode                    
                 coffeescriptMode = new CoffeeScriptMode()
                 
-                set_editor = (id) ->
+                MarkdownMode = require('ace/mode/markdown').Mode                    
+                markdownMode = new MarkdownMode()
+                
+                TextMode = require('ace/mode/text').Mode                    
+                textMode = new TextMode()
+                
+                set_editor = (id, mode) ->
                     e = ace.edit id
                     try e.setScrollSpeed(2)
                     e.setShowPrintMargin false
                     e.setTheme 'ace/theme/coffee'
                     e.setShowInvisibles yes
                     
-                    e.getSession().setMode coffeescriptMode
+                    e.getSession().setMode mode ? coffeescriptMode
                     e.getSession().setUseSoftTabs true
                     e
                     
                 editor = set_editor 'editor'
                 
                 experiment_editor = set_editor 'experiment-coffeescript-panel-editor'
-                experiment_editor.renderer.setShowGutter false
 
                 Acelang = require("ace/lib/lang")
                 experiment_editor.getSession().on 'change', ->
                     Acelang.delayedCall(_ide.compile_coffeescript_code).schedule 200
-                    
 
-                chocokup_editor = set_editor 'experiment-chocokup-panel-editor'
-                chocokup_editor.getSession().on 'change', ->
-                    Acelang.delayedCall(_ide.compile_chocokup_code).schedule 350
+                debug_editor = set_editor 'experiment-debug-panel', textMode
+                debug_editor.setReadOnly on
+                
+                experiment_editor.getSession().on 'changeScrollTop', (scroll) ->
+                    debug_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
+                debug_editor.getSession().on 'changeScrollTop', (scroll) ->
+                    experiment_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
+
+                chocodown_editor = set_editor 'experiment-chocodown-panel-editor', markdownMode
+                chocodown_editor.renderer.setShowGutter false
+                chocodown_editor.getSession().on 'change', ->
+                    Acelang.delayedCall(_ide.compile_chocodown_code).schedule 350
 
                 specolate_editor = set_editor 'specolate-panel-editor'
                 specolate_editor.getSession().on 'change', ->
@@ -1463,7 +1467,7 @@ exports.enter = (__) ->
 
                 setTimeout _ide.keep_uptodate, _ide.refresh_rate
                 
-                for _ in [editor, experiment_editor, chocokup_editor, specolate_editor]
+                for _ in [editor, experiment_editor, debug_editor, chocodown_editor, specolate_editor]
                     do add_findnext_shortcut = (editor) ->
                         editor = _
                         editor.commands.addCommand

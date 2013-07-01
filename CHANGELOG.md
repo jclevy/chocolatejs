@@ -1,3 +1,19 @@
+## v0.0.6 - (2013-07-01)
+
+--------------
+
+NEW FEATURES
+
+- Replaced *Chocokup lab* by **Chocodown lab** (literate style web dev using Markdown)
+- Enhanced *Debug Lab* display : vertical scroll sync between Coffescript and Debug panels
+- Updated Help to introduce Chocodown
+- Updated ReadMe to replace Chocokup Lab with Chocodown Lab section
+
+FIXED BUGS
+
+- Column alignment for values fixed in Lab with Coffeescript debug mode
+
+
 ## v0.0.5 - (2013-06-24)
 
 --------------

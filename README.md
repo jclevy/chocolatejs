@@ -33,6 +33,8 @@ It includes :
 
  - **Doccolate** : an online documentation editing tool (based on Docco)
 
+ - **Chocodown** : slightly enhanced javascript port of Markdown (based on Showdown)
+
  -  **NewNotes** : a promising note taking tool
 
 Chocolate integrates :
@@ -53,24 +55,20 @@ Chocolate integrates :
 
 ## Version
 
-Chocolate v0.0.5 - 2013/06/24
+Chocolate v0.0.6 - 2013/07/01
 
 NEW FEATURES
 
-- allow binary file in Locco 'move' verb
-- now specolate specs receive system context variable in jasmine.getEnv().__
-- allow file basic upload
-- allow list and open every file type
+- Replaced *Chocokup lab* by **Chocodown lab** (literate style web dev using Markdown)
+- Enhanced *Debug Lab* display : vertical scroll sync between Coffescript and Debug panels
+- Updated Help to introduce Chocodown
+- Updated ReadMe to replace Chocokup Lab with Chocodown Lab section
 
 FIXED BUGS
 
-- replace static strings in the Lab before Debug so that = and [ dont break
-- clean File.coffee code to allow all file types
-- reintroduced javascript execution in Chocokup lab (it disappeared with iframe usage)
+- Column alignment for values fixed in Lab with Coffeescript debug mode
 
-UPDATES
 
-- updated Ace to package 06.04.2013
 
 See history in **CHANGELOG.md** file
 
@@ -382,7 +380,7 @@ It has syntax highlighting for Coffeescript, Javascript, CSS and Markdown.
 
 This panel can split to display the associated spec file (see Specolate)  
 or the source file in help mode (see Doccolate)
-or the Lab that can be used to test Coffeescript or Chocokup code.
+or the Lab that can be used to test Coffeescript or Chocodown code.
 
 The help panel lists some usefull resources. Links will be opened in the central panel.
 
@@ -441,21 +439,58 @@ Then change the `'f'` to something else and see the Debug panel change in live!
 
 This service is experimental but it has been really useful to me.
 
-**Chocokup Lab**
+**Chocodown Lab**
 
-Chocokup lets you write HTML templates using Coffeescript.
+Literate  programming...
 
-When you type Chocokup code in the Lab editor, it is immediately translated to HTML.  
+Chocodown panel lets you write Markdown, Chocokup and Coffeescript code that will be 
+immediately translated to HTML and javascript!
+
 But more... when you display the **Dom** panel you can see immmediately the result!
 
-Copy the following code in the Chocokup Lab with the Dom panel:
+Basicaly, this panel is a Markdown editor, but you can insert code blocks by using
+the **#** and the **!** signs followed by the language you want to use:
+html, css, javascript, coffeescript, chocokup.
 
-    panel ->
-      header -> 'header'
-      footer -> 'footer'
-      body ->
-        for i in [0..3] 
-          button "#{i}"
+When you use the # sign, Chocodown displays and highlights the following code.  
+When you use the ! sign, it executes the code.  
+And you can use both **#!**
+
+Copy the following code in the Chocokup Lab with the Dom panel:
+    
+    ### Here is a basic Chocodown sample:
+    
+    **Css code**
+    
+        #! css
+        #chocodown-demo .header,
+        #chocodown-demo .footer {
+            border: 1px solid grey;
+            background: maroon;
+            color: white;
+            text-align: center;
+        }
+    
+    **Chocokup code**
+    
+        #! chocokup
+        panel "#chocodown-demo", ->
+            header -> 'header'
+            footer -> 'footer'
+            body ->
+                for i in [0..3] 
+                    button "#{i}"
+    
+    **Coffeescript code**
+    
+        #! coffeescript
+        
+        buttons = document.querySelectorAll '#chocodown-demo button'
+        for button in buttons
+            addEvent = button.addEventListener ? button.attachEvent
+            addEvent.call button, "click", -> 
+                alert "I'm button #" + @innerHTML
+
 
 And see...
 
