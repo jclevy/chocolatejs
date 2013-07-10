@@ -69,8 +69,9 @@
 //
 var Showdown = {};
 
-if  (typeof Chocokup !== "undefined" && Chocokup !== null) { Showdown.Chocokup = Chocokup }
-if  (typeof Highlight !== "undefined" && Highlight !== null) { Showdown.Highlight = Highlight }
+if  (typeof CoffeeScript !== "undefined" && CoffeeScript != null) { Showdown.CoffeeScript = CoffeeScript }
+if  (typeof Chocokup !== "undefined" && Chocokup != null) { Showdown.Chocokup = Chocokup }
+if  (typeof Highlight !== "undefined" && Highlight != null) { Showdown.Highlight = Highlight }
 
 //
 // converter
@@ -78,7 +79,12 @@ if  (typeof Highlight !== "undefined" && Highlight !== null) { Showdown.Highligh
 // Wraps all "globals" so that the only thing
 // exposed is makeHtml().
 //
-Showdown.converter = function() {
+Showdown.converter = function (options) {
+    if (options != null) {
+        Showdown.CoffeeScript = options.CoffeeScript;
+        Showdown.Chocokup = options.Chocokup;
+        Showdown.Highlight = options.Highlight;
+    }
 
 //
 // Globals:
@@ -888,7 +894,7 @@ var _DoCodeBlocks = function(text) {
             delete lines[0];
             var done = false;
             
-            if (Showdown.Chocokup !== null) {
+            if (Showdown.Chocokup != null) {
                 switch (language) {
                     case '#! chocokup': 
                     case '! chocokup': 
@@ -927,11 +933,12 @@ var _DoCodeBlocks = function(text) {
                             case '#! coffee': 
                             case '! coffee': 
                                 try {
-                                    coderun = "<script language='javascript'>" + CoffeeScript.compile(codeblock, {bare: true}) + "</script>";
+                                    coderun = "<script language='javascript'>" + Showdown.CoffeeScript.compile(codeblock, {bare: true}) + "</script>";
                                 }
                                 catch (e) {
                                     coderun = 'CoffeeScript error: ' + e.message + ': ' + codeblock;
-                                }                                break;
+                                }
+                                break;
                                                                 
                             case '#! javascript': 
                             case '! javascript': 
@@ -956,7 +963,7 @@ var _DoCodeBlocks = function(text) {
                 }
             }
 
-            if (!done && Showdown.Highlight !== null) {
+            if (!done && Showdown.Highlight != null) {
                 switch (language)
                 {
                     case '# html':

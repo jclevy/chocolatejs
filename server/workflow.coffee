@@ -129,7 +129,7 @@ class World
                 extension = Path.extname url.pathname
                 path = url.pathname.split '/'
                 keywords = ['so', 'what', 'sodowhat', 'how']
-                
+
                 # Check if first param key isnt a keyword and then set `sodowhat` to that key
                 for own key, value of url.query
                     if key not in keywords and value is ''

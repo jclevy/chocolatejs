@@ -69,6 +69,84 @@
         f = eval("yield");
         return f.apply(null, arguments);
       },
+      css: function(param) {
+        var compile;
+
+        compile = function(rules, helpers) {
+          var child, children, declarations, expand, key, nested, pairs, result, selector, split, value, _i, _len;
+
+          result = '';
+          if (helpers == null) {
+            helpers = {};
+          }
+          for (selector in rules) {
+            if (!__hasProp.call(rules, selector)) continue;
+            pairs = rules[selector];
+            declarations = '';
+            nested = {};
+            if (typeof pairs === 'function') {
+              helpers[selector] = pairs;
+              continue;
+            }
+            expand = function(what, key, value) {
+              var k, subs, v, _results;
+
+              if (helpers[key] != null) {
+                subs = helpers[key](value);
+                delete what[key];
+                for (k in subs) {
+                  v = subs[k];
+                  if (k !== key && (helpers[k] != null)) {
+                    expand(subs, k, v);
+                  }
+                }
+                _results = [];
+                for (k in subs) {
+                  v = subs[k];
+                  _results.push(what[k] = v);
+                }
+                return _results;
+              }
+            };
+            for (key in pairs) {
+              if (!__hasProp.call(pairs, key)) continue;
+              value = pairs[key];
+              expand(pairs, key, value);
+            }
+            for (key in pairs) {
+              if (!__hasProp.call(pairs, key)) continue;
+              value = pairs[key];
+              if (typeof value === 'object') {
+                children = [];
+                split = key.split(/\s*,\s*/);
+                for (_i = 0, _len = split.length; _i < _len; _i++) {
+                  child = split[_i];
+                  children.push("" + selector + " " + child);
+                }
+                nested[children.join(',')] = value;
+              } else {
+                key = key.replace(/[A-Z]/g, function(s) {
+                  return '-' + s.toLowerCase();
+                });
+                declarations += "  " + key + ": " + value + ";\n";
+              }
+            }
+            declarations && (result += "" + selector + " {\n" + declarations + "}\n");
+            result += compile(nested, helpers);
+          }
+          return result;
+        };
+        return style((function() {
+          switch (typeof param) {
+            case 'function':
+              return compile(param());
+            case 'object':
+              return compile(param);
+            default:
+              return param.toString();
+          }
+        })());
+      },
       panel: function() {
         var attributes, content, content_, flush, id_class, new_id_class, orientation_keep, panel_index_keep, proportion_keep, _ref, _ref1, _ref2, _ref3,
           _this = this;

@@ -29,11 +29,11 @@ It includes :
 
  - **Chocokup** : an Html markup language that helps build web user interfaces using 100% pure CoffeeScript (based on Coffeekup)
  
+ - **Chocodown** : Chocokup-aware port of Markdown (based on Showdown)
+
  - **Specolate** : a client and server side behavior/test driven development tool (based on Jasmine)
 
  - **Doccolate** : an online documentation editing tool (based on Docco)
-
- - **Chocodown** : slightly enhanced javascript port of Markdown (based on Showdown)
 
  -  **NewNotes** : a promising note taking tool
 
@@ -55,20 +55,23 @@ Chocolate integrates :
 
 ## Version
 
-Chocolate v0.0.6 - 2013/07/01
+Chocolate v0.0.7 - 2013/07/10
 
 NEW FEATURES
 
-- Replaced *Chocokup lab* by **Chocodown lab** (literate style web dev using Markdown)
-- Enhanced *Debug Lab* display : vertical scroll sync between Coffescript and Debug panels
-- Updated Help to introduce Chocodown
-- Updated ReadMe to replace Chocokup Lab with Chocodown Lab section
+- Newnotes: add automatic refresh on remote change
+- Chocokup: add Css support (write Css with Coffeescript syntax) 
+- Chocodown: add .chocodown .cd support in Studio
+- Chocodown: add .chocodown .cd support as static file type
 
 FIXED BUGS
 
-- Column alignment for values fixed in Lab with Coffeescript debug mode
+- replace div with iframe for Doccolate panel in studio
+- removed a bug introduced in v0.0.6 (alert in Coffeescript debug mode)
 
+UPDATES
 
+- add Css support for Chocokup sample in README.md
 
 See history in **CHANGELOG.md** file
 
@@ -602,6 +605,36 @@ which translates into:
     
 and displays as a main panel with a left and a right service panels.
 
+You can also write Css code using Chocokup:
+
+    panel "#calc", ->
+        button i for i in [9..0]
+        button '+' ; button '-'
+        button '.by3', '='           
+            
+    css ->
+        width = 160
+        nbColumn = 3
+        
+        box: ->
+            border: '1px solid black'
+            width: width + 'px'
+            minHeight: '20px'
+            textAlign: 'center'
+            whiteSpaceCollapse: 'collapse'
+            
+        '#calc':
+            box:on
+            
+        button:
+            width: width / nbColumn - 4
+            height: width / nbColumn - 4
+            
+        'button.by3':
+            width: width 
+
+This will display a basic Calculator 
+
 &nbsp;
 
 ### Usage
@@ -747,7 +780,7 @@ Read the complete Newnotes reference in Chocolate Studio Newnotes help panel.
 
 ## Road Map
 
-Chocolate is currently (2013/05) an experiment that needs to be completed and polished:
+Chocolate is currently (2013/07) an experiment that needs to be completed and polished:
 
  - user management
  - security management

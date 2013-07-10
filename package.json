@@ -1,6 +1,6 @@
 {
     "name": "chocolate",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "description": "A simple webapp framework built on Node.js using Coffeescript",
     "preferGlobal": "true",
     "keywords": ["coffeescript", "framework", "online", "ide", "web", "app", "coffeekup", "jasmine", "ace", "mootools", "docco", "git", "impress"],

@@ -271,10 +271,12 @@ exports.enter = (__) ->
                                                             panel '#experiment-html-panel-main', -> 
                                                                 box '#.white.round', -> body '#experiment-html-panel.source-code', ->
                                                             panel '#experiment-dom-panel-main.hidden', -> 
-                                                                box '#.white.round', -> panel '#.padded', -> iframe '#experiment-dom-panel.expand.fullscreen.white-background', frameborder:'0', ->
+                                                                box '#.white.round', -> panel '#.padded', -> 
+                                                                    iframe '#experiment-dom-panel.expand.fullscreen.white-background', frameborder:'0', ->
                                             panel -> box '#.grey.round', -> body '#experiment-run-panel.source-code', ''
                                         panel '#documentation-panel.hidden', -> 
-                                            box '#.chocomilk.round', -> body '#documentation-doccolate-panel', ->
+                                            box '#.chocomilk.round', -> 
+                                                iframe '#documentation-doccolate-panel.expand.fullscreen.white-background', frameborder:'0', ->
                                         panel '#specolate-panel.hidden', proportion:'half-served', orientation:'vertical', -> 
                                             panel ->
                                                 header ->
@@ -383,6 +385,12 @@ exports.enter = (__) ->
             
             _ide.get_current_dir = ->
                 if (dir = document.id('current_dir').get 'text') is '' then '.' else dir
+
+            _ide.iframe_write = (iframe, text) ->
+                iframeDoc = (iframe.contentDocument || iframe.contentWindow.document)
+                iframeDoc.open()
+                iframeDoc.write text
+                iframeDoc.close()
 
             _ide.display_message = (message) ->
                 new Element('div').set('html', ('<p>' + new Date().toString translate 'dd/MM/yyyy HH:mm:ss')  + '<br/>&nbsp;&nbsp;' + message + '</p>').inject document.id('studio-messages'), 'top'
@@ -533,7 +541,7 @@ exports.enter = (__) ->
                     when '.css' then 'css'
                     when '.html' then 'html'
                     when '.txt' then 'text'
-                    when '.markdown', '.md' then 'markdown'
+                    when '.markdown', '.md', '.chocodown', '.cd' then 'markdown'
                     else 'text'
                 Mode = require(mode).Mode                    
                 doc = new EditSession source
@@ -747,12 +755,12 @@ exports.enter = (__) ->
                 data = item.doc.getValue()
                 
                 if data? and (data isnt '')
-                    myRequest = new Request
+                    myRequest = new Request.JSON
                         url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + path + '?so=move&how=raw'
-                        onSuccess: (responseText) ->
+                        onSuccess: (data) ->
                             item.modified = false
                             item.from_history = false
-                            item.modifiedDate = parseInt responseText
+                            item.modifiedDate = data[0].modifiedDate
                             item.has_synchro_conflict = false
                             sources.opened.push sources.current unless is_spec
 
@@ -1101,10 +1109,10 @@ exports.enter = (__) ->
                         if end + 1 > start
                             toggleCode start, end + 1
                             editor.selection.moveCursorTo start, 0
-                            
-            _ide.run_doccolate = ->
-                document.id('documentation-doccolate-panel').set 'html', if sources.current isnt '' then Doccolate.generate sources.current, editor.getSession().getValue() else ''
             
+            _ide.run_doccolate = ->
+                _ide.iframe_write document.id('documentation-doccolate-panel'), if sources.current isnt '' then Doccolate.generate sources.current, editor.getSession().getValue() else ''
+
             _ide.error_message = (error) ->
                 line = if (info = error.location)? then '\n' + "at line:" + info.first_line + ", column:" + info.first_column + " (Coffeescript)" else ''
                 error + line
@@ -1255,7 +1263,6 @@ exports.enter = (__) ->
                         
                         lines.push if var_names isnt '' then (__debug__display__cell__(var_names, 14) + ' = ' + var_values + '\n') else '\n'
                     
-                    alert dbg.join ', '
                     return lines.join('\\n')
 
                     \n"""
@@ -1366,11 +1373,7 @@ exports.enter = (__) ->
                 try
                     html = new Chocodown.converter().makeHtml source
                     document.id('experiment-html-panel').set 'text', html
-                    iframe = document.id('experiment-dom-panel')
-                    iframeDoc = (iframe.contentDocument || iframe.contentWindow.document)
-                    iframeDoc.open()
-                    iframeDoc.write html
-                    iframeDoc.close()
+                    _ide.iframe_write document.id('experiment-dom-panel'), html
                     chocodown_editor.focus()
                     document.id('experiment-run-panel').set 'text', ''
                 catch error

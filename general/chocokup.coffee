@@ -37,6 +37,53 @@ class Chocokup
         totext: ->
             f = eval "yield"
             f arguments...
+        
+        css : (param) ->
+            compile = (rules, helpers) ->
+                result = ''
+                helpers ?= {}
+            
+                for own selector, pairs of rules
+                    declarations = ''
+                    nested = {}
+                
+                    if typeof pairs is 'function'
+                        helpers[selector] = pairs
+                        continue
+            
+                    expand = (what, key, value) ->
+                        if helpers[key]?
+                            subs = helpers[key] value
+                            delete what[key]
+                            for k, v of subs
+                                if k isnt key and helpers[k]?
+                                    expand subs, k, v
+                            for k, v of subs
+                                what[k] = v
+            
+                    for own key, value of pairs
+                        expand pairs, key, value
+            
+                    for own key, value of pairs
+                        if typeof value is 'object'
+                            children = []
+                            split = key.split /\s*,\s*/
+                            children.push "#{selector} #{child}" for child in split
+                            nested[children.join ','] = value
+                        else
+                            key = key.replace /[A-Z]/g, (s) -> '-' + s.toLowerCase()
+                            declarations += "  #{key}: #{value};\n"
+            
+                    declarations and result += "#{selector} {\n#{declarations}}\n"
+            
+                    result += compile nested, helpers
+                    
+                result
+        
+            style switch typeof param
+                when 'function' then compile param()
+                when 'object' then compile param
+                else param.toString()
 
         panel : ->
             { id_class, attributes, content } = verify arguments...

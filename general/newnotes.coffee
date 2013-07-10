@@ -554,7 +554,7 @@ Newnotes = class
                             # Browser downloaded a new app cache.
                             # Swap it in and reload the page to get the new hotness.
                             cache.swapCache()
-                            window.location.reload();
+                            window.location.reload()
                         else
                             # Manifest didn't changed. Nothing new to server.
                     , no
@@ -605,10 +605,31 @@ Newnotes = class
                 document.id("newnotes-#{@id}-login-panel")["#{if switched is on then 'remove' else 'add'}Class"] 'hidden'
                 @reload() unless switched
 
-        check_connected : ->
+        data_modified_date: undefined
+        
+        get_data_modified_date: ->
+            if @is_connected 
+                new Request
+                    url: @url.modified_date
+                    noCache: yes
+                    onSuccess: (responseText) => 
+                            if responseText isnt ''
+                                value = parseInt responseText
+                                @data_modified_date ?= value
+                                if value > @data_modified_date
+                                    @data_modified_date = value
+                                    window.location.reload()
+                    onFailure: (xhr) ->
+                .get()
+
+        is_connected: false
+        
+        check_connected: ->
             switch_log = (switched) =>
+                @is_connected = not switched
                 document.id("newnotes-#{@id}-note-log#{if switched is on then 'on' else 'off'}").removeClass 'hidden'
                 document.id("newnotes-#{@id}-note-log#{if switched is on then 'off' else 'on'}").addClass 'hidden'
+                if @is_connected then setTimeout (=> @get_data_modified_date.call @), 100
                 
             if @url?.connected?
                 new Request
@@ -748,7 +769,10 @@ Newnotes = class
                 @editor.exporting = yes
                 new Request.JSON
                     url: @url.save
-                    onSuccess: => @editor.exporting = no
+                    onSuccess: => 
+                        @editor.exporting = no
+                        @data_modified_date = undefined
+                        setTimeout (=> @get_data_modified_date.call @), 100
                     onFailure: (xhr) ->
                 .post JSON.stringify data
 
@@ -1166,7 +1190,7 @@ Newnotes = class
             for own name of Newnotes.Dimensions
                 selector = document.id("newnotes-#{@id}-search-#{name.toLowerCase()}-select")
                 selector.set 'html', "<option value='all'>All</option>" + @html_options "#{name}", selector.value, yes
-                
+
     @Note: class
         constructor: (@title, @parent, @dimensions, @uuid = Uuid()) ->
             @subs = []
@@ -1420,7 +1444,7 @@ Newnotes = class
         
         @selection = selection unless parent?
         selection
-        
+
     @connected: ->
         "connected"
     
@@ -1468,10 +1492,11 @@ Newnotes = class
                     load = '/' + (if sofkey? then '!/' + sofkey else '') + (if _appdir is '.' then '-/www/' else '') + 'data/newnotes_data.json?how=raw'
                     save = '/' + (if sofkey? then '!/' + sofkey else '') + (if _appdir is '.' then '-/www/' else '') + 'data/newnotes_data.json?so=move&how=raw'
                     connected = '/' + (if sofkey? then '!/' + sofkey else '') + '-/general/newnotes?connected&how=raw'
+                    modified_date = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/file?getModifiedDate&' + (if _appdir is '.' then 'www/' else '') + 'data/newnotes_data.json&how=raw'
                     ping = '/' + (if sofkey? then '!/' + sofkey else '') + '-/ping?how=raw'
                     register_key = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/interface?register_key&how=raw'
                     forget_key = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/interface?forget_key&how=raw'
-                    Newnotes.create_panel element_id:'notes-panel', url: {load, save, connected, ping, register_key, forget_key}, taste:taste, standalone:yes, ace_theme:'ace/theme/chrome'
+                    Newnotes.create_panel element_id:'notes-panel', url: {load, save, connected, modified_date, ping, register_key, forget_key}, taste:taste, standalone:yes, ace_theme:'ace/theme/chrome'
     
     @manifest: (__) ->
         Ui = require('./intentware/interface').Ui
@@ -1501,7 +1526,7 @@ Newnotes = class
  
         """
         CACHE MANIFEST
-        # v0.05.001
+        # v0.05.004
         # Files Timestamp
         #
         #{time_stamps}
@@ -1512,6 +1537,7 @@ Newnotes = class
         NETWORK:
         /static/ijax/
         /-/ping
+        /-/server/file?getModifiedDate
         
         FALLBACK:
         /-/general/newnotes?connected /-/general/newnotes?disconnected

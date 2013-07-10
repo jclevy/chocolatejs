@@ -61,6 +61,16 @@
       name: 'markdown',
       symbol: '',
       symbol_close: ''
+    },
+    '.chocodown': {
+      name: 'markdown',
+      symbol: '',
+      symbol_close: ''
+    },
+    '.cd': {
+      name: 'markdown',
+      symbol: '',
+      symbol_close: ''
     }
   };
 
@@ -161,6 +171,8 @@
         return html = '<pre>' + code + '</pre>';
       case '.markdown':
       case '.md':
+      case '.chocodown':
+      case '.cd':
         return html = new Chocodown.converter().makeHtml(code);
       default:
         sections = parse(source, code);

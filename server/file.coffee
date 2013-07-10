@@ -67,7 +67,6 @@ exports.hasWriteAccess = (path) ->
 # `getModifiedDate` service receives `where`, a system file path, and returns the given file last modification date
 exports.getModifiedDate = (where, __) ->
     event = new Events.EventEmitter
-    
     # First, it tries to resolve the `where` parameter to a local path
     {where, path, error} = resolve where, __
     if error? then process.nextTick(-> with_error event, error) ; return event

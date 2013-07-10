@@ -43,6 +43,10 @@ languages =
     name: 'markdown', symbol: '', symbol_close: ''
   '.md':
     name: 'markdown', symbol: '', symbol_close: ''
+  '.chocodown':
+    name: 'markdown', symbol: '', symbol_close: ''
+  '.cd':
+    name: 'markdown', symbol: '', symbol_close: ''
 
 for ext, l of languages
 
@@ -137,7 +141,7 @@ generate = (source, code) ->
     switch path.extname(source)
         when '.txt'
             html = '<pre>' + code + '</pre>'
-        when '.markdown', '.md'
+        when '.markdown', '.md', '.chocodown', '.cd'
             html = new Chocodown.converter().makeHtml code
         else
             sections = parse source, code

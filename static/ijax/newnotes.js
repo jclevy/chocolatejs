@@ -876,13 +876,49 @@
         }
       };
 
+      _Class.prototype.data_modified_date = void 0;
+
+      _Class.prototype.get_data_modified_date = function() {
+        var _this = this;
+
+        if (this.is_connected) {
+          return new Request({
+            url: this.url.modified_date,
+            noCache: true,
+            onSuccess: function(responseText) {
+              var value, _ref;
+
+              if (responseText !== '') {
+                value = parseInt(responseText);
+                if ((_ref = _this.data_modified_date) == null) {
+                  _this.data_modified_date = value;
+                }
+                if (value > _this.data_modified_date) {
+                  _this.data_modified_date = value;
+                  return window.location.reload();
+                }
+              }
+            },
+            onFailure: function(xhr) {}
+          }).get();
+        }
+      };
+
+      _Class.prototype.is_connected = false;
+
       _Class.prototype.check_connected = function() {
         var switch_log, _ref,
           _this = this;
 
         switch_log = function(switched) {
+          _this.is_connected = !switched;
           document.id("newnotes-" + _this.id + "-note-log" + (switched === true ? 'on' : 'off')).removeClass('hidden');
-          return document.id("newnotes-" + _this.id + "-note-log" + (switched === true ? 'off' : 'on')).addClass('hidden');
+          document.id("newnotes-" + _this.id + "-note-log" + (switched === true ? 'off' : 'on')).addClass('hidden');
+          if (_this.is_connected) {
+            return setTimeout((function() {
+              return _this.get_data_modified_date.call(_this);
+            }), 100);
+          }
         };
         if (((_ref = this.url) != null ? _ref.connected : void 0) != null) {
           return new Request({
@@ -1139,7 +1175,11 @@
           return new Request.JSON({
             url: this.url.save,
             onSuccess: function() {
-              return _this.editor.exporting = false;
+              _this.editor.exporting = false;
+              _this.data_modified_date = void 0;
+              return setTimeout((function() {
+                return _this.get_data_modified_date.call(_this);
+              }), 100);
             },
             onFailure: function(xhr) {}
           }).post(JSON.stringify(data));
@@ -2383,13 +2423,14 @@
 
           sofkey = _sofkey;
           return window.addEvent('domready', function() {
-            var connected, forget_key, load, ping, register_key, save, taste;
+            var connected, forget_key, load, modified_date, ping, register_key, save, taste;
 
             window.addEvent('resize', function() {});
             taste = window.getSize().x < 640 ? 'fullscreen-narrow' : 'fullscreen-wide';
             load = '/' + (sofkey != null ? '!/' + sofkey : '') + (_appdir === '.' ? '-/www/' : '') + 'data/newnotes_data.json?how=raw';
             save = '/' + (sofkey != null ? '!/' + sofkey : '') + (_appdir === '.' ? '-/www/' : '') + 'data/newnotes_data.json?so=move&how=raw';
             connected = '/' + (sofkey != null ? '!/' + sofkey : '') + '-/general/newnotes?connected&how=raw';
+            modified_date = '/' + (sofkey != null ? '!/' + sofkey : '') + '-/server/file?getModifiedDate&' + (_appdir === '.' ? 'www/' : '') + 'data/newnotes_data.json&how=raw';
             ping = '/' + (sofkey != null ? '!/' + sofkey : '') + '-/ping?how=raw';
             register_key = '/' + (sofkey != null ? '!/' + sofkey : '') + '-/server/interface?register_key&how=raw';
             forget_key = '/' + (sofkey != null ? '!/' + sofkey : '') + '-/server/interface?forget_key&how=raw';
@@ -2399,6 +2440,7 @@
                 load: load,
                 save: save,
                 connected: connected,
+                modified_date: modified_date,
                 ping: ping,
                 register_key: register_key,
                 forget_key: forget_key
@@ -2431,7 +2473,7 @@
         time_stamps_list.push('#' + filename + ' : ' + stats.mtime.getTime());
       }
       time_stamps = time_stamps_list.join('\n');
-      return "CACHE MANIFEST\n# v0.05.001\n# Files Timestamp\n#\n" + time_stamps + "\n\nCACHE:\n" + to_cache + "\n\nNETWORK:\n/static/ijax/\n/-/ping\n\nFALLBACK:\n/-/general/newnotes?connected /-/general/newnotes?disconnected";
+      return "CACHE MANIFEST\n# v0.05.004\n# Files Timestamp\n#\n" + time_stamps + "\n\nCACHE:\n" + to_cache + "\n\nNETWORK:\n/static/ijax/\n/-/ping\n/-/server/file?getModifiedDate\n\nFALLBACK:\n/-/general/newnotes?connected /-/general/newnotes?disconnected";
     };
 
     _Class.present = function(where, as, type, __) {

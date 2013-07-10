@@ -1,3 +1,22 @@
+## v0.0.7 - (2013-07-10)
+
+NEW FEATURES
+
+- Newnotes: add automatic refresh on remote change
+- Chocokup: add Css support (write Css with Coffeescript syntax) 
+- Chocodown: add .chocodown .cd support in Studio
+- Chocodown: add .chocodown .cd support as static file type
+
+FIXED BUGS
+
+- replace div with iframe for Doccolate panel in studio
+- removed a bug introduced in v0.0.6 (alert in Coffeescript debug mode)
+
+UPDATES
+
+- add Css support for Chocokup sample in README.md
+
+
 ## v0.0.6 - (2013-07-01)
 
 --------------

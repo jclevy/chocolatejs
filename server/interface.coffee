@@ -11,7 +11,10 @@ Fs = require 'fs'
 Crypto = require 'crypto'
 File = require './file'
 Formidable = require 'formidable'
+CoffeeScript = require 'coffee-script'
 Chocokup = require '../general/chocokup'
+Chocodown = require '../general/chocodown'
+Highlight = require '../general/highlight'
 
 #### Cook
 # `cook` serves a cookies object containing cookies from the sent request
@@ -130,8 +133,15 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                                 when '.js' then  "text/javascript"
                                 when '.manifest' then "text/cache-manifest"
                                 when '.ttf' then "font/ttf"
+                                when '.html', '.md', '.markdown', '.cd', '.chocodown' then "text/html"
                             
-                            respondStatic 200, headers, file
+                            respondStatic 200, headers, switch extension
+                                when '.md', '.markdown', '.cd', '.chocodown' 
+                                    try
+                                        new Chocodown.converter({CoffeeScript, Chocokup, Highlight}).makeHtml file.toString()
+                                    catch error
+                                        'Error loading ' + where + ': ' + error
+                                else file
                         
             check_in_appdir = ->
                 appdir_ = if appdir is '.' then 'www' else appdir
