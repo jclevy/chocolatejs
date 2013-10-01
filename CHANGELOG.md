@@ -1,4 +1,32 @@
+## v0.0.8 - (2013-10-01)
+
+--------------
+
+NEW FEATURES
+
+- Basic **autocomplete and snippets** services introduced in editor
+- First step in **ChocoDB** : write and read Javascript object in database
+- Added Chocoflow: basic **serialize** and parallelize services
+- Added a basic **profiling** tool to Debugate
+- Synchronize editor view with Documentation (Docco) view
+- Changed Locco **test** command to the more appropriate **eval**
+
+FIXED BUGS
+
+- synchronisation problems removed in Coffeescript Lab debug panel
+- make Specolate unit tests work better client side (force module loading and clean)
+- force resize editor view when switching between horizontal and vertical side-by-side
+
+UPDATES
+
+- updated Ace to package 07.31.2013
+- updated node-sqlite3 to 2.1.17
+- updated coffee-script to 1.6.3
+
+ 
 ## v0.0.7 - (2013-07-10)
+
+--------------
 
 NEW FEATURES
 

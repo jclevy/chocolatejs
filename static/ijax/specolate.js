@@ -190,7 +190,9 @@
           context.global.global = context;
           event = vm.runInContext("var Events, event, k;\nEvents = require('events');\nevent = new Events.EventEmitter;\nhost.jasmine = require('jasmine-node');\ntry { require('" + specolate_filename + "'); } catch (_error) {}\nhost.jasmine.getEnv().reporter = reporter;\nhost.jasmine.getEnv().__ = host.__;\nhost.jasmine.getEnv().execute();\nevent;", context, specolate_filename);
         } else {
-          require('../' + specolate_filename);
+          require('../' + specolate_filename, {
+            use_cache: false
+          });
           host.jasmine.getEnv().reporter = reporter;
           host.jasmine.getEnv().execute();
         }

@@ -127,7 +127,7 @@ class Specolate
                     event;
                     """, context, specolate_filename
             else
-                require '../' + specolate_filename
+                require '../' + specolate_filename, use_cache: off
                 host.jasmine.getEnv().reporter = reporter;
                 host.jasmine.getEnv().execute()
         catch error

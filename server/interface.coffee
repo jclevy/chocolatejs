@@ -168,6 +168,13 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     exchangeSystem = () ->
         # When authorized to access system resource -- 
         if canExchange() then exchangeClassic() else respond ''
+    
+    # `canExchangeClassic` checks if a file can be required at the specified path
+    # so that a classic exchange can occur
+    canExchangeClassic = (path) ->
+        try require.resolve '../' + (if appdir is '.' then '' else appdir + '/' ) + path 
+        catch error then return no
+        yes
 
     # `exchangeClassic` is an interface with classic files (coffeescript or javascript)
     exchangeClassic = () ->
@@ -287,9 +294,9 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                     File.moveFile(what, where, __).on 'end', (err) ->
                         if err? then respond err.toString() else respondOnMoveFile()
                             
-                # Take care of the `test` and `do` actions
-            when 'do', 'test'
-                if so is 'test'
+                # Take care of the `eval` and `do` actions
+            when 'do', 'eval'
+                if so is 'eval'
                     args = [(if how is 'raw' then 'json' else 'html'), required, context]
                     required = '../general/specolate'
                     action = 'inspect'
@@ -314,15 +321,31 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                         respond answer
                 else respond produced
             else
-                respond ''                             
-
-    # `exchangeSimple` is an interface with intentional entities
+                respond ''
+            
+    
+    # `exchangeSimple` is an interface with intentional entities.
+    # However, if a file can be required at the specified path, a classic exchange will occur
     exchangeSimple = () ->
-        if where is '' then where = 'default'
+        path = if where is '' then where = 'default' else where
+        path = 'www/' + path if appdir is '.'
         
-        where = 'www/' + where if appdir is '.'
-        
-        try exchangeClassic() catch err then respond ''
+        if canExchangeClassic path
+            where = path
+            try exchangeClassic() catch err then respond ''
+        else
+            switch so
+                when 'do'
+                    produced = ''
+                when 'move'
+                    produced = ''
+                when 'eval'
+                    produced = ''
+                when 'go'
+                    # tranlate url query to Reserve query
+                    produced = where
+                    
+            respond produced                             
 
     # To log requests...
     # require('../general/debugate').log '-> in ' + region + ' ' + so + ' ' + what + ' at ' + where + ' as ' + how + ' with ' + (k + ':' + v for k,v of params).join(' ')
@@ -377,8 +400,6 @@ exports.forget_key = (__) ->
         __.session.keys = []
         new Chocokup.Document 'Key unregistration', helpers:{kup:forgeted_kup}, Chocokup.Kups.Tablet
             
-
-
 #### Create Hash
 # `create_hash` returns the corresponding sha256 hash from a given key
 exports.create_hash = (key) ->

@@ -1,9 +1,10 @@
-# **Reserve** is a system module which offers services on Ijax system database
+# **Reserve** is a system module which offers services on Ijax system database  
 
 Sqlite = require 'sqlite3'
 Events = require 'events'
 Data = require '../general/intentware/data'
 Uuid = require '../general/intentware/uuid'
+Flow = require '../general/chocoflow'
 
 #### Path
 # **Path** : it's a list of addresses in a buffer
@@ -83,10 +84,11 @@ class Space
                 Operation :
                     _               : '31'
                     expression      : '311'
+                    javascript      : '312'
                 Move :
                     _               : '32'
                     expression      : '321'
-                Test :
+                Eval :
                     _               : '33'
                     expression      : '331'
                     'if'            : '332'
@@ -210,17 +212,35 @@ class Space
         #### Relation (matter, scope, category, association)
         @Relation =
             locked: false
+            
+            get_path_query_statement: (type, relation, callback) =>
+                stmt_name = "get_path_query_#{relation}_stmt"
+                return callback? @Relation[stmt_name] if@Relation[stmt_name]?
                 
-            # `get` : Return the children relation for the provided container_id, and create one if necessary
-            get: (type, container_id, callback) =>
+                @Relation[stmt_name] = @db.prepare switch type
+                    when Space.Relation.Type.scope then 'SELECT container.id, container.intention AS parent_intention, ' + relation + '.path, ' + relation + '.depth, matter.depth AS matter_depth FROM container LEFT JOIN matter ON container.matter = matter.id LEFT JOIN container_parent_scope ON container_parent_scope.container = container.id LEFT JOIN ' + relation + ' ON container_parent_scope.' + relation + '=' + relation + '.id  WHERE container.id = ?' 
+                    when Space.Relation.Type.category then 'SELECT container.id, container.intention AS parent_intention, ' + relation + '.path, ' + relation + '.depth, matter.depth AS matter_depth FROM container LEFT JOIN matter ON container.matter = matter.id LEFT JOIN container_parent_category ON container_parent_category.container = container.id LEFT JOIN ' + relation + ' ON container_parent_category.' + relation + '=' + relation + '.id  WHERE container.id = ?' 
+                    when Space.Relation.Type.matter then 'SELECT container.id, container.intention AS parent_intention, ' + relation + '.path, ' + relation + '.depth FROM container LEFT JOIN ' + relation + ' ON container.' + relation + '=' + relation + '.id  WHERE container.id = ?'
+                , => callback? @Relation[stmt_name]
+
+            get_insert_relation_statement: (relation, callback) =>
+                stmt_name = "get_insert_relation_#{relation}_stmt"
+                return callback? @Relation[stmt_name] if@Relation[stmt_name]?
                 
-                # Put Container.is_family to local Scope
-                is_family = @Container.is_family
+                @Relation[stmt_name] = @db.prepare 'INSERT INTO ' + relation + ' (container, path, depth) VALUES (?, ?, ?)', => callback? @Relation[stmt_name]
+
+            get_update_container_statement: (callback) =>
+                stmt_name = "get_update_container_stmt"
+                return callback? @Relation[stmt_name] if@Relation[stmt_name]?
                 
-                # Check if `get` is already running for `container_id`. Postpone request if it is. Otherwise put a lock.
+                @Relation[stmt_name] = @db.prepare 'UPDATE container SET data = NULL WHERE id = ?', => callback? @Relation[stmt_name]
+
+            # `get` : Return the children relation for the provided parent, and create one if necessary
+            get: (type, parent, callback) =>
+                # Check if `get` is already running for `parent`. Postpone request if it is. Otherwise put a lock.
                 if @Relation.locked
                     setImmediate =>
-                        @Relation.get type, container_id, callback
+                        @Relation.get type, parent, callback
                     return
                 else
                     @Relation.locked = true
@@ -230,314 +250,509 @@ class Space
                 returns = (error, data) =>
                     @Relation.locked = false
                     callback? error, data
-                
-                # Convert `container_id` to int if it's a uuid
-                @Intention.get_id container_id, (error, data) =>
-                    container_id = data
-                    
-                    # can look for a `scope`, `matter`, `category` or `association` relation
-                    relation = switch type 
-                        when Space.Relation.Type.scope then 'scope' 
-                        when Space.Relation.Type.category then 'category' 
-                        when Space.Relation.Type.association then 'association' 
-                        when Space.Relation.Type.matter then 'matter'
-                        
-                    sql = ''; param = null
-                    db = @db
-                    
-                    # Else if relation type is Scope, Category or Matter
-                    # Check if a children relation already exists for the provided parent container Id
-                    db.get 'SELECT id from ' + relation + ' WHERE container = ?', container_id, (error, data) ->
-                        if error? then returns error, null; return
-                        
-                        # if relation already exists, return it
-                        if data? then returns null, data.id; return
-                        
-                        # if not check if relation type is Association
-                        if type is Space.Relation.Type.association then return
-                        
-                        # if not, create a new children relation
-                        
-                        # Get the path to that container for this relation type (except for association where there is no path), if exists
-                        path_query = switch type
-                            when Space.Relation.Type.scope then 'SELECT container.id, container.intention, ' + relation + '.path, ' + relation + '.depth, matter.depth AS matter_depth FROM container LEFT JOIN matter ON container.matter = matter.id LEFT JOIN container_parent_scope ON container_parent_scope.container = container.id LEFT JOIN ' + relation + ' ON container_parent_scope.' + relation + '=' + relation + '.id  WHERE container.id = ?' 
-                            when Space.Relation.Type.category then 'SELECT container.id, container.intention, ' + relation + '.path, ' + relation + '.depth, matter.depth AS matter_depth FROM container LEFT JOIN matter ON container.matter = matter.id LEFT JOIN container_parent_category ON container_parent_category.container = container.id LEFT JOIN ' + relation + ' ON container_parent_category.' + relation + '=' + relation + '.id  WHERE container.id = ?' 
-                            when Space.Relation.Type.matter then 'SELECT container.id, container.intention, ' + relation + '.path, ' + relation + '.depth FROM container LEFT JOIN ' + relation + ' ON container.' + relation + '=' + relation + '.id  WHERE container.id = ?'
-                            
-                        db.get path_query, container_id, (error, data) ->
-                            if error? then returns error, null; return
-                            
-                            if not data? then returns 'relation.get - Non-existent container (id:' + container_id + ')'; return
-                            
-                            # Scope and Category Matter relation has to be linked to a depth-1-matter Document
-                            if type in [Space.Relation.Type.scope, Space.Relation.Type.category]
-                                unless data.matter_depth is 1 and is_family data.intention, Space.Container.Family.Document._
-                                    return returns 'Scope and Category Matter relation has to be linked to a depth-1-matter Document'
-                                    
-                            # If path to container for relation not empty, append new relation to path, otherwise create a new path
-                                
-                            db.run 'INSERT INTO ' + relation + ' (container, path, depth) VALUES (?, ?, ?)', [container_id, Space.Path.append(data.path, data.id), (if data.depth then data.depth + 1 else 1)], (error) ->
-                                if error? then returns error, null; return
 
-                                # Clear any existing data
-                                newRelationId = @lastID
-                                db.run 'UPDATE container SET data = NULL WHERE id = ?', [container_id], (error) ->
-                                    returns error, if error then null else newRelationId
+                parent_id = parent.id
+                stmt = null
+
+                # Put Container.is_family to local Scope
+                is_family = @Container.is_family
+                
+                # can look for a `scope`, `matter`, `category` or `association` relation
+                relation = switch type 
+                    when Space.Relation.Type.scope then 'scope' 
+                    when Space.Relation.Type.category then 'category' 
+                    when Space.Relation.Type.association then 'association' 
+                    when Space.Relation.Type.matter then 'matter'
+                            
+                Flow.serialize @, (defer, local) ->
+                    # Convert `parent_id` to int if it's a uuid
+                    unless parent.options?.id_isnt_uuid 
+                        defer (next) -> @Intention.get_id parent_id, (error, data) -> parent_id = data ; next()
+
+                    # Check if a children relation already exists for the provided parent container Id for Scope, Category or Matter
+                    unless parent.options?.relation_is_new 
+                        defer (next) -> @db.get 'SELECT id from ' + relation + ' WHERE container = ?', parent_id, (error, data) ->
+                            if error? then return returns error, null
+                            
+                            # if relation already exists, return it
+                            if data? then return returns null, id:data.id
+                            
+                            # if not check if relation type is Association
+                            if type is Space.Relation.Type.association then return
+                            
+                            # if not, create a new children relation
+                            next()
+                            
+                    # Get the path to that container for this relation type (except for association where there is no path), if exists
+                    unless parent.parent?.relation?[relation]?.path?
+                        defer (next) -> @Relation.get_path_query_statement type, relation, (o) -> stmt = o ; next()
+                        defer (next) -> stmt.get parent_id, (error, data) ->
+                            if error? then return returns error, null
+                            
+                            if not data? then return returns 'relation.get - Non-existent container (id:' + parent_id + ')' 
+                            
+                            local.data = data
+                            next()
+                    else
+                        defer (next) ->
+                            local.data = parent.parent.relation[relation]
+                            next()
+                    
+                    defer (next) ->
+                        # Scope and Category Matter relation has to be linked to a max depth-1-matter Document
+                        if type in [Space.Relation.Type.scope, Space.Relation.Type.category]
+                            unless local.data.matter_depth in [null, 1] and is_family local.data.parent_intention, Space.Container.Family.Document._
+                                return returns 'Scope and Category Matter relation has to be linked to a max depth-1-matter Document' 
+                        
+                        next()
+                        
+                    # If path to container for relation not empty, append new relation to path, otherwise create a new path
+                    defer (next) -> @Relation.get_insert_relation_statement relation, (o) -> stmt = o ; next()
+                    defer (next) -> stmt.run [parent_id, local.path = Space.Path.append(local.data.path, parent_id), local.depth = (if local.data.depth then local.data.depth + 1 else 1)], (error) ->
+                        if error? then return returns error, null
+
+                        # Clear any existing data
+                        local.lastID = @lastID
+                        next()
+                        
+                    unless parent.options?.parent_is_new
+                        defer (next) -> @Relation.get_update_container_statement (o) -> stmt = o ; next()
+                        defer (next) -> stmt.run [parent_id], (error) -> 
+                            if error? then return returns error, null
+                            next()
+                        
+                    defer -> returns null, id:local.lastID, path:local.path, depth: local.depth, matter_depth:local.data.matter_depth, parent_intention:local.data.parent_intention
                             
         #### Intention
         @Intention =
+            get_get_id_statement: (callback) =>
+                return callback? @Intention.get_id_stmt if @Intention.get_id_stmt?
+                
+                @Intention.get_id_stmt = 
+                    @db.prepare 'SELECT id from container WHERE uuid = ?', => 
+                        callback? @Intention.get_id_stmt
+                
             get_id: (uuid, callback) =>
-                if Data.type(uuid) is Data.Type.String then uuid = Uuid.parse uuid
+                if Data.type(uuid) is Data.Type.String
+                    uuid = Uuid.parse uuid, new Buffer(16)
                 
                 if Buffer.isBuffer uuid
-                    @db.get 'SELECT id from container WHERE uuid = ?', [uuid], (error, data) =>
-                        callback? error, data?.id 
-                else
-                    process.nextTick ->
-                        callback? null, uuid
+                    Flow.serialize @, (defer) ->
+                        stmt = null
+                        defer (next) -> @Intention.get_get_id_statement (o) -> stmt = o ; next()
+                        defer -> stmt.get [uuid], (error, data) ->
+                            callback? error, data?.id 
+                else callback? null, uuid
 
         #### Container
         @Container =
-            create: (options, callback) =>
-                {uuid, name, data, intention, matter} = options
+            get_create_statement: (matter, callback) =>
+                if (matter?)
+                    return callback? @Container.create_with_matter_stmt if @Container.create_with_matter_stmt?
+                    @Container.create_with_matter_stmt =
+                        @db.prepare "INSERT INTO container (uuid, position, intention, matter, name, data) VALUES (?1, (SELECT ifnull(?6, ifnull(MAX(position), 0) + 1) FROM container WHERE matter = ?3), ?2, ?3, ?4, ?5)", => 
+                            callback? @Container.create_with_matter_stmt
+                else
+                    return callback? @Container.create_without_matter_stmt if @Container.create_without_matter_stmt? 
+                    @Container.create_without_matter_stmt =
+                        @db.prepare "INSERT INTO container (uuid, position, intention, matter, name, data) VALUES (?1, (SELECT ifnull(?6, ifnull(MAX(position), 0) + 1) FROM container LEFT JOIN matter ON matter.container = container.id WHERE matter.depth = 1 OR container.matter IS NULL), ?2, ?3, ?4, ?5)", => 
+                            callback? @Container.create_without_matter_stmt
+            
+            get_destroy_statement: (uuid, callback) =>
+                if (uuid?)
+                    return callback? @Container.destroy_with_uuid_stmt if @Container.destroy_with_uuid_stmt? 
+                    @Container.destroy_with_uuid_stmt =
+                        @db.prepare "DELETE FROM container WHERE uuid = ?", =>
+                            callback? @Container.destroy_with_uuid_stmt
+                else
+                    return callback? @Container.destroy_without_uuid_stmt if @Container.destroy_without_uuid_stmt? 
+                    @Container.destroy_without_uuid_stmt =
+                        @db.prepare "DELETE FROM container WHERE id = ?", =>
+                            callback? @Container.destroy_without_uuid_stmt
                 
-                @db.run "INSERT INTO container (uuid, position, intention, matter, name, data) VALUES (?1, (SELECT ifnull(MAX(position), 0) + 1 FROM container #{if matter? then 'WHERE matter = ?3' else 'LEFT JOIN matter ON matter.container = container.id WHERE matter.depth = 1 OR container.matter IS NULL'}), ?2, ?3, ?4, ?5)", [uuid ? Uuid('binary'), intention, matter, name, data], (error) ->
-                    callback? error, if not error then @lastID else null
+            create: (options, callback) =>
+                {uuid, name, data, intention, matter, position} = options
+        
+                if Data.type(uuid) is Data.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
+                
+                Flow.serialize @, (defer) ->
+                    stmt = null
+                    defer (next) -> @Container.get_create_statement matter, (o) -> stmt = o ; next()
+                    defer -> stmt.run [uuid ? Uuid({}, new Buffer(16)), intention, matter, name, data, position], (error) -> callback? error, if not error then @lastID else null
             
             destroy: (options, callback) =>
-                @db.run "DELETE FROM container WHERE #{if options.uuid? then 'uuid' else 'id'} = ?", [id = options.id ? options.uuid], (error) ->
-                    callback? error
- 
+                {id, uuid} = options
+                
+                if Data.type(uuid) is Data.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
+                
+                Flow.serialize @, (defer) ->
+                    stmt = null
+                    defer (next) -> @Container.get_destroy_statement uuid, (o) -> stmt = o ; next()
+                    defer -> stmt.run [id ? uuid], (error) -> callback? error
+
             is_family: (intention, family) ->
                 family is intention.substr 0, family.length
         
         #### Document
         @Document =
+            get_insert_statement: (callback) =>
+                return callback? @Document.get_insert_stmt if @Document.get_insert_stmt?
+                @Document.get_insert_stmt = 
+                    @db.prepare "INSERT INTO container_parent_scope (container, scope) VALUES (?, ?)", =>
+                        callback? @Document.get_insert_stmt
+                
             insert: (options, callback) =>
                 {container, scope} = options
         
-                @db.run "INSERT INTO container_parent_scope (container, scope) VALUES (?, ?)", [container, scope], (error) ->
-                    callback? error, if not error then @lastID else null
-                    
+                Flow.serialize @, (defer) ->
+                    stmt = null
+                    defer (next) -> @Document.get_insert_statement (o) -> stmt = o ; next()
+                    defer -> stmt.run [container, scope], (error) -> callback? error, if not error then @lastID else null
+
     #### Space services
     
-    # `create_data` - Add a new data optionaly linked to another parent data
+    # `uuid` -  Retrieve uuid value from an object
+    uuid: (object, name, parent) ->
+        return undefined unless object?
+        
+        if object.uuid is null then parent?._?[name]?.uuid else object.uuid
+
+    # `stage` - manages transactions on Space operations
+    stage: ->
+        @onstage ?= false
+        that = @
+        
+        live: -> that.onstage
+        start: (callback) -> if that.onstage then process.nextTick(-> callback? "Recursive Space.Stage not allowed") else that.onstage = yes ; that.db.run "BEGIN TRANSACTION", callback
+        end: (callback) ->  if that.onstage then that.db.run "COMMIT TRANSACTION;", callback ; that.onstage = no else process.nextTick(-> callback? "There is no Space.Stage to end")
+        revert: (callback) ->  if that.onstage then that.db.run "ROLLBACK TRANSACTION;", callback ; that.onstage = no else process.nextTick(-> callback? "There is no Space.Stage to revert")
+            
+
+    # `create_data` - Add a new data optionaly linked to another parent (uuid) data
     # Structure relation stored in 'matter' table
     create_data: (item, callback) ->
-        {uuid, name, type, data, parent} = item
+        {uuid, name, intention, type, data, parent, position} = item
         
         type ?= Data.type data
         
-        create_it = (matter) =>
-            intention = switch type
-                when Data.Type.Boolean then Space.Container.Family.Data.boolean
-                when Data.Type.Number then (if data % 1 is 0 then Space.Container.Family.Data.integer else Space.Container.Family.Data.number)
-                when Data.Type.Date then Space.Container.Family.Data.date
-                when Data.Type.String then Space.Container.Family.Data.string
-                when data instanceof Buffer then Space.Container.Family.Data.Binary._
-                else Space.Container.Family.Data._
-                
-            @Container.create {uuid, name, data, intention, matter}, (error, data) ->
-                callback? error, data
-        
-        # check if parent is specified
-        if parent?
-            # get parent id from container uuids
-            @Relation.get Space.Relation.Type.matter, parent, (error, matter) ->
+        Flow.serialize @, (defer) ->
+            unless not parent? or parent.relation?.matter? then defer (next) -> @Relation.get Space.Relation.Type.matter, parent, (error, matter) ->
                 if error then callback? error; return
-                create_it matter
-        else create_it()
-
-    # `create_object` - Add a new document optionaly linked to another parent document or included in parent scope
+                parent.relation ?= {}
+                parent.relation.matter = matter
+                next()
+                
+            defer ->
+                intention ?= switch type
+                    when Data.Type.Boolean then Space.Container.Family.Data.boolean
+                    when Data.Type.Number then (if data % 1 is 0 then Space.Container.Family.Data.integer else Space.Container.Family.Data.number)
+                    when Data.Type.Date then Space.Container.Family.Data.date
+                    when Data.Type.String
+                        if Uuid.isUuid data then Space.Container.Family.Data.Binary.Uuid._
+                        else Space.Container.Family.Data.string
+                    when Data.Type.Object
+                        if data instanceof Buffer then Space.Container.Family.Data.Binary._
+                        else Space.Container.Family.Data._
+                    when Data.Type.Function then data = data.toString() ; Space.Container.Family.Action.Operation.javascript
+                    else Space.Container.Family.Data._
+                    
+                if @Container.is_family(intention, Space.Container.Family.Data.Binary.Uuid._)
+                    data = Uuid.parse data, new Buffer(16)
+                    
+                @Container.create {uuid, name, data, intention, matter:parent?.relation?.matter?.id, position}, (error, data) ->
+                    if error then callback? error; return 
+                    
+                    callback? null, data, parent?.relation
+                
+    # `create_object` - Add a new document optionaly linked to another parent (uuid) document or included in parent scope
     # Structure relation stored in 'matter' table and Content relation stored in 'scope' table
     create_object: (item, callback) ->
-        {uuid, name, type, parent, contained} = item
-        
-        create_it = (options) =>
-            object_type = switch type 
-                when Data.Type.Array then Space.Container.Family.Document.array
-                else Space.Container.Family.Document._
-                        
-            @Container.create {uuid, name, intention:object_type, matter:options?.matter}, (error, id) =>
-                if error? then callback? error, null; return
+        {uuid, name, type, parent, contained, position} = item
 
-                if options?.scope?
-                    @Document.insert id, options.scope, (error) ->
-                        callback? error, if error then null else id
-                else
-                    callback? error, if error then null else id
-
-        # check if parent is specified
-        if parent?
+        Flow.serialize @, (defer, local) ->
             relation_type = if contained then Space.Relation.Type.scope else Space.Relation.Type.matter
+            relation_name = if contained then 'scope' else 'matter'
             
-            # get parent id from container uuids
-            @Relation.get relation_type, parent, (error, link) ->
-                if not error
-                    matter = if contained then undefined else link
-                    scope = if contained then link else undefined
-                    create_it {matter, scope}
-                else callback? error
-        else create_it()
+            unless not parent? or parent.relation?[relation_name]? then defer (next) -> @Relation.get relation_type, parent, (error, link) ->
+                if error then callback? error; return
+                
+                parent.relation ?= {}
+                parent.relation.matter = link unless contained 
+                parent.relation.scope = link if contained
+                next()
+                
+            defer (next) ->
+                object_type = switch type 
+                    when Data.Type.Array then Space.Container.Family.Document.array
+                    else Space.Container.Family.Document._
+                
+                @Container.create {uuid, name, intention:object_type, matter:parent?.relation?.matter?.id, position}, (error, id) =>
+                    if error? then callback? error; return
+                    local.id = id
+                    next()
+    
+            defer (next) ->
+                if parent?.relation?.scope?.id?
+                    @Document.insert {container:local.id, scope:parent.relation.scope.id}, (error) -> 
+                        if error? then callback? error; return
+                        next()
+                else next()
+                        
+            defer (next) ->
+                callback? null, local.id, parent?.relation
 
-    # `write` - Convert a javascript object to space structure and write it to the database
-    write: (object, callback) ->
+
+    # `write` - Convert a javascript structure to space structure and write it to the database
+    write: (object, options, callback) ->
+        if typeof options is 'function' then callback = options; options = {}
         
-        objects = []
-        count = 0
+        options ?= {}
+        objects = {}
         error = null
         
-        materialize = (current) =>
-            unless current.object in objects then objects.push current.object
-            else return count
+        materialize = (current, callback) =>
+            {item, name, parent, position} = current
+            {uuid, type, intention} = {uuid:@uuid(item, name, parent?.object), type:Data.type(item), intention:null}
+            
+            if name is '_' then return callback error, parent?.relation
 
-            for own name, property of current.object
-                data = switch Data.type property
-                    when Data.Type.Array, Data.Type.Object then undefined
-                    else property
+            if objects[uuid ? item]?
+                if uuid?
+                    item = uuid ; type = Data.type(item)
+                    intention = Space.Container.Family.Data.Binary.Uuid.reference
+                    uuid = Uuid()
+            
+            children_relation_options = id_isnt_uuid:yes, relation_is_new:yes, parent_is_new:yes
 
-                count += 1
-                
-                do =>
-                    value = property
-                    value_type = Data.type value
-
-                    if value_type is Data.Type.Object and value in objects
-                        if value.uuid? then data = value.uuid; value_type = Data.type value
-                        
-                    create = if value_type in [Data.Type.Object, Data.Type.Array] then @create_object else @create_data
+            switch type
+            
+                when Data.Type.Object, Data.Type.Array
+                    objects[uuid ? item] = on
                     
-                    create.call @, {name, data, type:value_type, parent:current.parent}, (result, id) ->
-                        error = result if result? and error is null
-                        if error? then count += -1; return count
+                    contained = parent?.object?._?[name]?.inside
+                
+                    @create_object {uuid, name, type, parent, contained, position}, (err, id, relation) ->
+                        if err? then error = err; return callback(err)
                         
-                        switch value_type
-                            when Data.Type.Array
-                                for sub in value 
-                                    materialize {object:sub, parent:id}
+                        granparent = {relation}
+                        
+                        switch type 
                             when Data.Type.Object
-                                materialize {object:value, parent:id}
-                        
-                        count += -1
+                                Flow.serialize (defer, local) ->
+                                    for own name, value of item
+                                        unless error?
+                                            do (name, value) -> 
+                                                defer (next) -> materialize {item:value, name:name, parent: parent:granparent, object:item, id:id, relation:local.children_relation, options:children_relation_options}, (err, relation) -> 
+                                                    local.children_relation = relation
+                                                    next()
+                                    
+                                    defer -> callback err, relation
 
-        wait = ->
-            setImmediate ->        
-                if count is 0 then callback? error else wait()
+                            when Data.Type.Array
+                                Flow.serialize (defer, local) ->
+                                    pos = 0
+                                    for own name, value of item
+                                        unless error?
+                                            do (name, value, pos) -> 
+                                                defer (next) -> materialize {item:value, name: (if parseInt(name).toString() is name then undefined else name), parent:{parent:granparent, object:item, id:id, relation:local.children_relation, options:children_relation_options}, position:pos++}, (err, relation) ->
+                                                    local.children_relation = relation
+                                                    next()
+
+                                    defer -> callback err, relation
+                else
+                    data = item
+                    @create_data {uuid, name, intention, type, data, parent, position}, (err, id, relation) ->
+                        if err then error = err
+                        callback err, relation
+        
+        Flow.serialize @, (defer, local) ->
+            stage_is_live = @stage().live()
+            
+            unless stage_is_live then defer (next) -> 
+                @stage().start -> next()
                 
-        @create_object {uuid:@uuid(object), name:''}, (result, id) ->
-            error = result if result?
-            if error? then callback? error; return
+            defer (next) -> 
+                materialize {item:object, parent:(if options.parent? then object:options.parent else null), name:options.name}, -> next()
             
-            materialize {object, parent:id}
-            wait()
+            unless stage_is_live then defer (next) -> 
+                @stage()[if error? then 'revert' else 'end'] -> next()
             
-    # `uuid` -  Retrieve uuid value from an object
-    uuid: (object) ->
-        switch object.uuid
-            when null then object._?.uuid
-            else (if Data.type(object.uuid) is Data.Type.String then Uuid.parse object.uuid else object.uuid)
-
+            defer -> callback? error
+            
     # `forget` - Remove a javascript object from database
-    forget: (object, callback) ->
-        uuid = @uuid(object)
+    forget: (object, name, parent, callback) ->
+        if typeof name is 'function' then callback = name; name = parent = null
+        uuid = @uuid(object, name, parent)
         @Container.destroy {uuid}, callback if uuid?
-    
-    # `read` - Read a space structure in database an convert it back to a javascript object
-    read: (container_id, callback) ->
-        @Intention.get_id container_id, (error, id) =>
-            container_id = id
 
-            # get the matter id if exists
-            @db.get 'SELECT path FROM matter WHERE container = ?', [container_id], (error, data) =>
-                if not error
-                    if data?
-                        result = null
-                        @db.all 'SELECT container.uuid, parent_container.uuid as parent_uuid, container.name, container.data, container.intention FROM container LEFT JOIN matter ON container.matter = matter.id LEFT JOIN container AS parent_container ON matter.container = parent_container.id WHERE (matter.path >= ? AND matter.path < ?) OR container.id = ?  ORDER BY matter.path, container.position', [data.path, Space.Path.next(data.path), container_id], (error, data) =>
-                            if not error
-                                result = null
-                                for o, i in data
-                                    c = undefined
-                                    switch o.intention
-                                        when Space.Container.Family.Document._ then c = {}; c._ = {id: {}}
-                                        when Space.Container.Family.Document.array then c = []; c._ = {id: {}}
-                                        when Space.Container.Family.Data.date then c = new Date o.data
-                                        when Space.Container.Family.Data.boolean then c = (if o.data then yes else no)
-                                        else c = o.data
-                                        
-                                    if i is 0 then result = c
-                                    
-                                    uuid = Uuid.unparse(o.uuid)
-                                    @world[uuid] = c
-                                    
-                                    if o.parent_uuid?
-                                        parent = @world[Uuid.unparse(o.parent_uuid)]
-                                        switch Data.type parent
-                                            when Data.Type.Object then parent[o.name] = c
-                                            when Data.Type.Array then parent.push c
-                                        parent?._?.id[o.name] = uuid
-                                        
-                                callback? error, result
-                                        
-                            else
-                                callback? error
-                    else 
-                        callback? error, null
-                else
-                    callback? error
+    # `read` - Read a space structure in database and convert it back to a javascript object
+    read: (container_id, depth, callback) ->
+        if typeof depth is 'function' then callback = depth; depth = undefined
 
-    scan: (container_id, callback) ->
+        @look container_id, {scan:yes, depth}, (error, data) =>
+            
+            if not error 
+                if data is null then callback? error, null; return 
+                
+                result = null
+                for o, i in data
+                    c = undefined
+                    switch o.intention
+                        when Space.Container.Family.Document._ then c = {}; c._ = {}
+                        when Space.Container.Family.Document.array then c = []; c._ = {}
+                        when Space.Container.Family.Data.date then c = new Date o.data
+                        when Space.Container.Family.Data.boolean then c = (if o.data then yes else no)
+                        when Space.Container.Family.Action.Operation.javascript then c = eval("c = " + o.data)
+                        else
+                            if @Container.is_family o.intention, Space.Container.Family.Data.Binary.Uuid._
+                                c = Uuid.unparse o.data
+                                if o.intention is Space.Container.Family.Data.Binary.Uuid.reference then c = @world[c]
+                            else 
+                                c = o.data
+        
+                    if i is 0 then result = c
+                    
+                    uuid = Uuid.unparse(o.uuid)
+                    @world[uuid] = c
+                    
+                    parent_id = o.parent_uuid ? o.parent_scope_uuid
+                    if parent_id?
+                        if (parent = @world[Uuid.unparse(parent_id)])?
+                            _ = parent._ ?= {}
+                            
+                            switch type = Data.type parent
+                                when Data.Type.Object, Data.Type.Array
+                                    js_ext = {uuid}
+                                    if o.parent_scope_uuid? then js_ext.inside = yes
+                                    
+                                    if o.name?
+                                        _[o.name] = js_ext
+                                        parent[o.name] = c
+                                    else if type is Data.Type.Array
+                                        _[parent.length.toString()] = js_ext
+                                        parent.push c
+                            
+                        
+                callback? error, result
+                        
+            else
+                callback? error
+
+    # `scan` return a structure directly from database
+    scan: (container_id, options, callback) ->
+        if typeof options is 'function' then callback = options; options = undefined
+        
         @Intention.get_id container_id, (error, id) =>
             container_id = id
             
+            depth_clause = if options?.depth? then ' AND matter.depth <= ' + options.depth else ''
+
             # get the matter id if exists
             @db.get 'SELECT path FROM matter WHERE container = ?', [container_id], (error, data) =>
                 if not error
-                    result = null
-                    @db.all 'SELECT container.uuid, parent_container.uuid as parent_uuid, container.name, container.data, container.intention FROM container LEFT JOIN matter ON container.matter = matter.id LEFT JOIN container AS parent_container ON matter.container = parent_container.id WHERE (matter.path >= ? AND matter.path < ?) OR container.id = ?  ORDER BY matter.path, container.position', [data.path, Space.Path.next(data.path), container_id], (error, data) =>
-                        if not error
-                            result = null
-                            for o, i in data
-                                if i is 0 then result = o
-                                o.uuid = Uuid.unparse(o.uuid)
-                                @world[o.uuid] = o
-                                if not o.data?
-                                    delete o.data
-                                if o.parent_uuid?
-                                    parent = @world[Uuid.unparse(o.parent_uuid)]
-                                    (parent.matter ?= []).push o
-                                delete o.parent_uuid
-                                
-                            result = '<script> o = ' + JSON.stringify(result, null, 4) + '</script>'
-                                    
-                            callback? error, result
-                        else
-                            callback? error
+                    has_matter = data?
+                    
+                    params = []
+                    clauses = []
+                    if has_matter
+                        params.push data.path
+                        params.push Space.Path.next(data.path)
+                        clauses.push "(matter.path >= ? AND matter.path < ?#{depth_clause})"
+                    unless options?.matter
+                        params.push container_id
+                        clauses.push "container.id = ?"
+                    
+                    if clauses.length is 0 
+                        callback? error, {}
+                    else
+                        @db.all "
+                            SELECT 
+                                container.uuid, 
+                                parent_container.uuid as parent_uuid, 
+                                container.name, 
+                                container.data, 
+                                container.intention
+                            FROM 
+                                container 
+                                LEFT JOIN matter ON container.matter = matter.id 
+                                LEFT JOIN container AS parent_container ON matter.container = parent_container.id 
+                             
+                            #{if clauses.length > 0 then 'WHERE ' + clauses.join(' OR ') else ''}
+                            ORDER BY 
+                                matter.path, 
+                                container.position", params, (error, data) ->
+                                    callback? error, data
                 else
                     callback? error
-                
-    # `get_root_matters` - Return an array of all root matters
-    get_root_matters: (callback) ->
-        @db.all 'SELECT container.id, hex(container.uuid) FROM container INNER JOIN matter ON matter.container = container.id WHERE matter.depth = 1', (error, data) ->
-            callback? error, data        
 
-    # `get_root_scopes` - Return an array of all root scopes
-    get_root_scopes: (callback) ->
-        @db.all 'SELECT container.id, hex(container.uuid) FROM container INNER JOIN matter ON matter.container = container.id INNER JOIN scope ON matter.scope = scope.id WHERE matter.depth = 1', (error, data) ->
-            callback? error, data
+    # `look` return a document content directly from database and optionaly scan its structure
+    look: (object_id, options, callback) ->
+
+        if typeof options is 'function' then callback = options; options = undefined
+        
+        @Intention.get_id object_id, (error, id) =>
+            object_id = id
+            
+            depth_clause = if options?.depth? then ' AND scope.depth <= ' + options.depth else ''
+
+            # get the scope id if exists
+            @db.get 'SELECT path FROM scope WHERE container = ?', [object_id], (error, data) =>
+                if not error
+                    has_scope = data?
+
+                    params = []
+                    clauses = []
+                    if has_scope
+                        params.push data.path
+                        params.push Space.Path.next(data.path)
+                        clauses.push "(scope.path >= ? AND scope.path < ?#{depth_clause})"
+                        
+                    params.push object_id
+                    clauses.push "container.id = ?"
+                        
+                    @db.all "
+                        SELECT
+                            container.id,
+                            scope.depth,
+                            container.uuid, 
+                            parent_container.uuid as parent_scope_uuid, 
+                            container.name, 
+                            container.data, 
+                            container.intention
+                        FROM 
+                            container
+                            LEFT JOIN container_parent_scope ON container_parent_scope.container = container.id
+                            LEFT JOIN scope ON container_parent_scope.scope = scope.id
+                            LEFT JOIN container AS parent_container ON scope.container = parent_container.id 
+                        #{if clauses.length > 0 then 'WHERE ' + clauses.join(' OR ') else ''}
+                        ORDER BY 
+                            scope.path, 
+                            container.position", params, (error, scope_data) =>
+                                return callback? error, scope_data unless options?.scan is yes and scope_data.length > 0
+
+                                # scan document structure
+                                matter_data = []
+                                
+                                Flow.serialize @, (defer) ->
+                                    for o in scope_data
+                                        scan_options = {matter:yes}
+                                        scan_options.depth = options.depth - (if scope_data.depth? then scope_data.depth - 1 else 0) if options?.depth?
     
-exports.Space = Space
+                                        unless scan_options.depth? and scan_options.depth <= 0
+                                            do (o, scan_options) -> defer (next) -> @scan o.id, scan_options, (error, data) ->
+                                                matter_data.push data...
+                                                next()
+                                    defer ->
+                                        for oo in scope_data then delete oo.id ; delete oo.depth
+                                        scope_data.push matter_data...
+                                        callback? error, scope_data
+                                        
+                else
+                    callback? error
+    
+    # `query` To Be Defined
+    query: (where, callback) ->
+        process.nextTick ->
+            callback null, {}
 
-exports.test_scan = (container_id, __) ->
-    event = new Events.EventEmitter
-    space = Space.ensure __.datadir, 'test.db'
-    space.scan container_id ? 1, (error, data) ->
-        event.emit 'end', if data? then data else error
-    event
-        
-exports.test_read = (container_id, __) ->
-    event = new Events.EventEmitter
-    space = Space.ensure __.datadir, 'test.db'
-    space.read container_id ? 1, (error, data) ->
-        event.emit 'end', if data? then data else error
-    event
-        
+exports.Space = Space

@@ -223,21 +223,18 @@ function setupApi(editor, editorDiv, settingDiv, ace, options, loader) {
             settingDiv.hideButton.focus();
             editor.on("focus", function onFocus() {
                 editor.removeListener("focus", onFocus);
-                settingDiv.style.display = "none"
+                settingDiv.style.display = "none";
             });
         } else {
             editor.focus();
-        };
+        }
     };
 
+    editor.$setOption = editor.setOption;
     editor.setOption = function(key, value) {
         if (options[key] == value) return;
 
         switch (key) {
-            case "gutter":
-                renderer.setShowGutter(toBool(value));
-            break;
-
             case "mode":
                 if (value != "text") {
                     loader("mode-" + value + ".js", "ace/mode/" + value, function() {
@@ -299,18 +296,9 @@ function setupApi(editor, editorDiv, settingDiv, ace, options, loader) {
                     break;
                 }
             break;
-
-            case "useSoftTabs":
-                session.setUseSoftTabs(toBool(value));
-            break;
-
-            case "showPrintMargin":
-                renderer.setShowPrintMargin(toBool(value));
-            break;
-
-            case "showInvisibles":
-                editor.setShowInvisibles(toBool(value));
-            break;
+            
+            default:
+                editor.$setOption(key, toBool(value));
         }
 
         options[key] = value;
@@ -324,9 +312,7 @@ function setupApi(editor, editorDiv, settingDiv, ace, options, loader) {
         return options;
     };
 
-    for (var option in exports.options) {
-        editor.setOption(option, exports.options[option]);
-    }
+    editor.setOptions(exports.options);
 
     return editor;
 }
@@ -426,7 +412,7 @@ function setupSettingPanel(settingDiv, settingOpener, editor, options) {
                     cValue == "true" ? "checked='true'" : "",
                "'></input>"
             );
-            return
+            return;
         }
         builder.push("<select title='" + option + "'>");
         for (var value in obj) {

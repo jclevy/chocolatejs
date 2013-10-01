@@ -17,7 +17,7 @@
 
 # Chocolate - Web Apps with a sweet taste
 
-Chocolate is a simple webapp framework built on Node.js using Coffeescript. 
+Chocolate is a simple Node.js webapp framework built using Coffeescript. 
 
 It includes :
    
@@ -27,59 +27,105 @@ It includes :
 
  - a basic **source control** with Git
 
- - **Chocokup** : an Html markup language that helps build web user interfaces using 100% pure CoffeeScript (based on Coffeekup)
+ - **ChocoDB**: a kind of nosql database running on SQLite.
+
+ - **Chocoflow**: a really simple tool to help manage asynchronous calls serialization.
+
+ - **Chocokup**: a templating language that helps build web user interfaces using 100% pure CoffeeScript (based on Coffeekup)
  
- - **Chocodown** : Chocokup-aware port of Markdown (based on Showdown)
+ - **Chocodown**: Chocokup-aware port of Markdown (based on Showdown)
 
- - **Specolate** : a client and server side behavior/test driven development tool (based on Jasmine)
+ - **Specolate**: a behavior/test driven development tool (based on Jasmine) that works client and server side
 
- - **Doccolate** : an online documentation editing tool (based on Docco)
+ - **Doccolate**: an online documentation editing tool (based on Docco)
 
- -  **NewNotes** : a promising note taking tool
+ -  **NewNotes**: a promising note taking tool
 
 Chocolate integrates :
 
- - [Node.js](http://nodejs.org)
- - [Coffeescript](http://coffeescript.org)
- - [Ace](http://ace.ajax.org)
- - [Mootools](http://mootools.net)
- - [Docco](http://jashkenas.github.com/docco/)
- - [Coffeekup](http://coffeekup.org)
- - [Jasmine](http://pivotal.github.com/jasmine)
- - [Highlight.js](http://softwaremaniacs.org/soft/highlight/en)
- - [Showdown](https://github.com/coreyti/showdown)
- - [Git](http://git-scm.com)
- - [Impress](http://bartaz.github.com/impress.js/#/bored)
+ > [Node.js](http://nodejs.org) - [Coffeescript](http://coffeescript.org) - [Ace](http://ace.ajax.org) - [Mootools](http://mootools.net) - [Docco](http://jashkenas.github.com/docco/) - [Coffeekup](http://coffeekup.org) - [Jasmine](http://pivotal.github.com/jasmine) - [Highlight.js](http://softwaremaniacs.org/soft/highlight/en) - [Showdown](https://github.com/coreyti/showdown) - [Git](http://git-scm.com) - [Impress](http://bartaz.github.com/impress.js/#/bored)
 
 &nbsp;
 
+---
+
 ## Version
 
-Chocolate v0.0.7 - 2013/07/10
+Chocolate v0.0.8 - 2013/10/01
 
 NEW FEATURES
 
-- Newnotes: add automatic refresh on remote change
-- Chocokup: add Css support (write Css with Coffeescript syntax) 
-- Chocodown: add .chocodown .cd support in Studio
-- Chocodown: add .chocodown .cd support as static file type
+- Basic [autocomplete and snippets](#Choco-Automplete) services introduced in editor
+- First step in [ChocoDB](#Choco-DB) : write and read Javascript object in database
+- Added [Chocoflow](#Choco-Flow): basic serialize and parallelize services
+- Added a basic profiling tool to [Debugate](#Choco-Debugate)
+- Synchronize editor view with Documentation (Docco) view
+- Changed Locco **test** command to the more appropriate **eval**
 
 FIXED BUGS
 
-- replace div with iframe for Doccolate panel in studio
-- removed a bug introduced in v0.0.6 (alert in Coffeescript debug mode)
+- synchronisation problems removed in Coffeescript Lab debug panel
+- make Specolate unit tests work better client side (force module loading and clean)
+- force resize editor view when switching between horizontal and vertical side-by-side
 
 UPDATES
 
-- add Css support for Chocokup sample in README.md
+- updated Ace to package 07.31.2013
+- updated node-sqlite3 to 2.1.17
+- updated coffee-script to 1.6.3
+
+
 
 See history in **CHANGELOG.md** file
 
-## Demo
+&nbsp;
+
+---
+
+## <a id="Choco-Summary"></a> Summary
+
+ - [Demo](#Choco-Demo)
+ - [Installation](#Choco-Installation)
+ - [Use it](#Choco-UseIt)
+   - [Log on](#Choco-UseIt-LogOn)
+   - [Log off](#Choco-UseIt-LogOff)
+   - [Enter Chocolate Studio](#Choco-UseIt-Enter)
+   - [Web access to source files and functions](#Choco-UseIt-Source)
+   - [Locco: the Chocolate protocol](#Choco-UseIt-Locco)
+ - [Chocolate Studio](#Choco-Studio)
+   - [Autocomplete and snippets](#Choco-Automplete)
+   - [Spec, Doc, Lab, Help and Notes panels](#Choco-Studio-panels)
+ - [The Lab](#Choco-Lab)
+ - [How to write Modules](#Choco-WriteModules)
+ - [ChocoDB](#Choco-DB)
+ - [Chocoflow](#Choco-Flow)
+ - [Debugate](#Choco-Debugate)
+ - [Chocokup](#Choco-Chocokup)
+   - [Usage](#Choco-Chocokup-Usage)
+     - [Chocokup.Document](#Choco-Chocokup-Document)
+     - [Chocokup.Panel](#Choco-Chocokup-Panel)
+   - [Reference](#Choco-Chocokup-Reference)
+ - [Specolate](#Choco-Specolate)
+   - [Usage](#Choco-Specolate-Usage)
+ - [Doccolate](#Choco-Doccolate)
+ - [Newnotes](#Choco-Newnotes)
+   - [Newnotes-Usage](#Choco-Newnotes-Usage)
+   - [Impress.js with Newnotes !](#Choco-Newnotes-Impress)
+   - [Reference](#Choco-Newnotes-Reference)
+ - [Road Map](#Choco-RoadMap)
+ - [License](#Choco-License)
+
+&nbsp;
+
+---
+
+## <a id="Choco-Demo"></a> Demo [⌂](#Choco-Summary)
 
 There is a non-writable demo at : <https://demo.chocolatejs.org/>
 
-## Installation
+---
+
+## <a id="Choco-Installation"></a> Installation [⌂](#Choco-Summary) 
 
 This procedure was tested as **root** on Debian 6.0
 
@@ -129,7 +175,7 @@ Chocolate also needs:
 
 &nbsp;
 
-Then you can install Chocolate:
+### Install Chocolate:
 
     npm install -g chocolate
 
@@ -208,9 +254,9 @@ Please **reboot** to activate Upstart and Monit...
 
 &nbsp;
 
+---
 
-
-## Use it
+## <a id="Choco-UseIt"></a> Use it [⌂](#Choco-Summary)
 
 Chocolate runs on your server and responds to https requests on port 8026
 
@@ -223,7 +269,7 @@ You can also use a simple Http server by specifying options in the config.coffee
     exports.http_only = yes
     exports.port = 80
 
-### Log on
+### <a id="Choco-UseIt-LogOn"></a> Log on [⌂](#Choco-Summary)
 
 You defined a master key when using chocomake to create myapp.
 
@@ -231,13 +277,13 @@ You enter that key at:
 
     https://myserver:8026/-/server/interface?register_key
 
-### Log off
+### <a id="Choco-UseIt-LogOff"></a> Log off [⌂](#Choco-Summary) 
 
 To logoff go to : 
 
     https://myserver:8026/-/server/interface?forget_key
 
-### Enter Chocolate Studio
+### <a id="Choco-UseIt-Enter"></a> Enter Chocolate Studio [⌂](#Choco-Summary) 
 
 To enter Chocolate Studio, go to: 
 
@@ -245,7 +291,7 @@ To enter Chocolate Studio, go to:
 
 There you can create, modify, move and commit source files
 
-### Web access to source files and functions
+### <a id="Choco-UseIt-Source"></a> Web access to source files and functions [⌂](#Choco-Summary) 
 
 You access a file directly in the browser:
 
@@ -263,9 +309,9 @@ To edit `default.coffee`
 
 To run `default.spec.coffee` specs (if you create it)
 
-    https://myserver:8026/default?so=test
+    https://myserver:8026/default?so=eval
 
-### Locco: the Chocolate protocol
+### <a id="Choco-UseIt-Locco"></a> Locco: the Chocolate protocol [⌂](#Choco-Summary) 
 
 Requests to Chocolate server follow theses rules (the Locco protocol):
 
@@ -324,16 +370,16 @@ returns a web page with
         - otherwise, if Http request is a **POST** request then:  
         move POST message data to **`where`** file  
         
-    - **`test`**: run the **where** file associated spec: ie. default.spec.coffee for default.coffee
+    - **`eval`**: run the **where** file associated spec: ie. default.spec.coffee for default.coffee
     - **`go`**: default action. Load **where** file and execute interface function.
 
 - **`what`** adds a precision on the action object (usualy its pathname).
 - **`where`** tells where the action should take place: a pathname
 - **`how`** asks for a special type of respond if available (web, raw, help).
-    - **`web`**: default. responds as an Html document
+    - **`web`**: default. responds as an html document
     - **`raw`**: responds as plain text
-    - **`help`**: responds as an Html Docco help file
-    - **`edit`**: responds as an Html source web editor
+    - **`help`**: responds as an html Docco help file
+    - **`edit`**: responds as an html source web editor
 
 - a **`backdoor_key`** key can be specified to have system access
 
@@ -346,7 +392,7 @@ Usage:
            so = move
            what = /myworld/mydocument
            where = /myworld/myfolder
-           how = web (by default) - will return an answer as Html.
+           how = web (by default) - will return an answer as html.
 
         https://myserver/myworld/myfolder
            Go to /myworld/myfolder file, 
@@ -355,7 +401,7 @@ Usage:
            so = go (by default)
            what = undefined
            where = /myworld/myfolder
-           how = web (by default) - will return an answer as Html.
+           how = web (by default) - will return an answer as html.
 
         https://myserver/myworld/myfolder?myFunc&myParamValue
            Go to /myworld/myfolder file, 
@@ -364,13 +410,15 @@ Usage:
            so = do (by default when request has parameters)
            what = myFunc
            where = /myworld/myfolder
-           how = web (by default) - will return an answer as Html.
+           how = web (by default) - will return an answer as html.
 
 &nbsp;
 
-## Chocolate Studio
+---
 
-A sweet web app ide.
+## <a id="Choco-Studio"></a> Chocolate Studio [⌂](#Choco-Summary) 
+
+A sweet web app development environment.
 
 It displays your source files and browse through directories, has a search in files service.  
 It has a panel that displays log messages.  
@@ -381,13 +429,41 @@ You can create and move files (but not rename or delete files ! I should add thi
 The central panel has the code editor.
 It has syntax highlighting for Coffeescript, Javascript, CSS and Markdown.
 
-This panel can split to display the associated spec file (see Specolate)  
-or the source file in help mode (see Doccolate)
-or the Lab that can be used to test Coffeescript or Chocodown code.
+<a id="Choco-Automplete"></a>
+### <a id="Choco-Studio"></a> Autocomplete and Snippets [⌂](#Choco-Summary) 
+
+It has a basic automplete feature that, by pressing CTRL+SPACE keys, 
+proposes you a list of words collected from your file. 
+
+It also has snippets that will expand code from a shortcut:  
+in an HTML file, html5+CTRL+SPACE will become: 
+    
+        <!DOCTYPE html>
+        <html>
+            <head>
+                <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+                <title>`substitute(Filename('', 'Page Title'), '^.', '\u&', '')`</title>
+                meta
+            </head>
+            <body>
+                body
+            </body>
+        </html>
+
+Then you can move to *meta* and *body* section by pressing the TAB key.
+
+Currently there are Coffeescript, Javascript, CSS and HTML snippets in the editor.
+
+<a id="Choco-Studio-panels"></a>
+### Spec, Doc, Lab, Help and Notes panels [⌂](#Choco-Summary) 
+
+The central panel can also split to display the associated spec file (see [Specolate](#Choco-Specolate))  
+or the source file in help mode (see [Doccolate](#Choco-Doccolate))
+or the [Lab](#Choco-Lab) that can be used to test Coffeescript or Chocodown code.
 
 The help panel lists some usefull resources. Links will be opened in the central panel.
 
-The Notes panel allows you to write and save some notes.
+The [Notes](#Choco-Newnotes) panel allows you to write and save some notes.
 
 **Usage**
 
@@ -403,7 +479,9 @@ The Notes panel allows you to write and save some notes.
 
 &nbsp;
 
-## The Lab
+---
+
+## <a id="Choco-Lab"></a> The Lab [⌂](#Choco-Summary) 
 
 The Lab helps you write your code and test cases, syntax...
 
@@ -447,7 +525,7 @@ This service is experimental but it has been really useful to me.
 Literate  programming...
 
 Chocodown panel lets you write Markdown, Chocokup and Coffeescript code that will be 
-immediately translated to HTML and javascript!
+immediately translated to html and javascript!
 
 But more... when you display the **Dom** panel you can see immmediately the result!
 
@@ -492,7 +570,7 @@ Copy the following code in the Chocokup Lab with the Dom panel:
         for button in buttons
             addEvent = button.addEventListener ? button.attachEvent
             addEvent.call button, "click", -> 
-                alert "I'm button #" + @innerHTML
+                alert "I'm button #" + @innerhtml
 
 
 And see...
@@ -501,7 +579,9 @@ Then change **[0.\.3]** to **[0.\.6]** and see the result...
 
 &nbsp;
 
-## How to write Modules
+---
+
+## <a id="Choco-WriteModules"></a> How to write Modules [⌂](#Choco-Summary) 
 
 You can create a module by pressing the `Create` button. 
 It will create a module with the name you provide in the currently displayed folder.
@@ -529,7 +609,7 @@ If you create a general module (that can work on server and in browser), you wil
     _module = window ? module
     _module.exports = MyGeneralModule
 
-The exported function `interface`, if present in your module, is used to return an HTML content if someone calls that module with no parameter:
+The exported function `interface`, if present in your module, is used to return an html content if someone calls that module with no parameter:
 
 i.e., in module `mymodule.coffee`:
 
@@ -565,11 +645,226 @@ i.e.:
 
 &nbsp;
 
-## Chocokup
+---
 
-Chocokup is derived from [Coffeekup](http://coffeekup.org) which is a templating engine for node.js and browsers that lets you to write your HTML templates in 100% pure CoffeeScript.
+## <a id="Choco-DB"></a> ChocoDB [⌂](#Choco-Summary) 
 
-What Chocokup adds is the "Panel orientation" missing from Html which is page oriented.
+ChocoDB is intended to be *a kind of* nosql database running on SQLite.
+
+Currently, you can use it to store javascript objects in database and retrive them by id.
+Functions, Dates and circular references can also be saved and retrieved.
+
+A query language is on its way...
+
+Here is example taken from the /server/reserve spec file:
+
+        
+        var Uuid = require 'chocolate/general/intentware/uuid'
+        var Sample;
+        
+        Sample = (function() {
+          function _Class(title, uuid) {
+            this.title = title;
+            this.uuid = uuid != null ? uuid : Uuid();
+            this.list = [10, 11, 12, 13];
+            this.list.extended = 'an extension';
+            this.items = [
+              {
+                one: 123,
+                two: 345
+              }
+            ];
+            this.values = {
+              boolean: true,
+              number: 1.23
+            };
+            this.struct = {
+              object: {
+                name: 'object in struct',
+                value: 'ok'
+              }
+            };
+            this.test_func = {
+              add: function(x, y) {
+                return x + y;
+              }
+            };
+            this.date = {
+              creation: new Date(),
+              modified: new Date()
+            };
+          }
+        
+          return _Class;
+        
+        })();
+        
+        var sample = new Sample('test');
+        var sub_uuid = Uuid();
+        sample.struct.object.uuid = sub_uuid;
+        
+        var chocodb = new Reserve.Space();
+        chocodb.write(sample, function() {
+          chocodb.read(sample.uuid, function (error, data) {
+            // data.title === 'test';
+            // data.values.boolean === true;
+            // data.date.creation.toString() === sample.date.creation.toString()
+        
+            chocodb.read(sub_uuid, function (error, data) {
+                // data.object.name === 'object in struct';
+            });
+          });
+        });
+
+&nbsp;
+
+---
+
+## <a id="Choco-Flow"></a> Chocoflow [⌂](#Choco-Summary) 
+
+Chocoflow is a really simple tool to help manage asynchronous calls serialization.
+
+You can change this javascript code:
+
+        db.createOrGetTable(function(table) {
+          return table.insertRow(row, function() {
+            return db.select(query(function(rows) {
+              return console.log(rows.count);
+            }));
+          });
+        });
+
+to this code:
+
+        Flow.serialize(function(defer, local) {
+          defer(function(next) {
+            return db.createOrGetTable(function(table) {
+              local.table = table;
+              return next();
+            });
+          });
+          defer(function(next) {
+            return local.table.insertRow(row, function() {
+              return next();
+            });
+          });
+          defer(function(next) {
+            return db.select(query(function(rows) {
+              local.rows = rows;
+              return next();
+            }));
+          });
+          return defer(function() {
+            return console.log(local.rows.count);
+          });
+        });
+
+or in Coffeescript, this code:
+
+        db.createOrGetTable (table) ->
+            table.insertRow row,  ->
+                db.select query (rows) ->
+                    console.log rows.count
+                    
+to this code:
+
+        Flow.serialize (defer, local) ->
+            defer (next) -> db.createOrGetTable (table) -> local.table = table; next()
+            defer (next) -> local.table.insertRow row,  -> next()
+            defer (next) -> db.select query (rows) -> local.rows = rows; next()
+            defer -> console.log local.rows.count
+
+
+
+It helps you mix synchronous and asynchronous, iterative and recursive code, 
+in a **simple** way with **no new concept** to learn.
+    
+Here is an example taken from /general/chocoflow spec file:
+
+        var Flow, end, start, time1, time2, time3, aync_func;
+
+        aync_func = function(duration, cb) {
+          return setTimeout((function() {
+            return cb(new Date().getTime());
+          }), duration);
+        };
+
+        Flow = require('chocolate/general/chocoflow');
+        
+        start = new Date().getTime();
+        time1 = time2 = time3 = end = null;
+        
+        Flow.serialize(function(defer) {
+        
+          defer(function(next) {
+            return aync_func(250, function(time) {
+              time1 = time;
+              return next();
+            });
+          });
+        
+          defer(function(next) {
+            return aync_func(150, function(time) {
+              time2 = time;
+              return next();
+            });
+          });
+        
+          defer(function(next) {
+            return aync_func(350, function(time) {
+              time3 = time;
+              return next();
+            });
+          });
+        
+          defer(function() {
+            // expect(time1 - start).toBeGreaterThan(250 - 5);
+            // expect(time2 - start).toBeGreaterThan(400 - 5);
+            // expect(time3 - start).toBeGreaterThan(750 - 5);
+            // expect(end - start).toBeLessThan(10);
+          });
+          
+          end = new Date().getTime();
+        });
+        
+
+
+&nbsp;
+
+---
+
+## <a id="Choco-Debugate"></a> Debugate [⌂](#Choco-Summary) 
+
+Debugate is really basic tool to help profile and log code execution.
+
+Here is a sample taken from the /general/debugate spec file:
+
+        var Debug = require('chocolate/general/debugate'), f1;
+        
+        f1 = function(cb) {
+          return setTimeout((function() {
+            return cb(new Date().getTime());
+          }), 250);
+        };
+        
+        Debugate.profile.start('Test time spent');
+        
+        f1(function(time) {
+          Debugate.profile.end('Test time spent');
+          
+          // expect(Debugate.profile.spent('Test time spent').time).toBeGreaterThan((250 - 5) * 1000);
+          // expect(Debugate.profile.spent('Test time spent').time).toBeLessThan((250 + 5) * 1000);
+        });
+
+&nbsp;
+
+---
+
+## <a id="Choco-Chocokup"></a> Chocokup [⌂](#Choco-Summary) 
+
+Chocokup is derived from [Coffeekup](http://coffeekup.org) which is a templating engine for node.js and browsers that lets you to write your html templates in 100% pure CoffeeScript.
+
+What Chocokup adds is the "Panel orientation" missing from html which is page oriented.
 
 Chocokup introduces few new tags:
 
@@ -637,9 +932,9 @@ This will display a basic Calculator
 
 &nbsp;
 
-### Usage
+### <a id="Choco-Chocokup-Usage"></a> Usage [⌂](#Choco-Summary) 
 
-#### Chocokup.Document
+#### <a id="Choco-Chocokup-Document"></a> Chocokup.Document [⌂](#Choco-Summary) 
 
 In a Coffeescript source file (ie. : mypage.coffee),  
 insert an `interface` function that returns a new `Chocokup.Document`
@@ -654,7 +949,7 @@ insert an `interface` function that returns a new `Chocokup.Document`
             
 Then open a web browser and open that page: ie. https://myserver/mypage
 
-#### Chocokup.Panel
+#### <a id="Choco-Chocokup-Panel"></a> Chocokup.Panel [⌂](#Choco-Summary) 
 
 If you only want to build a partial document, you can use `Chocokup.Panel`
 
@@ -666,20 +961,21 @@ If you only want to build a partial document, you can use `Chocokup.Panel`
     exports.interface = ->
         new Chocokup.Panel(kup).render()
 
-
-### Reference
+### <a id="Choco-Chocokup-Reference"></a> Reference [⌂](#Choco-Summary) 
 
 Read the complete Chocokup reference in Chocolate Studio Chocokup help panel.
 
 &nbsp;
 
-## Specolate
+---
+
+## <a id="Choco-Specolate"></a> Specolate [⌂](#Choco-Summary) 
 
 Specolate is a client and server side behavior/test driven development tool.
 
 It uses [Jasmine](http://pivotal.github.com/jasmine), a great behavior-driven development framework for testing JavaScript code.
 
-### Usage
+### <a id="Choco-Specolate-Usage"></a> Usage [⌂](#Choco-Summary) 
 
 Something interesting is that it runs your specs in the server **and** in the browser contexts.
 
@@ -708,10 +1004,12 @@ You only have add, at the begining of your spec file:
 
 &nbsp;
 
-## Doccolate
+---
+
+## <a id="Choco-Doccolate"></a> Doccolate [⌂](#Choco-Summary) 
 
 **Docco** is a literate-programming-style
-documentation generator. It produces HTML that displays your comments
+documentation generator. It produces html that displays your comments
 alongside your code.
 
 **Doccolate** is a modified version of Docco that can be used on demand both on client and server side.
@@ -729,7 +1027,9 @@ by using the `how=help` Http parameter: `https://myserver/mymodule?how=help`
 
 &nbsp;
 
-## Newnotes
+---
+
+## <a id="Choco-Newnotes"></a> Newnotes [⌂](#Choco-Summary) 
 
 Newnotes is a note taking tool that helps memorize and get things done.
 
@@ -763,22 +1063,24 @@ Dimensions :
  
  - Share: No share, Communication, Partnership, Work, Banking, Insurance
 
-### Usage
+### <a id="Choco-Newnotes-Usage"></a> Usage [⌂](#Choco-Summary) 
 
 You can use it directly inside Chocolate Studio in the Notes panel, 
 but also directly and fullscreen at: `https://myserver/-/server/newnotes`
 
-### Impress.js with Newnotes !
+### <a id="Choco-Newnotes-Impress"></a> Impress.js with Newnotes ! [⌂](#Choco-Summary) 
 
 You can display a Newnotes branch with impress.js: `https://myserver/-/server/newnotes?my-branch-title&as=impress`
 
-### Reference
+### <a id="Choco-Newnotes-Reference"></a> Reference [⌂](#Choco-Summary) 
 
 Read the complete Newnotes reference in Chocolate Studio Newnotes help panel.
 
 &nbsp;
 
-## Road Map
+---
+
+## <a id="Choco-RoadMap"></a> Road Map [⌂](#Choco-Summary) 
 
 Chocolate is currently (2013/07) an experiment that needs to be completed and polished:
 
@@ -792,7 +1094,9 @@ Chocolate is currently (2013/07) an experiment that needs to be completed and po
 
 &nbsp;
 
-## License
+---
+
+## <a id="Choco-License"></a> License [⌂](#Choco-Summary) 
     
     MIT License
     

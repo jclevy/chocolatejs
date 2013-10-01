@@ -298,7 +298,7 @@ THE SOFTWARE.
 node-treeeater is used to call git commands in Node
 https://github.com/payload/node-treeeater
 
-Showdown license is unknown : we assume MIT
+node-treeeater license is unknown : we assume MIT
 
 Copyright (c) 2011 Payload, <payload@lavabit.com>
 

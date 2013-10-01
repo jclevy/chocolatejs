@@ -161,6 +161,13 @@ exports.enter = (__) ->
         text "<script>_ide = {}; _ide.appdir = '#{@params.appdir}'; _sofkey = #{if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null'};</script>\n"
         script src:"/static/ace/ace.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/ext-searchbox.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/ext-language_tools.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/snippets/coffee.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/snippets/javascript.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/snippets/css.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/snippets/text.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/snippets/html.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/ace/snippets/markdown.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
@@ -343,6 +350,7 @@ exports.enter = (__) ->
         coffeescript ->
             sofkey = _sofkey
             editor = chocodown_editor = debug_editor = experiment_editor = specolate_editor = null
+            debug_experiment_sync = null
             sources =
                 opened : []
                 # codes : { path, doc, from_history , modified, modifiedDate }
@@ -386,11 +394,47 @@ exports.enter = (__) ->
             _ide.get_current_dir = ->
                 if (dir = document.id('current_dir').get 'text') is '' then '.' else dir
 
-            _ide.iframe_write = (iframe, text) ->
-                iframeDoc = (iframe.contentDocument || iframe.contentWindow.document)
+            _ide.iframe_infos = (iframe) ->
+                doc = (iframe.contentDocument || iframe.contentWindow.document)
+                doc_element = doc.documentElement || doc.body.parentNode || doc.body
+                win = iframe.contentWindow
+                scroll = 
+                    if win.pageXOffset isnt undefined 
+                        doc:win, attr: x:'pageXOffset', y:'pageYOffset'
+                    else
+                        doc:doc_element, attr: x:'scrollLeft', y:'scrollTop'
+                
+                scrollX = scroll.doc[scroll.attr.x]
+                scrollY = scroll.doc[scroll.attr.y]
+                
+                {win, doc, doc_element, scrollX, scrollY}
+                
+            _ide.iframe_write = (iframe, text, scroll) ->
+                
+                {doc, win, scrollX, scrollY} = _ide.iframe_infos iframe
+                
+                iframeDoc = doc
                 iframeDoc.open()
                 iframeDoc.write text
                 iframeDoc.close()
+                
+                unless scroll?
+                    win.scrollTo scrollX, scrollY
+                else
+                    _ide.iframe_scrollTo iframe, scroll.left , scroll.top, scroll.elemW, scroll.elemH
+            
+            _ide.iframe_scrollTo = (iframe, x, y, elemW, elemH) ->
+                {doc, doc_element, scrollX, scrollY} = _ide.iframe_infos iframe
+
+                container = doc.getElementById('docco_container') ? doc_element
+                
+                ratioX = (container.clientWidth - doc.body.clientWidth) / elemW
+                ratioY = (container.clientHeight - doc.body.clientHeight) / elemH
+                
+                new_scrollX = if x < 0 or elemW < 0 then scrollX else x * ratioX
+                new_scrollY = if y < 0 or elemH < 0 then scrollY else y * ratioY
+                
+                iframe.contentWindow.scrollTo new_scrollX, new_scrollY
 
             _ide.display_message = (message) ->
                 new Element('div').set('html', ('<p>' + new Date().toString translate 'dd/MM/yyyy HH:mm:ss')  + '<br/>&nbsp;&nbsp;' + message + '</p>').inject document.id('studio-messages'), 'top'
@@ -518,10 +562,15 @@ exports.enter = (__) ->
                 _ide.get_file_git_history path unless overwrite
                     
                 _ide.on_file_status_changed()
-                _ide.on_content_changed()
+                _ide.on_content_changed init:yes
                 
                 _ide.display_spec_file _ide.get_spec_filename path
-                
+
+                editor.getSession().on 'changeScrollTop', (scroll) ->
+                    unless document.id('documentation-panel').hasClass 'hidden'
+                        iframe = document.id('documentation-doccolate-panel')
+                        _ide.iframe_scrollTo iframe, -1, scroll, -1, editor.getSession().getScreenLength() * editor.renderer.lineHeight - editor.renderer.scroller.clientHeight
+                        
             _ide.display_spec_file = (path, overwrite) ->
                 # Load spec file in editor if present
                 item = sources.specs[path]
@@ -529,12 +578,12 @@ exports.enter = (__) ->
                 specolate_editor.setSession if path is '' then _ide.create_session '' else item.doc
                 document.id('specolate-result-panel').set 'text', if path is '' or item.spec_run_result is undefined then '' else item.spec_run_result.join '\n'
                 _ide.on_file_status_changed yes
-                _ide.on_content_changed yes
+                _ide.on_content_changed is_spec:yes, init:yes
                 
             _ide.create_session = (source, path) ->
                 EditSession = require("ace/edit_session").EditSession
                 UndoManager = require("ace/undomanager").UndoManager
-                mode = 'ace/mode/' + switch _ide.get_extension path ? ''
+                mode = switch _ide.get_extension path ? ''
                     when '.coffee' then 'coffee'
                     when '.js' then 'javascript'
                     when '.json' then 'javascript'
@@ -543,10 +592,15 @@ exports.enter = (__) ->
                     when '.txt' then 'text'
                     when '.markdown', '.md', '.chocodown', '.cd' then 'markdown'
                     else 'text'
-                Mode = require(mode).Mode                    
+                Mode = require("ace/mode/#{mode}").Mode                    
                 doc = new EditSession source
                 doc.setUndoManager new UndoManager()
                 doc.setMode new Mode()
+                snippetManager = require("ace/snippets").snippetManager
+                snippetMode = require("ace/snippets/#{mode}")
+                snippetManager.unregister _ide.current_snippet
+                _ide.current_snippet = snippetManager.parseSnippetFile snippetMode.snippetText
+                snippetManager.register _ide.current_snippet
                 doc.setUseSoftTabs true
                 if path? and path isnt ''
                     unless _ide.is_spec_file path
@@ -558,7 +612,7 @@ exports.enter = (__) ->
                                     sources.opened = (item for item in sources.opened when item isnt sources.current)
                                     _ide.on_file_status_changed()
                                     
-                                _ide.on_content_changed()
+                                _ide.on_content_changed init:yes
                             true
                     else
                         doc.on 'change', ->
@@ -570,7 +624,7 @@ exports.enter = (__) ->
                                     source.modified = true
                                     _ide.on_file_status_changed yes
                                     
-                                _ide.on_content_changed yes
+                                _ide.on_content_changed is_spec:yes
                             true
                         
                 doc
@@ -795,8 +849,9 @@ exports.enter = (__) ->
                             _ide.display_message "Error with _ide.search_in_files() : #{xhr.status}"
                     .get()
 
-            _ide.on_content_changed = (is_spec) ->
-                _ide.run_doccolate() if not is_spec and document.id('toggle-doccolate').hasClass 'selected'
+            _ide.on_content_changed = (options) ->
+                {is_spec, init} = options ?= {}
+                _ide.run_doccolate(init) if not is_spec and document.id('toggle-doccolate').hasClass 'selected'
 
             _ide.on_file_status_changed = (is_spec) ->
                 path = sources.current
@@ -891,11 +946,11 @@ exports.enter = (__) ->
                     .get()
 
             _ide.resize_editors = ->
-                editor.resize()
-                experiment_editor.resize()
-                debug_editor.resize()
-                chocodown_editor.resize()
-                specolate_editor.resize()
+                editor.resize on
+                experiment_editor.resize on
+                debug_editor.resize on
+                chocodown_editor.resize on
+                specolate_editor.resize on
 
             _ide.toggleFullscreen = ->
                 document.id('main-panel').toggleClass 'fullscreen'
@@ -959,7 +1014,7 @@ exports.enter = (__) ->
                 
                 _ide.resize_editors()
                 
-                if what is 'doccolate' then _ide.run_doccolate()
+                if what is 'doccolate' then _ide.run_doccolate yes
         
             _ide.toggleNavigatePanel = (what) ->
                 list = ['search', 'browse']
@@ -1001,9 +1056,9 @@ exports.enter = (__) ->
                     document.id(item).removeClass('selected') for item in ['toggle-coffeescript', 'toggle-chocodown']
                     document.id('toggle-' + what).addClass 'selected'
                     
-                    experiment_editor.resize()
-                    debug_editor.resize()
-                    chocodown_editor.resize()                    
+                    experiment_editor.resize on
+                    debug_editor.resize on
+                    chocodown_editor.resize on                    
                 else 
                 if css_class.html?
                     document.id('experiment-html-panel-main')[css_class.html + 'Class']('hidden')
@@ -1110,8 +1165,10 @@ exports.enter = (__) ->
                             toggleCode start, end + 1
                             editor.selection.moveCursorTo start, 0
             
-            _ide.run_doccolate = ->
-                _ide.iframe_write document.id('documentation-doccolate-panel'), if sources.current isnt '' then Doccolate.generate sources.current, editor.getSession().getValue() else ''
+            _ide.run_doccolate = (init) ->
+                _ide.iframe_write document.id('documentation-doccolate-panel'), 
+                    (if sources.current isnt '' then Doccolate.generate sources.current, editor.getSession().getValue() else ''), 
+                    (if init? then left:editor.getSession().getScrollLeft(), top:editor.getSession().getScrollTop(), elemW:-1, elemH:editor.getSession().getScreenLength() * editor.renderer.lineHeight - editor.renderer.scroller.clientHeight else undefined)
 
             _ide.error_message = (error) ->
                 line = if (info = error.location)? then '\n' + "at line:" + info.first_line + ", column:" + info.first_column + " (Coffeescript)" else ''
@@ -1139,6 +1196,9 @@ exports.enter = (__) ->
                         sources.specs[_ide.get_spec_filename sources.current].spec_run_result = list
                         document.id('specolate-result-panel').set 'text', list.join '\n'
                 
+                onEnd = ->
+                    document.id('specolate-run-panel').contentWindow.location.reload()
+                
                 document.id('specolate-run-panel').contentWindow.Specolate.inspect 'json', sources.current, {}, (result) -> 
                     list = []
                     client_result = result
@@ -1148,7 +1208,7 @@ exports.enter = (__) ->
                         list = client_result.log;
                     
                     request = new Request.JSON
-                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{sources.current}?so=test&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{sources.current}?so=eval&how=raw"
                         onSuccess: (server_result) ->
                             if server_result.count.total > 0 
                                 server_result.log[0] = translate 'On server :'
@@ -1159,11 +1219,22 @@ exports.enter = (__) ->
                             list.unshift ''
                             list.unshift translate "#{client_result.count.failed + server_result.count.failed} failed out of #{client_result.count.total + server_result.count.total}"
                             onSuccess list
-                        onFailure: (xhr) -> _ide.display_message "Error with _ide.run_specolate() : #{xhr.status}"
+                            onEnd()
+                            
+                        onFailure: (xhr) -> 
+                            _ide.display_message "Error with _ide.run_specolate() : #{xhr.status}"
+                            onEnd()
                     .get()
                 
             _ide.compile_coffeescript_code = ->
                 source = experiment_editor.getSession().getValue()
+                
+                removed_quotes = []
+                prepared = source.replace /([^\\])("""|'''|"|')([\S\s]*?)([^\\])(\2)/g, (match, p1, p2, p3, p4, p5, offset) ->
+                    removed_quotes[offset] = p2 + p3 + p4 + p5
+                    p1 + "'quote#{offset}'"
+
+                lines = prepared.split '\n'
                 
                 debugged = """__debug__evals__ = []
                 dbg = []
@@ -1226,9 +1297,9 @@ exports.enter = (__) ->
                     value = '' + value
                     value = value.replace(/\\n/g, '↲').substr(0, 50) + (if value.length > 50 then '...' else '')
                     
-                    if __debug__evals__[line] is undefined
-                        if __debug__evals__.length <= line then for i in [__debug__evals__.length .. line] 
-                            __debug__evals__.push align:0, tokens:[], values:{}
+                    #if __debug__evals__[line] is undefined
+                    #    if __debug__evals__.length <= line then for i in [__debug__evals__.length .. line] 
+                    #        __debug__evals__.push align:0, tokens:[], values:{}
                     
                     item = __debug__evals__[line]
                     
@@ -1264,15 +1335,11 @@ exports.enter = (__) ->
                         lines.push if var_names isnt '' then (__debug__display__cell__(var_names, 14) + ' = ' + var_values + '\n') else '\n'
                     
                     return lines.join('\\n')
+                    
+                for [0...#{lines.length}] then __debug__evals__.push align:0, tokens:[], values:{}
 
                     \n"""
 
-                removed_quotes = []
-                prepared = source.replace /([^\\])("""|'''|"|')([\S\s]*?)([^\\])(\2)/g, (match, p1, p2, p3, p4, p5, offset) ->
-                    removed_quotes[offset] = p2 + p3 + p4 + p5
-                    p1 + "'quote#{offset}'"
-
-                lines = prepared.split '\n'
                 indent = 0
                 loop_entered = no
                 loop_entered_at_line = undefined
@@ -1347,6 +1414,11 @@ exports.enter = (__) ->
                     document.id('experiment-js-panel').set 'html', ''
                     debug_editor.setValue ''
                 else
+                    displayDebugged = (value) ->
+                        scrollTop = debug_editor.getSession().getScrollTop()
+                        debug_editor.setValue value ? ('' for [0...lines.length]).join('\n'), -1
+                        debug_editor.getSession().setScrollTop scrollTop
+                        
                     try
                         orig_compiled = CoffeeScript.compile source, bare: true
                         document.id('experiment-js-panel').set 'html', Highlight.highlight('javascript', orig_compiled).value
@@ -1360,7 +1432,7 @@ exports.enter = (__) ->
                             result = eval compiled
                             if __debug__loop__force__exit__ then result = 'Inifite loop detected'
                             else result = eval orig_compiled
-                            debug_editor.setValue __debug__display__evals__(), -1
+                            displayDebugged __debug__display__evals__()
                         catch e
                             error = e
                             result = _ide.error_message error
@@ -1425,21 +1497,32 @@ exports.enter = (__) ->
                 CoffeeScriptMode = require('ace/mode/coffee').Mode                    
                 coffeescriptMode = new CoffeeScriptMode()
                 
-                MarkdownMode = require('ace/mode/markdown').Mode                    
+                MarkdownMode = require('ace/mode/markdown').Mode
                 markdownMode = new MarkdownMode()
                 
                 TextMode = require('ace/mode/text').Mode                    
                 textMode = new TextMode()
+
+                LanguageTools = require('ace/ext/language_tools')
                 
+                snippetManager = require("ace/snippets").snippetManager
+                snippetText = require('ace/snippets/text')
+                _ide.current_snippet = snippetManager.parseSnippetFile snippetText.snippetText
+                snippetManager.register _ide.current_snippet
+
                 set_editor = (id, mode) ->
                     e = ace.edit id
                     try e.setScrollSpeed(2)
-                    e.setShowPrintMargin false
+                    e.setShowPrintMargin no
                     e.setTheme 'ace/theme/coffee'
                     e.setShowInvisibles yes
                     
                     e.getSession().setMode mode ? coffeescriptMode
-                    e.getSession().setUseSoftTabs true
+                    e.getSession().setUseSoftTabs yes
+                    e.setOptions
+                        enableBasicAutocompletion: yes
+                        enableSnippets: yes
+    
                     e
                     
                 editor = set_editor 'editor'
@@ -1452,11 +1535,20 @@ exports.enter = (__) ->
 
                 debug_editor = set_editor 'experiment-debug-panel', textMode
                 debug_editor.setReadOnly on
-                
+                    
                 experiment_editor.getSession().on 'changeScrollTop', (scroll) ->
-                    debug_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
+                    if debug_experiment_sync is "debug" 
+                        debug_experiment_sync = null
+                    else  
+                        debug_experiment_sync = "experiment"
+                        debug_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
+                
                 debug_editor.getSession().on 'changeScrollTop', (scroll) ->
-                    experiment_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
+                    if debug_experiment_sync is "experiment" 
+                        debug_experiment_sync = null
+                    else  
+                        debug_experiment_sync = "debug"
+                        experiment_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
 
                 chocodown_editor = set_editor 'experiment-chocodown-panel-editor', markdownMode
                 chocodown_editor.renderer.setShowGutter false

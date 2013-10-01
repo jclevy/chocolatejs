@@ -15,16 +15,26 @@ exports.Loader = Loader = class extends Request
 
 # Ajax.Require service
 
-window.require = (modulename, filename) ->
-    filename = modulename unless filename?    
-    filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/^general\//, '').replace(/^client\//, '')
-    filename = if (i=filename.lastIndexOf '.') >= 0 then filename[0...i] else filename
+use_cache = on
+
+window.require = require = (modulename, filename, options) ->
+    if arguments.length is 2 and Object.prototype.toString.apply filename isnt '[object String]'
+        options = filename
+        filename = null
+        
+    filename = modulename unless filename? 
+    filename = resolve filename
+
+    if options?.use_cache?
+        cur_use_cache = use_cache
+        use_cache = options.use_cache
 
     result = Intentware._require? filename
     return result if result?
 
-    cachedModule = window.modules[filename]
-    return cachedModule if cachedModule?
+    if use_cache
+        cachedModule = window.modules[filename]
+        return cachedModule if cachedModule?
     
     window.exports = {}
 
@@ -38,7 +48,18 @@ window.require = (modulename, filename) ->
     
     result = window.modules[filename] = window.exports
     window.exports = undefined
+
+    if options?.use_cache?
+        use_cache = cur_use_cache
+    
     result
+
+window.require.resolve = resolve = (filename) ->
+    filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/^general\//, '').replace(/^client\//, '')
+    filename = if (i=filename.lastIndexOf '.') >= 0 then filename[0...i] else filename
+
+window.require.cache = (used) -> use_cache = used
+
 
 # CSS Browser Selector
 ###

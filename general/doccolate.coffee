@@ -33,6 +33,8 @@ languages =
     name: 'coffeescript', symbol: '#', symbol_close: ''
   '.js':
     name: 'javascript', symbol: '//', symbol_close: ''
+  '.json':
+    name: 'javascript', symbol: '//', symbol_close: ''
   '.css':
     name: 'css', symbol: '/* ', symbol_close: ' */'
   '.rb':
