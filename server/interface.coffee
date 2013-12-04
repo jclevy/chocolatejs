@@ -90,9 +90,15 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     # `getMethodInfo` retrieve a method and its parameters from a required module
     getMethodInfo = (required, action) ->
         try
-            module = require required
-            method = module[action] if module?
-            args = method.toString().match(/function\s+\w*\s*\((.*?)\)/)[1].split(/\s*,\s*/) if method?
+            method = require required
+            
+            method = method[name] for name in action.split('.') when method? if method?
+                    
+            if method instanceof Function
+                infos = method.toString().match(/function\s+\w*\s*\((.*?)\)/)
+                args = infos[1].split(/\s*,\s*/) if infos?
+            else method = undefined
+                
             {method, args}
         catch error
             error.source = module:required, method:action
@@ -138,7 +144,8 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                             respondStatic 200, headers, switch extension
                                 when '.md', '.markdown', '.cd', '.chocodown' 
                                     try
-                                        new Chocodown.converter({CoffeeScript, Chocokup, Highlight}).makeHtml file.toString()
+                                        html = new Chocodown.converter({CoffeeScript, Chocokup, Highlight}).makeHtml file.toString()
+                                        if html.indexOf('<body') < 0 then html = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + html + '</body></html>' else html
                                     catch error
                                         'Error loading ' + where + ': ' + error
                                 else file
@@ -172,6 +179,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     # `canExchangeClassic` checks if a file can be required at the specified path
     # so that a classic exchange can occur
     canExchangeClassic = (path) ->
+        return yes if hasSofkey()
         try require.resolve '../' + (if appdir is '.' then '' else appdir + '/' ) + path 
         catch error then return no
         yes
@@ -209,7 +217,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             when 'go'
                 # Answer to ping request
                 if where is 'ping'
-                    respond 'Ok'
+                    respond '{"status":"Ok"}'
                     return
                         
                 # Get the system resource and check how to return it
@@ -264,7 +272,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                                     errs = []
                                     count += 1 for name, file of files
                                     for name, file of files
-                                        from = if __?.appdir? then Path.relative file.path, __.appdir else file.path
+                                        from = if __?.appdir? then Path.relative __.appdir, file.path else file.path
                                         if Path.extname from is '' 
                                             Fs.renameSync from, from = from + '.tmp'
                                         to = unless err? then where else ''
@@ -327,7 +335,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     # `exchangeSimple` is an interface with intentional entities.
     # However, if a file can be required at the specified path, a classic exchange will occur
     exchangeSimple = () ->
-        path = if where is '' then where = 'default' else where
+        path = if where is '' and so isnt 'move' then where = 'default' else where
         path = 'www/' + path if appdir is '.'
         
         if canExchangeClassic path
@@ -367,7 +375,7 @@ exports.register_key = (__) ->
         text 'Key registered'
     
     if __.request.method isnt 'POST'
-        new Chocokup.Document 'Key registration', helpers:{kup:enter_kup}, Chocokup.Kups.Tablet
+        new Chocokup.Document 'Key registration', kups:{key:enter_kup}, Chocokup.Kups.Tablet
 
     else
         event = new Events.EventEmitter
@@ -380,7 +388,7 @@ exports.register_key = (__) ->
 
             __.session.keys.push Crypto.createHash('sha256').update(fields.key).digest('hex')
             
-            event.emit 'end', new Chocokup.Document 'Key registration', helpers:{kup:entered_kup}, Chocokup.Kups.Tablet
+            event.emit 'end', new Chocokup.Document 'Key registration', kups:{key:entered_kup}, Chocokup.Kups.Tablet
         
         event
 
@@ -395,10 +403,10 @@ exports.forget_key = (__) ->
     
 
     if __.request.method isnt 'POST'
-        new Chocokup.Document 'Key unregistration', helpers:{kup:forget_kup}, Chocokup.Kups.Tablet
+        new Chocokup.Document 'Key unregistration', kups:{key:forget_kup}, Chocokup.Kups.Tablet
     else
         __.session.keys = []
-        new Chocokup.Document 'Key unregistration', helpers:{kup:forgeted_kup}, Chocokup.Kups.Tablet
+        new Chocokup.Document 'Key unregistration', kups:{key:forgeted_kup}, Chocokup.Kups.Tablet
             
 #### Create Hash
 # `create_hash` returns the corresponding sha256 hash from a given key

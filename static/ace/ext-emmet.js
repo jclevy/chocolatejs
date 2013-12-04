@@ -420,11 +420,13 @@ var SnippetManager = function() {
             case "SELECTED_TEXT":
                 return s.getTextRange(r);
             case "CURRENT_LINE":
-                return s.getLine(e.getCursorPosition().row);
+                return s.getLine(editor.getCursorPosition().row);
+            case "PREV_LINE": // not possible in textmate
+                return s.getLine(editor.getCursorPosition().row - 1);
             case "LINE_INDEX":
-                return e.getCursorPosition().column;
+                return editor.getCursorPosition().column;
             case "LINE_NUMBER":
-                return e.getCursorPosition().row + 1;
+                return editor.getCursorPosition().row + 1;
             case "SOFT_TABS":
                 return s.getUseSoftTabs() ? "YES" : "NO";
             case "TAB_SIZE":
@@ -542,37 +544,69 @@ var SnippetManager = function() {
             if (typeof p != "object")
                 return;
             var id = p.tabstopId;
-            if (!tabstops[id]) {
-                tabstops[id] = [];
-                tabstops[id].index = id;
-                tabstops[id].value = "";
+            var ts = tabstops[id];
+            if (!ts) {
+                ts = tabstops[id] = [];
+                ts.index = id;
+                ts.value = "";
             }
-            if (tabstops[id].indexOf(p) != -1)
+            if (ts.indexOf(p) !== -1)
                 return;
-            tabstops[id].push(p);
+            ts.push(p);
             var i1 = tokens.indexOf(p, i + 1);
-            if (i1 == -1)
+            if (i1 === -1)
                 return;
-            var value = tokens.slice(i + 1, i1).join("");
-            if (value)
-                tabstops[id].value = value;
-        });
 
-        tabstops.forEach(function(ts) {
-            ts.value && ts.forEach(function(p) {
-                var i = tokens.indexOf(p);
-                var i1 = tokens.indexOf(p, i + 1);
-                if (i1 == -1)
-                    tokens.splice(i + 1, 0, ts.value, p);
-                else if (i1 == i + 1)
-                    tokens.splice(i + 1, 0, ts.value);
-            });
+            var value = tokens.slice(i + 1, i1);
+            var isNested = value.some(function(t) {return typeof t === "object"});          
+            if (isNested && !ts.value) {
+                ts.value = value;
+            } else if (value.length && (!ts.value || typeof ts.value !== "string")) {
+                ts.value = value.join("");
+            }
         });
+        tabstops.forEach(function(ts) {ts.length = 0});
+        var expanding = {};
+        function copyValue(val) {
+            var copy = []
+            for (var i = 0; i < val.length; i++) {
+                var p = val[i];
+                if (typeof p == "object") {
+                    if (expanding[p.tabstopId])
+                        continue;
+                    var j = val.lastIndexOf(p, i - 1);
+                    p = copy[j] || {tabstopId: p.tabstopId};
+                }
+                copy[i] = p;
+            }
+            return copy;
+        }
+        for (var i = 0; i < tokens.length; i++) {
+            var p = tokens[i];
+            if (typeof p != "object")
+                continue;
+            var id = p.tabstopId;
+            var i1 = tokens.indexOf(p, i + 1);
+            if (expanding[id] == p) { 
+                expanding[id] = null;
+                continue;
+            }
+            
+            var ts = tabstops[id];
+            var arg = typeof ts.value == "string" ? [ts.value] : copyValue(ts.value);
+            arg.unshift(i + 1, Math.max(0, i1 - i));
+            arg.push(p);
+            expanding[id] = p;
+            tokens.splice.apply(tokens, arg);
+
+            if (ts.indexOf(p) === -1)
+                ts.push(p);
+        };
         var row = 0, column = 0;
         var text = "";
         tokens.forEach(function(t) {
-            if (typeof t == "string") {
-                if (t[0] == "\n"){
+            if (typeof t === "string") {
+                if (t[0] === "\n"){
                     column = t.length - 1;
                     row ++;
                 } else
@@ -596,9 +630,14 @@ var SnippetManager = function() {
     this.$getScope = function(editor) {
         var scope = editor.session.$mode.$id || "";
         scope = scope.split("/").pop();
-        if (editor.session.$mode.$modes) {
+        if (scope === "html" || scope === "php") {
+            if (scope === "php") 
+                scope = "html";
             var c = editor.getCursorPosition()
             var state = editor.session.getState(c.row);
+            if (typeof state === "object") {
+                state = state[0];
+            }
             if (state.substring) {
                 if (state.substring(0, 3) == "js-")
                     scope = "javascript";
@@ -608,6 +647,7 @@ var SnippetManager = function() {
                     scope = "php";
             }
         }
+        
         return scope;
     };
 
@@ -743,7 +783,7 @@ var SnippetManager = function() {
             snippets.forEach(removeSnippet);
     };
     this.parseSnippetFile = function(str) {
-        str = str.replace(/\r/, "");
+        str = str.replace(/\r/g, "");
         var list = [], snippet = {};
         var re = /^#.*|^({[\s\S]*})\s*$|^(\S+) (.*)$|^((?:\n*\t.*)+)/gm;
         var m;

@@ -10,7 +10,7 @@ You can use it to manage notes / todo lists / oulines.
 
 **New item/sub-item**
 
-You can create a new item with the same attributes than the previous (use Ctrl-Return).
+You can create a new item with the same attributes than the previous (use Return).
 You can also create sub-items with the indent/outdent function (use Tab and Shift-Tab)
 
 **Tagging attributes**
@@ -35,7 +35,7 @@ Dimensions :
 
 **Change priority**
 
-You can change an item priority by using the Priority selector or by pressing Shift-Return keys.
+You can change an item priority by using the Priority selector or by pressing Ctrl-Return keys.
 
 **Saving modifications**
 
@@ -81,7 +81,7 @@ Press the Esc key to cancel the search.
 
 **Open and Close an item**
 
-To close/open an item that has sub-items click the '-'/'+' in front of the item title or press the Return key.  
+To close/open an item that has sub-items click the '-'/'+' in front of the item title or press Shift-Return.  
 
 **Compact and Expand an item**
 
@@ -108,3 +108,16 @@ Expand the displayed item by
 
  - pressing the same keys (Ctr-Shift-Up)
  - clicking the '*' link
+
+---
+
+**Abstract**
+
+ - create a new note by pressing Return 
+ - when editing:
+  - create a new note by pressing Return if cursor at the end
+  - insert a newline with Ctrl + Return or Shift + Return or press only return if not at note's end
+ - toggle a note by pressing Shift-Return
+ - toggle note priority by pressing Ctrl-Return when not editing
+ - insert a new note before a note with Alt + Return
+ - split a note in two notes with Ctrl-Shift-Return when editing

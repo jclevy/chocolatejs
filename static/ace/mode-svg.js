@@ -43,10 +43,8 @@ var CStyleFoldMode = require("./folding/cstyle").FoldMode;
 var Mode = function() {
     XmlMode.call(this);
     
-    this.highlighter = new SvgHighlightRules();
-    this.$tokenizer = new Tokenizer(this.highlighter.getRules());
+    this.HighlightRules = SvgHighlightRules;
     
-    this.$embeds = this.highlighter.getEmbeds();
     this.createModeDelegates({
         "js-": JavaScriptMode
     });
@@ -81,7 +79,7 @@ var XmlBehaviour = require("./behaviour/xml").XmlBehaviour;
 var XmlFoldMode = require("./folding/xml").FoldMode;
 
 var Mode = function() {
-    this.$tokenizer = new Tokenizer(new XmlHighlightRules().getRules());
+    this.HighlightRules = XmlHighlightRules;
     this.$behaviour = new XmlBehaviour();
     this.foldingRules = new XmlFoldMode();
 };
@@ -560,7 +558,7 @@ var CstyleBehaviour = function () {
             }
             var rightChar = line.substring(cursor.column, cursor.column + 1);
             if (rightChar == '}' || closing !== "") {
-                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column}, '}');
+                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column+1}, '}');
                 if (!openBracePos)
                      return null;
 
@@ -986,12 +984,10 @@ var CstyleBehaviour = require("./behaviour/cstyle").CstyleBehaviour;
 var CStyleFoldMode = require("./folding/cstyle").FoldMode;
 
 var Mode = function() {
-    var highlighter = new JavaScriptHighlightRules();
+    this.HighlightRules = JavaScriptHighlightRules;
     
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
     this.$outdent = new MatchingBraceOutdent();
     this.$behaviour = new CstyleBehaviour();
-    this.$keywordList = highlighter.$keywordList;
     this.foldingRules = new CStyleFoldMode();
 };
 oop.inherits(Mode, TextMode);
@@ -1004,7 +1000,7 @@ oop.inherits(Mode, TextMode);
     this.getNextLineIndent = function(state, line, tab) {
         var indent = this.$getIndent(line);
 
-        var tokenizedLine = this.$tokenizer.getLineTokens(line, state);
+        var tokenizedLine = this.getTokenizer().getLineTokens(line, state);
         var tokens = tokenizedLine.tokens;
         var endState = tokenizedLine.state;
 
@@ -1478,7 +1474,7 @@ oop.inherits(FoldMode, BaseFoldMode);
     this.foldingStartMarker = /(\{|\[)[^\}\]]*$|^\s*(\/\*)/;
     this.foldingStopMarker = /^[^\[\{]*(\}|\])|^[\s\*]*(\*\/)/;
 
-    this.getFoldWidgetRange = function(session, foldStyle, row) {
+    this.getFoldWidgetRange = function(session, foldStyle, row, forceMultiline) {
         var line = session.getLine(row);
         var match = line.match(this.foldingStartMarker);
         if (match) {
@@ -1486,11 +1482,20 @@ oop.inherits(FoldMode, BaseFoldMode);
 
             if (match[1])
                 return this.openingBracketBlock(session, match[1], row, i);
-
-            return session.getCommentFoldRange(row, i + match[0].length, 1);
+                
+            var range = session.getCommentFoldRange(row, i + match[0].length, 1);
+            
+            if (range && !range.isMultiLine()) {
+                if (forceMultiline) {
+                    range = this.getSectionRange(session, row);
+                } else if (foldStyle != "all")
+                    range = null;
+            }
+            
+            return range;
         }
 
-        if (foldStyle !== "markbeginend")
+        if (foldStyle === "markbegin")
             return;
 
         var match = line.match(this.foldingStopMarker);
@@ -1502,6 +1507,38 @@ oop.inherits(FoldMode, BaseFoldMode);
 
             return session.getCommentFoldRange(row, i, -1);
         }
+    };
+    
+    this.getSectionRange = function(session, row) {
+        var line = session.getLine(row);
+        var startIndent = line.search(/\S/);
+        var startRow = row;
+        var startColumn = line.length;
+        row = row + 1;
+        var endRow = row;
+        var maxRow = session.getLength();
+        while (++row < maxRow) {
+            line = session.getLine(row);
+            var indent = line.search(/\S/);
+            if (indent === -1)
+                continue;
+            if  (startIndent > indent)
+                break;
+            var subRange = this.getFoldWidgetRange(session, "all", row);
+            
+            if (subRange) {
+                if (subRange.start.row <= startRow) {
+                    break;
+                } else if (subRange.isMultiLine()) {
+                    row = subRange.end.row;
+                } else if (startIndent == indent) {
+                    break;
+                }
+            }
+            endRow = row;
+        }
+        
+        return new Range(startRow, startColumn, endRow, session.getLine(endRow).length);
     };
 
 }).call(FoldMode.prototype);

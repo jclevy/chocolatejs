@@ -233,4 +233,3 @@ uuid.isUuid = (value) ->
         return value.length is 16
     else 
         return false
-

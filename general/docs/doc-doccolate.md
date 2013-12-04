@@ -15,8 +15,7 @@ Source comments are passed through
 [Markdown](http://daringfireball.net/projects/markdown/syntax), and code is
 passed through [Highlight](http://softwaremaniacs.org/wiki/doku.php/highlight.js:highlight.js) syntax highlighting.
 
-Markdown: Syntax
-================
+## Markdown: Syntax
 
 *   [Overview](#overview)
     *   [Philosophy](#philosophy)

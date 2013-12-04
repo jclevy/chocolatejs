@@ -84,7 +84,7 @@ var SnippetGroupHighlightRules = function() {
 		{onMatch: function(value, state, stack) {
 			stack.splice(stack.length);
 			return this.tokenName;
-		}, tokenName: "text", regex: "^(?!\t)", next: "start"},
+		}, tokenName: "text", regex: "^(?!\t)", next: "start"}
 	])
 	
 };
@@ -96,9 +96,8 @@ exports.SnippetGroupHighlightRules = SnippetGroupHighlightRules;
 var FoldMode = require("./folding/coffee").FoldMode;
 
 var Mode = function() {
-    var highlighter = new SnippetGroupHighlightRules();
+    this.HighlightRules = SnippetGroupHighlightRules;
     this.foldingRules = new FoldMode();
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
 };
 oop.inherits(Mode, TextMode);
 

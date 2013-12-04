@@ -9,7 +9,7 @@ class Chocokup
         text "#{@body}"
     body_template: ->
         text "#{@content}"
-    @helpers:
+    @helpers: class
         verify : (args...) ->
             attributes = content = null
             id_class = ''
@@ -33,10 +33,6 @@ class Chocokup
             
             # return verified arguments
             id_class:id_class, attributes:attributes, content:content
-
-        totext: ->
-            f = eval "yield"
-            f arguments...
         
         css : (param) ->
             compile = (rules, helpers) ->
@@ -46,6 +42,10 @@ class Chocokup
                 for own selector, pairs of rules
                     declarations = ''
                     nested = {}
+                    
+                    if selector.substr(0,6) is '@media'
+                        result += "#{selector} {\n#{compile pairs, helpers}}\n"
+                        continue
                 
                     if typeof pairs is 'function'
                         helpers[selector] = pairs
@@ -225,7 +225,7 @@ class Chocokup
                 h3 id_class, attributes, content
             else
                 tag 'title', arguments...
-
+                
     render: (options) ->
         locals = options?.locals ? {}
         if @params?.locals? 
@@ -233,12 +233,14 @@ class Chocokup
             delete @params.locals
         locals = { locals } if Object.prototype.toString.apply(locals) isnt '[object Object]'
         locals.backdoor_key = options?.backdoor_key
+        locals.Chocokup = Chocokup
         
-        helpers = Chocokup.helpers
-        if @params?.helpers? 
-            helpers[k] = v for k,v of @params.helpers 
-            delete @params.helpers
-        
+        helpers = new Chocokup.helpers
+        for helper_ext in ['helpers', 'kups']
+            if @params?[helper_ext]?
+                helpers[k] = v for k,v of @params[helper_ext] 
+                delete @params[helper_ext] 
+
         format = options?.format ? true
         content_html = Coffeekup.render @content, panel_index : 1, webcontrol_index : 0, proportion : 'none', orientation : 'none', hardcode : helpers, params : @params, format : format, locals : locals
         body_html = Coffeekup.render @body_template, content : content_html, title : @title, panel_index : 1, proportion : 'none', orientation : 'none', hardcode : helpers, params : @params, format : format, locals : locals
@@ -262,274 +264,21 @@ class Chocokup.Document extends Chocokup
                 meta 
                     name:"apple-mobile-web-app-capable" 
                     content:"yes"
-                style '''
-                      html, body {
-                        margin:0;
-                        padding:0;
-                        overflow: hidden;
-                        height: 100%;
-                      }
-                                    
-                      .space {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        right: 0;
-                        bottom: 0;
-                        width: auto;
-                        height: auto;
-                        overflow: hidden;
-                      }
-                      .hidden {
-                        display:none;
-                      }
-                      .screen-95 {
-                        left: 5%;
-                        top: 2%;
-                        width: 90%;
-                        height: 96%;
-                      }
-                      .screen-90 {
-                        left: 10%;
-                        top: 4%;
-                        width: 80%;
-                        height: 92%;
-                      }
-                      .screen-85 {
-                        left: 15%;
-                        top: 6%;
-                        width: 70%;
-                        height: 88%;
-                      }
-                      .screen-80 {
-                        left: 20%;
-                        top: 8%;
-                        width: 60%;
-                        height: 84%;
-                      }
-                      .top {
-                        top: 0;
-                        bottom: auto;
-                      }
-                      .third.vertical.middle {
-                        top: 33.33%;
-                      }
-                      .bottom {
-                        top: auto;
-                        bottom: 0;
-                      }
-                      .left {
-                        left: 0;
-                        right: auto;
-                      }
-                      .third.horizontal.center {
-                        left: 33.33%;
-                      }
-                      .right {
-                        left: auto;
-                        right: 0;
-                      }
-                      .half.horizontal {
-                        width: 50%;
-                      }
-                      .half.vertical {
-                        height: 50%;
-                      }
-                      .half-served.horizontal.left {
-                        width: 80%;
-                      }
-                      .half-served.vertical.top {
-                        height: 80%;
-                      }
-                      .half-served.horizontal.right {
-                        width: 20%;
-                      }
-                      .half-served.vertical.bottom {
-                        height: 20%;
-                      }
-                      .third.horizontal {
-                        width: 33.33%;
-                      }
-                      .third.vertical {
-                        height: 33.33%;
-                      }
-                      .service.horizontal {
-                        width: 20%;
-                      }
-                      .fullscreen > .service.horizontal {
-                        width: 0%;
-                      }
-                      .service.vertical {
-                        height: 20%;
-                      }
-                      .fullscreen > .service.vertical {
-                        height: 0%;
-                      }
-                      .served.horizontal {
-                        left: 20%;
-                        width: 60%;
-                        right: 20%;
-                      }
-                      .fullscreen > .served.horizontal {
-                        left: 0%;
-                        width: 100%;
-                        right: 0%;
-                      }
-                      .served.vertical {
-                        top: 20%;
-                        height: 60%;
-                        bottom: 20%;
-                      }
-                      .fullscreen > .served.vertical {
-                        top: 0%;
-                        height: 100%;
-                        bottom: 0%;
-                      }
-                      .fullscreen.shrink {
-                        width: 0%;
-                        height: 0%;
-                      }
-                      .shrink.horizontal {
-                        width: 0%;
-                      }
-                      .shrink.vertical {
-                        height: 0%;
-                      }
-                      .fullscreen.expand {
-                        width: 100%;
-                        height: 100%;
-                      }
-                      .expand.horizontal {
-                        width: 100%;
-                      }
-                      .expand.vertical {
-                        height: 100%;
-                      }
-                      .source-code {
-                        white-space: pre;
-                      }
-                      .float-left {
-                        float: left;
-                        margin-left: 10px;
-                      }
-                      .float-right {
-                        float: right;
-                        margin-right: 10px;
-                      }
-                      .header {
-                        position: absolute;
-                        height:32px;
-                        width:100%;
-                        overflow:hidden;
-                        top: 0px;
-                        bottom: auto;
-                        text-align:center;
-                        line-height: 32px;
-                        /*
-                        background:#ddd;
-                        border-bottom:solid 1px #666;
-                        */
-                      }
-                      .body {
-                        overflow:auto;
-                        -webkit-overflow-scrolling:touch;
-                        top:32px;
-                        bottom:32px;
-                        position:absolute;
-                      }
-                      .footer {
-                        position: absolute;
-                        height:32px;
-                        width:100%;
-                        overflow:hidden;
-                        top: auto;
-                        bottom: 0px;
-                        text-align:center;
-                        line-height: 32px;
-                        /*
-                        background:#ddd;
-                        border-top:solid 1px #666;
-                        */
-                      }
-                      .no-header {
-                        top:0px;
-                      }
-                      .no-footer {
-                        bottom:0px;
-                      }
-                      .header.by-bootstrap, .footer.by-bootstrap {
-                        height:40px;
-                        line-height: inherit;
-                        margin: 0;
-                        padding: 0;
-                      }
-                      .header.by-2, .footer.by-2 {
-                        height:64px;
-                      }
-                      .header.by-3, .footer.by-3 {
-                        height:96px;
-                      }
-                      .header.by-4, .footer.by-4 {
-                        height:128px;
-                      }
-                      .header.by-5, .footer.by-5 {
-                        height:160px;
-                      }
-                      .header.by-10, .footer.by-10 {
-                        height:320px;
-                      }
-                      .with-bootstrap-headers {
-                        top:40px;
-                      }
-                      .with-2-headers {
-                        top:64px;
-                      }
-                      .with-3-headers {
-                        top:96px;
-                      }
-                      .with-4-headers {
-                        top:128px;
-                      }
-                      .with-5-headers {
-                        top:160px;
-                      }
-                      .with-10-headers {
-                        top:320px;
-                      }
-                      .with-bootstrap-footers {
-                        bottom:40px;
-                      }
-                      .with-2-footers {
-                        bottom:64px;
-                      }
-                      .with-3-footers {
-                        bottom:96px;
-                      }
-                      .with-4-footers {
-                        bottom:128px;
-                      }
-                      .with-5-footers {
-                        bottom:160px;
-                      }
-                      .with-10-footers {
-                        bottom:320px;
-                      }
-                      .inline {
-                        position:relative;
-                      }
-                      .scroll * {
-                        overflow: auto;
-                        -webkit-overflow-scrolling:touch;
-                      }
-                      .no-scroll * {
-                        overflow: hidden;
-                      }
-                      * html .body {
-                        position: fixed;
-                        height: 100%;
-                        width: 100%;
-                      }
-                '''
+                style """
+                  html, body {
+                    margin:0;
+                    padding:0;
+                    overflow: hidden;
+                    height: 100%;
+                  }
+                  #{Chocokup.Css.core}
+
+                  * html .body {
+                    position: fixed;
+                    height: 100%;
+                    width: 100%;
+                  }
+                """
                 
             text "#{@body}"
                 
@@ -577,7 +326,7 @@ Chocokup.Kups =
                     panel ->
                         box "#.chocomilk.round", ->
                             table '#.fullscreen.expand', -> 
-                                td style:'text-align:center;vertical-align:middle;', -> kup()
+                                td style:'text-align:center;vertical-align:middle;', -> key()
                     panel -> box "#.chocoblack", ""
             panel ->
                 panel proportion:'third', orientation: 'vertical', ->
@@ -587,6 +336,264 @@ Chocokup.Kups =
 
 class Chocokup.Css
     @prefix = (css) -> (css.replace(/-\?-/g, p) for p in ['-webkit-', '-moz-', '-o-', '-ms-', '']).join '\n'
+
+    @core: """
+      .space {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: auto;
+        height: auto;
+        overflow: hidden;
+      }
+      .hidden {
+        display:none;
+      }
+      .screen-95 {
+        left: 5%;
+        top: 2%;
+        width: 90%;
+        height: 96%;
+      }
+      .screen-90 {
+        left: 10%;
+        top: 4%;
+        width: 80%;
+        height: 92%;
+      }
+      .screen-85 {
+        left: 15%;
+        top: 6%;
+        width: 70%;
+        height: 88%;
+      }
+      .screen-80 {
+        left: 20%;
+        top: 8%;
+        width: 60%;
+        height: 84%;
+      }
+      .top {
+        top: 0;
+        bottom: auto;
+      }
+      .third.vertical.middle {
+        top: 33.33%;
+      }
+      .bottom {
+        top: auto;
+        bottom: 0;
+      }
+      .left {
+        left: 0;
+        right: auto;
+      }
+      .third.horizontal.center {
+        left: 33.33%;
+      }
+      .right {
+        left: auto;
+        right: 0;
+      }
+      .half.horizontal {
+        width: 50%;
+      }
+      .half.vertical {
+        height: 50%;
+      }
+      .half-served.horizontal.left {
+        width: 80%;
+      }
+      .half-served.vertical.top {
+        height: 80%;
+      }
+      .half-served.horizontal.right {
+        width: 20%;
+      }
+      .half-served.vertical.bottom {
+        height: 20%;
+      }
+      .third.horizontal {
+        width: 33.33%;
+      }
+      .third.vertical {
+        height: 33.33%;
+      }
+      .service.horizontal {
+        width: 20%;
+      }
+      .fullscreen > .service.horizontal {
+        width: 0%;
+      }
+      .service.vertical {
+        height: 20%;
+      }
+      .fullscreen > .service.vertical {
+        height: 0%;
+      }
+      .served.horizontal {
+        left: 20%;
+        width: 60%;
+        right: 20%;
+      }
+      .fullscreen > .served.horizontal {
+        left: 0%;
+        width: 100%;
+        right: 0%;
+      }
+      .served.vertical {
+        top: 20%;
+        height: 60%;
+        bottom: 20%;
+      }
+      .fullscreen > .served.vertical {
+        top: 0%;
+        height: 100%;
+        bottom: 0%;
+      }
+      .fullscreen.shrink {
+        width: 0%;
+        height: 0%;
+      }
+      .shrink.horizontal {
+        width: 0%;
+      }
+      .shrink.vertical {
+        height: 0%;
+      }
+      .fullscreen.expand {
+        width: 100%;
+        height: 100%;
+      }
+      .expand.horizontal {
+        width: 100%;
+      }
+      .expand.vertical {
+        height: 100%;
+      }
+      .source-code {
+        white-space: pre;
+      }
+      .float-left {
+        float: left;
+        margin-left: 10px;
+      }
+      .float-right {
+        float: right;
+        margin-right: 10px;
+      }
+      .header {
+        position: absolute;
+        height:32px;
+        width:100%;
+        overflow:hidden;
+        top: 0px;
+        bottom: auto;
+        text-align:center;
+        line-height: 32px;
+        /*
+        background:#ddd;
+        border-bottom:solid 1px #666;
+        */
+      }
+      .body {
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+        top:32px;
+        bottom:32px;
+        position:absolute;
+      }
+      .footer {
+        position: absolute;
+        height:32px;
+        width:100%;
+        overflow:hidden;
+        top: auto;
+        bottom: 0px;
+        text-align:center;
+        line-height: 32px;
+        /*
+        background:#ddd;
+        border-top:solid 1px #666;
+        */
+      }
+      .no-header {
+        top:0px;
+      }
+      .no-footer {
+        bottom:0px;
+      }
+      .header.by-bootstrap, .footer.by-bootstrap {
+        height:40px;
+        line-height: inherit;
+        margin: 0;
+        padding: 0;
+      }
+      .header.by-2, .footer.by-2 {
+        height:64px;
+      }
+      .header.by-3, .footer.by-3 {
+        height:96px;
+      }
+      .header.by-4, .footer.by-4 {
+        height:128px;
+      }
+      .header.by-5, .footer.by-5 {
+        height:160px;
+      }
+      .header.by-10, .footer.by-10 {
+        height:320px;
+      }
+      .with-bootstrap-headers {
+        top:40px;
+      }
+      .with-2-headers {
+        top:64px;
+      }
+      .with-3-headers {
+        top:96px;
+      }
+      .with-4-headers {
+        top:128px;
+      }
+      .with-5-headers {
+        top:160px;
+      }
+      .with-10-headers {
+        top:320px;
+      }
+      .with-bootstrap-footers {
+        bottom:40px;
+      }
+      .with-2-footers {
+        bottom:64px;
+      }
+      .with-3-footers {
+        bottom:96px;
+      }
+      .with-4-footers {
+        bottom:128px;
+      }
+      .with-5-footers {
+        bottom:160px;
+      }
+      .with-10-footers {
+        bottom:320px;
+      }
+      .inline {
+        position:relative;
+      }
+      .scroll * {
+        overflow: auto;
+        -webkit-overflow-scrolling:touch;
+      }
+      .no-scroll * {
+        overflow: hidden;
+      }    
+    """
+
 
 class Chocokup.Css.Animation
 

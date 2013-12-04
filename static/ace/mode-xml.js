@@ -39,7 +39,7 @@ var XmlBehaviour = require("./behaviour/xml").XmlBehaviour;
 var XmlFoldMode = require("./folding/xml").FoldMode;
 
 var Mode = function() {
-    this.$tokenizer = new Tokenizer(new XmlHighlightRules().getRules());
+    this.HighlightRules = XmlHighlightRules;
     this.$behaviour = new XmlBehaviour();
     this.foldingRules = new XmlFoldMode();
 };
@@ -518,7 +518,7 @@ var CstyleBehaviour = function () {
             }
             var rightChar = line.substring(cursor.column, cursor.column + 1);
             if (rightChar == '}' || closing !== "") {
-                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column}, '}');
+                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column+1}, '}');
                 if (!openBracePos)
                      return null;
 

@@ -150,6 +150,15 @@ exports.enter = (__) ->
             #help-panel .body {
                 padding: 12px;
             }
+            #help-panel h1 {
+                font-size: 1.9em;
+            }
+            #help-panel h2 {
+                font-size: 1.1em;
+            }
+            #help-panel h3 {
+                font-size: 1.05em;
+            }
             #notes-panel .space .paper {
                 font-size: 11pt;
             }
@@ -263,7 +272,15 @@ exports.enter = (__) ->
                                                         footer ->
                                                             panel proportion:'half', ->
                                                                 box -> a '#toggle-js.selected', href:"#", onclick:"_ide.toggleExperimentPanel('js');", -> 'Javascript'
-                                                                box -> a '#toggle-debug', href:"#", onclick:"_ide.toggleExperimentPanel('debug');", -> 'Debug'                                                        
+                                                                box -> 
+                                                                    panel proportion:'half-served', ->
+                                                                        panel ->
+                                                                            a '#toggle-debug', href:"#", onclick:"_ide.toggleExperimentPanel('debug');", -> 'Debug'
+                                                                        panel proportion:'half', ->
+                                                                            panel ->
+                                                                                a href:"#", onclick:"_ide.changeDebugColWidth(-1);", -> '-'
+                                                                            panel ->
+                                                                                a href:"#", onclick:"_ide.changeDebugColWidth(1);", -> '+'                                                        
                                                         body ->
                                                             panel '#experiment-js-panel-main', -> 
                                                                 box '#.white.round', -> body '#experiment-js-panel.source-code.dl-s-default', ->
@@ -331,7 +348,7 @@ exports.enter = (__) ->
                                         header '#.inline', ->
                                             panel proportion:'third', ->
                                                 box -> a '#toggle-help-chocodown', href:"#", onclick:"_ide.toggleHelpPanel('chocodown');", -> 'Chocodown'
-                                                box -> a '#toggle-help-mootools', href:"#", onclick:"_ide.toggleHelpPanel('mootools');", -> 'Mootools'
+                                                box -> a '#toggle-help-litejq', href:"#", onclick:"_ide.toggleHelpPanel('litejq');", -> 'litejQ'
                                                 box -> a '#toggle-help-node', href:"#", onclick:"_ide.toggleHelpPanel('node');", -> 'Node'                                    
                                         body '#.with-3-headers', ->
                                             footer -> panel '#help-selector-panel.hidden', ->
@@ -343,7 +360,7 @@ exports.enter = (__) ->
                                                 panel '#help-specolate-panel.hidden', -> box '#.chocomilk.round', -> body '#help-specolate-display', ->
                                                 panel '#help-doccolate-panel.hidden', -> box '#.chocomilk.round', -> body '#help-doccolate-display', ->
                                                 panel '#help-newnotes-panel.hidden', -> box '#.chocomilk.round', -> body '#help-newnotes-display', ->
-                                                panel '#help-mootools-panel.hidden', -> box '#.chocomilk.round', -> body '#help-mootools-display', ->
+                                                panel '#help-litejq-panel.hidden', -> box '#.chocomilk.round', -> body '#help-litejq-display', ->
                                                 panel '#help-node-panel.hidden', -> box '#.chocomilk.round', -> body '#help-node-display', ->
                                                 panel '#help-chocodown-panel.hidden', -> box '#.chocomilk.round', -> body '#help-chocodown-display', ->
 
@@ -363,6 +380,7 @@ exports.enter = (__) ->
             frames =
                 help : {}
             codeMode = 'opened'
+            debugColumnWidth = 7
 
             translate = (text) -> text
             
@@ -728,7 +746,7 @@ exports.enter = (__) ->
                 
                 delete_one = (source, callback) ->
                     new Request
-                        url: (if sofkey? then '/!/' + sofkey else '') + "/-/?so=move&what=#{source}&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "?so=move&what=#{source}&how=raw"
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.delete_file.delete_one() : #{xhr.status}"
                     .get()
@@ -1045,6 +1063,7 @@ exports.enter = (__) ->
                     
                     document.id(item).removeClass('selected') for item in ['toggle-js', 'toggle-debug']
                     document.id('toggle-' + what).addClass 'selected'
+                    _ide.compile_coffeescript_code()
                     experiment_editor.focus()
                 else 
                 if css_class.chocodown?
@@ -1089,7 +1108,7 @@ exports.enter = (__) ->
                             Newnotes.create_panel element_id:'notes-panel', url: {load:load_url, save:save_url}, box_css_class:'chocoblack.round', inherit_selected_class:yes, ace_theme:'ace/theme/coffee', standalone:no
 
             _ide.toggleHelpPanel = (what) ->
-                list = ['chocolate', 'coffeescript', 'chocokup', 'specolate', 'doccolate', 'newnotes', 'mootools', 'node', 'chocodown']
+                list = ['chocolate', 'coffeescript', 'chocokup', 'specolate', 'doccolate', 'newnotes', 'litejq', 'node', 'chocodown']
                 
                 (document.id('help-' + item + '-panel').addClass('hidden') unless document.id('help-' + item + '-panel').hasClass('hidden')) for item in list
                 document.id('help-' + what + '-panel').removeClass('hidden')
@@ -1225,18 +1244,18 @@ exports.enter = (__) ->
                             _ide.display_message "Error with _ide.run_specolate() : #{xhr.status}"
                             onEnd()
                     .get()
-                
+            
+            _ide.changeDebugColWidth = (delta) ->
+                if debugColumnWidth + delta > 3
+                    debugColumnWidth += delta
+                    _ide.compile_coffeescript_code()
+            
             _ide.compile_coffeescript_code = ->
                 source = experiment_editor.getSession().getValue()
+                no_debug = document.id('experiment-debug-panel-main').hasClass 'hidden'
                 
-                removed_quotes = []
-                prepared = source.replace /([^\\])("""|'''|"|')([\S\s]*?)([^\\])(\2)/g, (match, p1, p2, p3, p4, p5, offset) ->
-                    removed_quotes[offset] = p2 + p3 + p4 + p5
-                    p1 + "'quote#{offset}'"
-
-                lines = prepared.split '\n'
-                
-                debugged = """__debug__evals__ = []
+                debug_core = (lines) -> """
+                __debug__evals__ = []
                 dbg = []
                 __debug__indent__lines__ = {}
                 __debug__indent__loop__ = 0
@@ -1330,7 +1349,7 @@ exports.enter = (__) ->
                                 var_values[i] = [] unless var_values[i]?
                                 var_values[i].push value
                         for values, i in var_values then var_values[i] = var_values[i].join ', '
-                        var_values = (" " + __debug__display__cell__(value, 7) + " |" for value, index in var_values).join ''
+                        var_values = (' ' + __debug__display__cell__(value, #{debugColumnWidth}) + ' |' for value, index in var_values).join ''
                         
                         lines.push if var_names isnt '' then (__debug__display__cell__(var_names, 14) + ' = ' + var_values + '\n') else '\n'
                     
@@ -1338,77 +1357,87 @@ exports.enter = (__) ->
                     
                 for [0...#{lines.length}] then __debug__evals__.push align:0, tokens:[], values:{}
 
-                    \n"""
-
-                indent = 0
-                loop_entered = no
-                loop_entered_at_line = undefined
+                \n"""
                 
-                for line, line_num in lines
-                    index = last_index = rindex = quote_index = 0
+                unless no_debug
+                    removed_quotes = []
+                    prepared = source.replace /([^\\])("""|'''|"|')([\S\s]*?)([^\\])(\2?)/g, (match, p1, p2, p3, p4, p5, offset) ->
+                        removed_quotes[offset] = p2 + p3 + p4 + p5
+                        p1 + "'quote#{offset}'"
+    
+                    lines = prepared.split '\n'
                     
-                    new_indent = line.search /\S/
+                    debugged = debug_core lines
+    
+                    indent = 0
+                    loop_entered = no
+                    loop_entered_at_line = undefined
                     
-                    debugged_insert = (code) -> debugged += ((' ' for i in [0...new_indent]).join '') + code + '\n'
+                    for line, line_num in lines
+                        index = last_index = rindex = quote_index = 0
+                        
+                        new_indent = line.search /\S/
+                        
+                        debugged_insert = (code) -> debugged += ((' ' for i in [0...new_indent]).join '') + code + '\n'
+                        
+                        if new_indent > indent and line_num > 0 and loop_entered then debugged_insert "unless __debug__set__current__loop__ #{loop_entered_at_line} then break"
+                        if new_indent >= 0 then indent = new_indent
+                        
+                        if line.search(/^\s*\b(for|while|until)\b/) >= 0 then debugged_insert "__debug__enter__loop__ #{line_num}" ; loop_entered = yes ; loop_entered_at_line = line_num
+                        else if new_indent >= 0 then loop_entered = no
+    
+                        line = line.replace /\breturn\b/g, 'return __debug__keep__ ' + line_num + ', ' + null + ', ' + null + ', "->", ' if line.indexOf('return') >= 0
+                        while rindex >= 0
+                            rindex = line.indexOf '=', index
+                            if rindex >= 0
+                                if line[rindex + 1] is '=' then index = rindex + 2; continue
+                                if line[rindex - 1] in ['<', '>', '!', '='] then index = rindex + 1; continue
+                                operator = '='
+                                lindex = -1
+                                step = 1
+                                if rindex > 0
+                                    mindex = rindex
+                                    while mindex > 0 and (line[mindex-1] in ['}', ']', ' ', '?', '*', '/', '-', '+', '&', '|'] or
+                                          line.substr(rindex - 3, 3) is ' or' or
+                                          line.substr(rindex - 4, 4) is ' and')
+                                        char = line[mindex-1]
+                                        mindex = switch char
+                                            when '}' then line.lastIndexOf '{', mindex
+                                            when ']' then line.lastIndexOf '[', mindex
+                                            when 'r' then mindex - 2
+                                            when 'd' then mindex - 3
+                                            else mindex - 1
+                                        switch char 
+                                            when '}' then
+                                            when ']' then
+                                            when 'r' then step += 2 ; rindex += -2
+                                            when 'd' then step += 3 ; rindex += -3
+                                            else step += 1 ; rindex += -1
+                                        operator = switch char 
+                                            when '*', '/', '-', '+', '&', '|' then char + '='
+                                            when 'r' then 'or='
+                                            when 'd' then 'and='
+                                            else operator
+    
+                                    for looked in ['(', '[', '\n', ' ', ';']
+                                        if (lio = line.lastIndexOf looked, mindex-1) > lindex then lindex = lio
+    
+                                    lindex += 1 if lindex >= 0
+                                if lindex < 0 then lindex = 0
+                                variable = line.substring lindex, rindex
+                                debugged += line.substring(last_index, rindex + step) + ' __debug__keep__ ' + line_num + ', ' + variable + ', "' + operator + "\", __debug__quote__start__#{quote_index}" + variable + "__debug__quote__end__#{quote_index++}, "
+                                last_index = index = rindex + step
+                        debugged += line.substring(last_index) + '\n'
                     
-                    if new_indent > indent and line_num > 0 and loop_entered then debugged_insert "unless __debug__set__current__loop__ #{loop_entered_at_line} then break"
-                    if new_indent >= 0 then indent = new_indent
-
-                    if line.search(/^\s*\b(for|while|until)\b/) >= 0 then debugged_insert "__debug__enter__loop__ #{line_num}" ; loop_entered = yes ; loop_entered_at_line = line_num
-                    else if new_indent >= 0 then loop_entered = no
-
-                    line = line.replace /\breturn\b/g, 'return __debug__keep__ ' + line_num + ', ' + null + ', ' + null + ', "->", ' if line.indexOf('return') >= 0
-                    while rindex >= 0
-                        rindex = line.indexOf '=', index
-                        if rindex >= 0
-                            if line[rindex + 1] is '=' then index = rindex + 2; continue
-                            if line[rindex - 1] in ['<', '>', '!', '='] then index = rindex + 1; continue
-                            operator = '='
-                            lindex = -1
-                            step = 1
-                            if rindex > 0
-                                mindex = rindex
-                                while mindex > 0 and (line[mindex-1] in ['}', ']', ' ', '?', '*', '/', '-', '+', '&', '|'] or
-                                      line.substr(rindex - 3, 3) is ' or' or
-                                      line.substr(rindex - 4, 4) is ' and')
-                                    char = line[mindex-1]
-                                    mindex = switch char
-                                        when '}' then line.lastIndexOf '{', mindex
-                                        when ']' then line.lastIndexOf '[', mindex
-                                        when 'r' then mindex - 2
-                                        when 'd' then mindex - 3
-                                        else mindex - 1
-                                    switch char 
-                                        when '}' then
-                                        when ']' then
-                                        when 'r' then step += 2 ; rindex += -2
-                                        when 'd' then step += 3 ; rindex += -3
-                                        else step += 1 ; rindex += -1
-                                    operator = switch char 
-                                        when '*', '/', '-', '+', '&', '|' then char + '='
-                                        when 'r' then 'or='
-                                        when 'd' then 'and='
-                                        else operator
-
-                                for looked in ['(', '[', '\n', ' ', ';']
-                                    if (lio = line.lastIndexOf looked, mindex-1) > lindex then lindex = lio
-
-                                lindex += 1 if lindex >= 0
-                            if lindex < 0 then lindex = 0
-                            variable = line.substring lindex, rindex
-                            debugged += line.substring(last_index, rindex + step) + ' __debug__keep__ ' + line_num + ', ' + variable + ', "' + operator + "\", __debug__quote__start__#{quote_index}" + variable + "__debug__quote__end__#{quote_index++}, "
-                            last_index = index = rindex + step
-                    debugged += line.substring(last_index) + '\n'
+                    debugged = debugged.replace /'quote(\d+)'/g, (match, p1) ->
+                        removed_quotes[p1]
+    
+                    debugged = debugged.replace /__debug__quote__start__(\d+)([\S\s]*?)__debug__quote__end__\1/g, (match, p1, p2) ->
+                        '"' + p2.replace(/([^\\])"/g, '$1\\"') + '"'
                 
                 result = undefined
                 error = undefined
 
-                debugged = debugged.replace /'quote(\d+)'/g, (match, p1) ->
-                    removed_quotes[p1]
-
-                debugged = debugged.replace /__debug__quote__start__(\d+)([\S\s]*?)__debug__quote__end__\1/g, (match, p1, p2) ->
-                    '"' + p2.replace(/([^\\])"/g, '$1\\"') + '"'
-                
                 if source.search(/\S/) is -1 
                     result = ''
                     document.id('experiment-js-panel').set 'html', ''
@@ -1426,7 +1455,7 @@ exports.enter = (__) ->
                         error = e
                         result = _ide.error_message error
                     
-                    unless error?
+                    unless no_debug or error?
                         try
                             compiled = CoffeeScript.compile debugged, bare: true
                             result = eval compiled
@@ -1437,6 +1466,8 @@ exports.enter = (__) ->
                             error = e
                             result = _ide.error_message error
                             #debug_editor.setValue error.stack + '\n\ndebugged : \n' + debugged + '\n\ncompiled : \n' + compiled
+                    else
+                        result = eval orig_compiled
                         
                 document.id('experiment-run-panel').set 'text', result
 

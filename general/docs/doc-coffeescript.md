@@ -21,3 +21,24 @@ It can be used, both on client side (in the browser) or on server side (with nod
 [Interactive Smooth Coffeescript book](http://autotelicum.github.com/Smooth-CoffeeScript/interactive/interactive-coffeescript.html)
 
 <a target="_blank" href="https://groups.google.com/forum/#!forum/coffeescript">Coffeescript on Google groups</a>
+
+### Web tech references
+
+[RegExp Reference](http://www.w3schools.com/jsref/jsref_obj_regexp.asp)
+[CSS3 Reference](http://www.w3schools.com/cssref/css3_browsersupport.asp)
+
+### Web tech cheat sheets
+
+[Javascript](http://www.cheatography.com/davechild/cheat-sheets/javascript/)
+[CSS2](http://www.cheatography.com/davechild/cheat-sheets/css2/)
+
+
+### Image Resources
+
+[Icons](http://dryicons.com/free-icons/)
+
+
+### Image Tools
+
+[Image to Base64](http://www.askapache.com/online-tools/base64-image-converter/)
+[Image and Eps to SVG](http://image.online-convert.com/convert-to-svg/)

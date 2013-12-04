@@ -41,10 +41,8 @@ var WorkerClient = require("../worker/worker_client").WorkerClient;
 var oop = require("../lib/oop");
 
 function Mode() {
-    var highlighter = new Rules();
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
+    this.HighlightRules = Rules;
     this.$outdent = new Outdent();
-    this.$keywordList = highlighter.$keywordList;
     this.foldingRules = new FoldMode();
 }
 
@@ -59,7 +57,7 @@ oop.inherits(Mode, TextMode);
     
     this.getNextLineIndent = function(state, line, tab) {
         var indent = this.$getIndent(line);
-        var tokens = this.$tokenizer.getLineTokens(line, state).tokens;
+        var tokens = this.getTokenizer().getLineTokens(line, state).tokens;
     
         if (!(tokens.length && tokens[tokens.length - 1].type === 'comment') &&
             state === 'start' && indenter.test(line))
@@ -128,7 +126,7 @@ define('ace/mode/coffee_highlight_rules', ['require', 'exports', 'module' , 'ace
 
         var keywords = (
             "this|throw|then|try|typeof|super|switch|return|break|by|continue|" +
-            "catch|class|in|instanceof|is|isnt|if|else|extends|for|forown|" +
+            "catch|class|in|instanceof|is|isnt|if|else|extends|for|own|" +
             "finally|function|while|when|new|no|not|delete|debugger|do|loop|of|off|" +
             "or|on|unless|until|and|yes"
         );
