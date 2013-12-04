@@ -12,6 +12,7 @@ Path = require 'path'
 Interface = require './interface'
 Document = require './document'
 Reserve = require './reserve'
+QueryString = require './querystring'
 Uuid = require '../general/intentware/uuid'
 
 #### Workflow sessions management
@@ -125,23 +126,23 @@ class World
         
             try
                 # We extract infos from the Request
-                url = require('url').parse request.url, true
+                url = require('url').parse request.url
+                query = QueryString.parse url.query, null, null, ordered:yes
                 extension = Path.extname url.pathname
                 path = url.pathname.split '/'
                 keywords = ['so', 'what', 'sodowhat', 'how']
 
                 # Check if first param key isnt a keyword and then set `sodowhat` to that key
-                for own key, value of url.query
-                    if key not in keywords and value is ''
-                        url.query.sodowhat = key
-                        delete url.query[key]
-                    break
-                        
+                param = query.list[0]
+                if param? and  param.key not in keywords and param.value is ''
+                    query.dict.sodowhat = param.key
+                    query.list.push key:'sodowhat', value:param.key
+                    query.list.splice 0,1
                 
                 # `params` will contains the parameters extracted from the query part of the request
-                params = {}; param_index = 0
-                for own key, value of url.query when key not in keywords
-                    params[if value != '' then key else '__' + param_index++] = decodeURI(if value isnt '' then value else key)
+                params = {}
+                for param, param_index in query.list when param.key not in keywords
+                    params[if param.value != '' then param.key else '__' + param_index] = decodeURI(if param.value isnt '' then param.value else param.key)
                 
                 # Feed workflow with action request infos
                 #
@@ -160,14 +161,14 @@ class World
                 #
                 #     http://myserver/!/my_backdoor_key/myworld/myfolder
                 
-                sodowhat = url.query['sodowhat'] ? null
-                so = ('do' if sodowhat?) ? url.query['so'] ? 'go'
-                what = sodowhat ? url.query['what'] ? ''
-                how = url.query['how'] ? 'web'
+                sodowhat = query.dict['sodowhat'] ? null
+                so = ('do' if sodowhat?) ? query.dict['so'] ? 'go'
+                what = sodowhat ? query.dict['what'] ? ''
+                how = query.dict['how'] ? 'web'
                 backdoor_key = if path[1] is '!' then path[2] else ''
                 where_index = 1 + if backdoor_key isnt '' then 2 else 0
                 where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
-                region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' and url.search is '' then 'static' else 'app'
+                region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' then 'static' else 'app'
                 where = where_path.join '/'
                 
                 session = sessions.get(request)

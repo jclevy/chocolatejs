@@ -40,16 +40,15 @@ var FoldMode = require("./folding/velocity").FoldMode;
 var HtmlBehaviour = require("./behaviour/html").HtmlBehaviour;
 
 var Mode = function() {
-    var highlighter = new VelocityHighlightRules();
+    this.HighlightRules = VelocityHighlightRules;
     this.foldingRules = new FoldMode();
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
     this.$behaviour = new HtmlBehaviour();
 };
 oop.inherits(Mode, TextMode);
 
 (function() {
-  this.lineCommentStart = "##";
-  this.blockComment = {start: "#*", end: "*#"};
+    this.lineCommentStart = "##";
+    this.blockComment = {start: "#*", end: "*#"};
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
@@ -240,6 +239,7 @@ var tagMap = lang.createMap({
     img         : 'image',
     input       : 'form',
     label       : 'form',
+    option      : 'form',
     script      : 'script',
     select      : 'form',
     textarea    : 'form',
@@ -265,7 +265,7 @@ var HtmlHighlightRules = function() {
             token : "keyword.operator.separator",
             regex : "=",
             push : [{
-                include: "space",
+                include: "space"
             }, {
                 token : "string",
                 regex : "[^<>='\"`\\s]+",
@@ -1423,7 +1423,7 @@ var CstyleBehaviour = function () {
             }
             var rightChar = line.substring(cursor.column, cursor.column + 1);
             if (rightChar == '}' || closing !== "") {
-                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column}, '}');
+                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column+1}, '}');
                 if (!openBracePos)
                      return null;
 

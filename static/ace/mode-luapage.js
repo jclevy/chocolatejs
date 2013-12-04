@@ -8,10 +8,9 @@ var Tokenizer = require("../tokenizer").Tokenizer;
 var LuaPageHighlightRules = require("./luapage_highlight_rules").LuaPageHighlightRules;
 
 var Mode = function() {
-    var highlighter = new LuaPageHighlightRules();
+    this.HighlightRules = LuaPageHighlightRules;
     
-    this.$tokenizer = new Tokenizer(new LuaPageHighlightRules().getRules());
-    this.$embeds = highlighter.getEmbeds();
+    this.HighlightRules = LuaPageHighlightRules;
     this.createModeDelegates({
         "lua-": LuaMode
     });
@@ -21,7 +20,7 @@ oop.inherits(Mode, HtmlMode);
 exports.Mode = Mode;
 });
 
-define('ace/mode/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/mode/javascript', 'ace/mode/css', 'ace/tokenizer', 'ace/mode/html_highlight_rules', 'ace/mode/behaviour/html', 'ace/mode/folding/html'], function(require, exports, module) {
+define('ace/mode/html', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/mode/javascript', 'ace/mode/css', 'ace/tokenizer', 'ace/mode/html_highlight_rules', 'ace/mode/behaviour/html', 'ace/mode/folding/html', 'ace/mode/html_completions'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -32,13 +31,13 @@ var Tokenizer = require("../tokenizer").Tokenizer;
 var HtmlHighlightRules = require("./html_highlight_rules").HtmlHighlightRules;
 var HtmlBehaviour = require("./behaviour/html").HtmlBehaviour;
 var HtmlFoldMode = require("./folding/html").FoldMode;
+var HtmlCompletions = require("./html_completions").HtmlCompletions;
 
 var Mode = function() {
-    var highlighter = new HtmlHighlightRules();
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
+    this.HighlightRules = HtmlHighlightRules;
     this.$behaviour = new HtmlBehaviour();
+    this.$completer = new HtmlCompletions();
     
-    this.$embeds = highlighter.getEmbeds();
     this.createModeDelegates({
         "js-": JavaScriptMode,
         "css-": CssMode
@@ -60,6 +59,10 @@ oop.inherits(Mode, TextMode);
         return false;
     };
 
+    this.getCompletions = function(state, session, pos, prefix) {
+        return this.$completer.getCompletions(state, session, pos, prefix);
+    };
+
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
@@ -79,12 +82,10 @@ var CstyleBehaviour = require("./behaviour/cstyle").CstyleBehaviour;
 var CStyleFoldMode = require("./folding/cstyle").FoldMode;
 
 var Mode = function() {
-    var highlighter = new JavaScriptHighlightRules();
+    this.HighlightRules = JavaScriptHighlightRules;
     
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
     this.$outdent = new MatchingBraceOutdent();
     this.$behaviour = new CstyleBehaviour();
-    this.$keywordList = highlighter.$keywordList;
     this.foldingRules = new CStyleFoldMode();
 };
 oop.inherits(Mode, TextMode);
@@ -97,7 +98,7 @@ oop.inherits(Mode, TextMode);
     this.getNextLineIndent = function(state, line, tab) {
         var indent = this.$getIndent(line);
 
-        var tokenizedLine = this.$tokenizer.getLineTokens(line, state);
+        var tokenizedLine = this.getTokenizer().getLineTokens(line, state);
         var tokens = tokenizedLine.tokens;
         var endState = tokenizedLine.state;
 
@@ -679,7 +680,7 @@ var CstyleBehaviour = function () {
             }
             var rightChar = line.substring(cursor.column, cursor.column + 1);
             if (rightChar == '}' || closing !== "") {
-                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column}, '}');
+                var openBracePos = session.findMatchingBracket({row: cursor.row, column: cursor.column+1}, '}');
                 if (!openBracePos)
                      return null;
 
@@ -894,7 +895,7 @@ oop.inherits(FoldMode, BaseFoldMode);
     this.foldingStartMarker = /(\{|\[)[^\}\]]*$|^\s*(\/\*)/;
     this.foldingStopMarker = /^[^\[\{]*(\}|\])|^[\s\*]*(\*\/)/;
 
-    this.getFoldWidgetRange = function(session, foldStyle, row) {
+    this.getFoldWidgetRange = function(session, foldStyle, row, forceMultiline) {
         var line = session.getLine(row);
         var match = line.match(this.foldingStartMarker);
         if (match) {
@@ -902,11 +903,20 @@ oop.inherits(FoldMode, BaseFoldMode);
 
             if (match[1])
                 return this.openingBracketBlock(session, match[1], row, i);
-
-            return session.getCommentFoldRange(row, i + match[0].length, 1);
+                
+            var range = session.getCommentFoldRange(row, i + match[0].length, 1);
+            
+            if (range && !range.isMultiLine()) {
+                if (forceMultiline) {
+                    range = this.getSectionRange(session, row);
+                } else if (foldStyle != "all")
+                    range = null;
+            }
+            
+            return range;
         }
 
-        if (foldStyle !== "markbeginend")
+        if (foldStyle === "markbegin")
             return;
 
         var match = line.match(this.foldingStopMarker);
@@ -918,6 +928,38 @@ oop.inherits(FoldMode, BaseFoldMode);
 
             return session.getCommentFoldRange(row, i, -1);
         }
+    };
+    
+    this.getSectionRange = function(session, row) {
+        var line = session.getLine(row);
+        var startIndent = line.search(/\S/);
+        var startRow = row;
+        var startColumn = line.length;
+        row = row + 1;
+        var endRow = row;
+        var maxRow = session.getLength();
+        while (++row < maxRow) {
+            line = session.getLine(row);
+            var indent = line.search(/\S/);
+            if (indent === -1)
+                continue;
+            if  (startIndent > indent)
+                break;
+            var subRange = this.getFoldWidgetRange(session, "all", row);
+            
+            if (subRange) {
+                if (subRange.start.row <= startRow) {
+                    break;
+                } else if (subRange.isMultiLine()) {
+                    row = subRange.end.row;
+                } else if (startIndent == indent) {
+                    break;
+                }
+            }
+            endRow = row;
+        }
+        
+        return new Range(startRow, startColumn, endRow, session.getLine(endRow).length);
     };
 
 }).call(FoldMode.prototype);
@@ -937,11 +979,9 @@ var CssBehaviour = require("./behaviour/css").CssBehaviour;
 var CStyleFoldMode = require("./folding/cstyle").FoldMode;
 
 var Mode = function() {
-    var highlighter = new CssHighlightRules();
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
+    this.HighlightRules = CssHighlightRules;
     this.$outdent = new MatchingBraceOutdent();
     this.$behaviour = new CssBehaviour();
-    this.$keywordList = highlighter.$keywordList;
     this.foldingRules = new CStyleFoldMode();
 };
 oop.inherits(Mode, TextMode);
@@ -953,7 +993,7 @@ oop.inherits(Mode, TextMode);
 
     this.getNextLineIndent = function(state, line, tab) {
         var indent = this.$getIndent(line);
-        var tokens = this.$tokenizer.getLineTokens(line, state).tokens;
+        var tokens = this.getTokenizer().getLineTokens(line, state).tokens;
         if (tokens.length && tokens[tokens.length-1].type == "comment") {
             return indent;
         }
@@ -1234,6 +1274,7 @@ var tagMap = lang.createMap({
     img         : 'image',
     input       : 'form',
     label       : 'form',
+    option      : 'form',
     script      : 'script',
     select      : 'form',
     textarea    : 'form',
@@ -1259,7 +1300,7 @@ var HtmlHighlightRules = function() {
             token : "keyword.operator.separator",
             regex : "=",
             push : [{
-                include: "space",
+                include: "space"
             }, {
                 token : "string",
                 regex : "[^<>='\"`\\s]+",
@@ -2023,6 +2064,286 @@ oop.inherits(FoldMode, BaseFoldMode);
 
 });
 
+define('ace/mode/html_completions', ['require', 'exports', 'module' , 'ace/token_iterator'], function(require, exports, module) {
+
+
+var TokenIterator = require("../token_iterator").TokenIterator;
+
+var commonAttributes = [
+    "accesskey",
+    "class",
+    "contenteditable",
+    "contextmenu",
+    "dir",
+    "draggable",
+    "dropzone",
+    "hidden",
+    "id",
+    "lang",
+    "spellcheck",
+    "style",
+    "tabindex",
+    "title",
+    "translate"
+];
+
+var eventAttributes = [
+    "onabort",
+    "onblur",
+    "oncancel",
+    "oncanplay",
+    "oncanplaythrough",
+    "onchange",
+    "onclick",
+    "onclose",
+    "oncontextmenu",
+    "oncuechange",
+    "ondblclick",
+    "ondrag",
+    "ondragend",
+    "ondragenter",
+    "ondragleave",
+    "ondragover",
+    "ondragstart",
+    "ondrop",
+    "ondurationchange",
+    "onemptied",
+    "onended",
+    "onerror",
+    "onfocus",
+    "oninput",
+    "oninvalid",
+    "onkeydown",
+    "onkeypress",
+    "onkeyup",
+    "onload",
+    "onloadeddata",
+    "onloadedmetadata",
+    "onloadstart",
+    "onmousedown",
+    "onmousemove",
+    "onmouseout",
+    "onmouseover",
+    "onmouseup",
+    "onmousewheel",
+    "onpause",
+    "onplay",
+    "onplaying",
+    "onprogress",
+    "onratechange",
+    "onreset",
+    "onscroll",
+    "onseeked",
+    "onseeking",
+    "onselect",
+    "onshow",
+    "onstalled",
+    "onsubmit",
+    "onsuspend",
+    "ontimeupdate",
+    "onvolumechange",
+    "onwaiting"
+];
+
+var globalAttributes = commonAttributes.concat(eventAttributes);
+
+var attributeMap = {
+    "html": ["manifest"],
+    "head": [],
+    "title": [],
+    "base": ["href", "target"],
+    "link": ["href", "hreflang", "rel", "media", "type", "sizes"],
+    "meta": ["http-equiv", "name", "content", "charset"],
+    "style": ["type", "media", "scoped"],
+    "script": ["charset", "type", "src", "defer", "async"],
+    "noscript": ["href"],
+    "body": ["onafterprint", "onbeforeprint", "onbeforeunload", "onhashchange", "onmessage", "onoffline", "onpopstate", "onredo", "onresize", "onstorage", "onundo", "onunload"],
+    "section": [],
+    "nav": [],
+    "article": ["pubdate"],
+    "aside": [],
+    "h1": [],
+    "h2": [],
+    "h3": [],
+    "h4": [],
+    "h5": [],
+    "h6": [],
+    "header": [],
+    "footer": [],
+    "address": [],
+    "main": [],
+    "p": [],
+    "hr": [],
+    "pre": [],
+    "blockquote": ["cite"],
+    "ol": ["start", "reversed"],
+    "ul": [],
+    "li": ["value"],
+    "dl": [],
+    "dt": [],
+    "dd": [],
+    "figure": [],
+    "figcaption": [],
+    "div": [],
+    "a": ["href", "target", "ping", "rel", "media", "hreflang", "type"],
+    "em": [],
+    "strong": [],
+    "small": [],
+    "s": [],
+    "cite": [],
+    "q": ["cite"],
+    "dfn": [],
+    "abbr": [],
+    "data": [],
+    "time": ["datetime"],
+    "code": [],
+    "var": [],
+    "samp": [],
+    "kbd": [],
+    "sub": [],
+    "sup": [],
+    "i": [],
+    "b": [],
+    "u": [],
+    "mark": [],
+    "ruby": [],
+    "rt": [],
+    "rp": [],
+    "bdi": [],
+    "bdo": [],
+    "span": [],
+    "br": [],
+    "wbr": [],
+    "ins": ["cite", "datetime"],
+    "del": ["cite", "datetime"],
+    "img": ["alt", "src", "height", "width", "usemap", "ismap"],
+    "iframe": ["name", "src", "height", "width", "sandbox", "seamless"],
+    "embed": ["src", "height", "width", "type"],
+    "object": ["param", "data", "type", "height" , "width", "usemap", "name", "form", "classid"],
+    "param": ["name", "value"],
+    "video": ["src", "autobuffer", "autoplay", "loop", "controls", "width", "height", "poster"],
+    "audio": ["src", "autobuffer", "autoplay", "loop", "controls"],
+    "source": ["src", "type", "media"],
+    "track": ["kind", "src", "srclang", "label", "default"],
+    "canvas": ["width", "height"],
+    "map": ["name"],
+    "area": ["shape", "coords", "href", "hreflang", "alt", "target", "media", "rel", "ping", "type"],
+    "svg": [],
+    "math": [],
+    "table": ["summary"],
+    "caption": [],
+    "colgroup": ["span"],
+    "col": ["span"],
+    "tbody": [],
+    "thead": [],
+    "tfoot": [],
+    "tr": [],
+    "td": ["headers", "rowspan", "colspan"],
+    "th": ["headers", "rowspan", "colspan", "scope"],
+    "form": ["accept-charset", "action", "autocomplete", "enctype", "method", "name", "novalidate", "target"],
+    "fieldset": ["disabled", "form", "name"],
+    "legend": [],
+    "label": ["form", "for"],
+    "input": ["type", "accept", "alt", "autocomplete", "checked", "disabled", "form", "formaction", "formenctype", "formmethod", "formnovalidate", "formtarget", "height", "list", "max", "maxlength", "min", "multiple", "pattern", "placeholder", "readonly", "required", "size", "src", "step", "width", "files", "value"],
+    "button": ["autofocus", "disabled", "form", "formaction", "formenctype", "formmethod", "formnovalidate", "formtarget", "name", "value", "type"],
+    "select": ["autofocus", "disabled", "form", "multiple", "name", "size"],
+    "datalist": [],
+    "optgroup": ["disabled", "label"],
+    "option": ["disabled", "selected", "label", "value"],
+    "textarea": ["autofocus", "disabled", "form", "maxlength", "name", "placeholder", "readonly", "required", "rows", "cols", "wrap"],
+    "keygen": ["autofocus", "challenge", "disabled", "form", "keytype", "name"],
+    "output": ["for", "form", "name"],
+    "progress": ["value", "max"],
+    "meter": ["value", "min", "max", "low", "high", "optimum"],
+    "details": ["open"],
+    "summary": [],
+    "command": ["type", "label", "icon", "disabled", "checked", "radiogroup", "command"],
+    "menu": ["type", "label"],
+    "dialog": ["open"]
+};
+
+var allElements = Object.keys(attributeMap);
+
+function hasType(token, type) {
+    var tokenTypes = token.type.split('.');
+    return type.split('.').every(function(type){
+        return (tokenTypes.indexOf(type) !== -1);
+    });
+}
+
+function findTagName(session, pos) {
+    var iterator = new TokenIterator(session, pos.row, pos.column);
+    var token = iterator.getCurrentToken();
+    if (!token || !hasType(token, 'tag') && !(hasType(token, 'text') && token.value.match('/'))){
+        do {
+            token = iterator.stepBackward();
+        } while (token && (hasType(token, 'string') || hasType(token, 'operator') || hasType(token, 'attribute-name') || hasType(token, 'text')));
+    }
+    if (token && hasType(token, 'tag-name') && !iterator.stepBackward().value.match('/'))
+        return token.value;
+}
+
+var HtmlCompletions = function() {
+
+};
+
+(function() {
+
+    this.getCompletions = function(state, session, pos, prefix) {
+        var token = session.getTokenAt(pos.row, pos.column);
+
+        if (!token)
+            return [];
+        if (hasType(token, "tag-name") || (token.value == '<' && hasType(token, "text")))
+            return this.getTagCompletions(state, session, pos, prefix);
+        if (hasType(token, 'text') || hasType(token, 'attribute-name'))
+            return this.getAttributeCompetions(state, session, pos, prefix);
+
+        return [];
+    };
+
+    this.getTagCompletions = function(state, session, pos, prefix) {
+        var elements = allElements;
+        if (prefix) {
+            elements = elements.filter(function(element){
+                return element.indexOf(prefix) === 0;
+            });
+        }
+        return elements.map(function(element){
+            return {
+                value: element,
+                meta: "tag"
+            };
+        });
+    };
+
+    this.getAttributeCompetions = function(state, session, pos, prefix) {
+        var tagName = findTagName(session, pos);
+        if (!tagName)
+            return [];
+        var attributes = globalAttributes;
+        if (tagName in attributeMap) {
+            attributes = attributes.concat(attributeMap[tagName]);
+        }
+        if (prefix) {
+            attributes = attributes.filter(function(attribute){
+                return attribute.indexOf(prefix) === 0;
+            });
+        }
+        return attributes.map(function(attribute){
+            return {
+                caption: attribute,
+                snippet: attribute + '="$0"',
+                meta: "attribute"
+            };
+        });
+    };
+
+}).call(HtmlCompletions.prototype);
+
+exports.HtmlCompletions = HtmlCompletions;
+});
+
 define('ace/mode/lua', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/tokenizer', 'ace/mode/lua_highlight_rules', 'ace/mode/folding/lua', 'ace/range', 'ace/worker/worker_client'], function(require, exports, module) {
 
 
@@ -2035,11 +2356,9 @@ var Range = require("../range").Range;
 var WorkerClient = require("../worker/worker_client").WorkerClient;
 
 var Mode = function() {
-    var highlighter = new LuaHighlightRules();
+    this.HighlightRules = LuaHighlightRules;
     
-    this.$tokenizer = new Tokenizer(highlighter.getRules());
     this.foldingRules = new LuaFoldMode();
-    this.$keywordList = highlighter.$keywordList;
 };
 oop.inherits(Mode, TextMode);
 
@@ -2092,7 +2411,7 @@ oop.inherits(Mode, TextMode);
         var indent = this.$getIndent(line);
         var level = 0;
 
-        var tokenizedLine = this.$tokenizer.getLineTokens(line, state);
+        var tokenizedLine = this.getTokenizer().getLineTokens(line, state);
         var tokens = tokenizedLine.tokens;
 
         if (state == "start") {
@@ -2115,7 +2434,7 @@ oop.inherits(Mode, TextMode);
         if (line.match(/^\s*[\)\}\]]$/))
             return true;
 
-        var tokens = this.$tokenizer.getLineTokens(line.trim(), state).tokens;
+        var tokens = this.getTokenizer().getLineTokens(line.trim(), state).tokens;
 
         if (!tokens || !tokens.length)
             return false;
@@ -2126,7 +2445,7 @@ oop.inherits(Mode, TextMode);
     this.autoOutdent = function(state, session, row) {
         var prevLine = session.getLine(row - 1);
         var prevIndent = this.$getIndent(prevLine).length;
-        var prevTokens = this.$tokenizer.getLineTokens(prevLine, "start").tokens;
+        var prevTokens = this.getTokenizer().getLineTokens(prevLine, "start").tokens;
         var tabLength = session.getTabString().length;
         var expectedIndent = prevIndent + tabLength * getNetIndentLevel(prevTokens);
         var curIndent = this.$getIndent(session.getLine(row)).length;

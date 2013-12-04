@@ -13,10 +13,11 @@ helpers =
         button : -> web_control 'button', arguments...
     
 class Ui extends Chocokup
-    @helpers[k] = v for own k,v of helpers
+    @helpers::[k] = v for own k,v of helpers
 
 class Ui.Document extends Chocokup.Document
-    @helpers[k] = v for own k,v of helpers
+    @helpers::[k] = v for own k,v of helpers
+    
     @manifest = 
         cache : """
         /static/mootools/mootools-core-uncompressed.js
@@ -35,7 +36,7 @@ class Ui.Document extends Chocokup.Document
             window.addEvent 'domready', Intentware.Ui.bindElements
 
 class Ui.Panel extends Chocokup.Panel
-    @helpers[k] = v for own k,v of helpers
+    @helpers::[k] = v for own k,v of helpers
 
 _module = window ? module
 _module.exports = { Ui }

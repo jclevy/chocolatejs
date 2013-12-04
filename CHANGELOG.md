@@ -1,3 +1,45 @@
+## v0.0.9 - (2013-12-04)
+
+--------------
+
+NEW FEATURES
+
+- **litejQ** : a lite jQuery-compatible library (9kb compressed and gziped) 
+  aimed at replacing Mootools in Chocolate and becoming its client-side scripts foundation.
+- with Chocodown
+ - inline tests: open litejQ documentation (/general/docs/doc-litejq.md) 
+   and open the doccolate panel (Doc) to see the `check` function working.
+- in Locco:
+ - can call a function in a sub-object inside a module  
+  `https//myserver/mymodule?MyObject.function?param1&param2`
+ - params can be unnamed and numeric when calling a function inside a module  
+  `https//myserver/mymodule?add?123&9872`
+- in Studio:
+ - can change debug evaluation column width by pressing +/- buttons 
+- in Newnotes:
+ - create a new note by pressing Return 
+ - when editing, create a new note by pressing Return if cursor at the end
+ - when editing, insert a newline with Ctrl + Return or Shift + Return or press only return if not at note's end
+ - toggle a note by pressing Shift-Return
+ - toggle note priority by pressing Ctrl-Return when not editing
+ - insert a new note before a note with Alt + Return
+ - split a note in two notes with Ctrl-Shift-Return when editing
+
+FIXED BUGS
+
+- static files can be created or deleted through studio interface in an app
+- deleting a file was copying it in default.coffee!
+- can pass parameters to static files. They were seen as 'app' instead of 'static' if with params
+- don't execute debug compilation in coffeescript lab when debug panel is hidden
+- problem in debug panel with multiple empty strings ('')
+- chocokup css helper did not understand @media clause
+
+UPDATES
+
+- updated Newnotes documentation
+- updated Ace to package 12.02.2013
+
+
 ## v0.0.8 - (2013-10-01)
 
 --------------

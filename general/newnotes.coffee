@@ -32,7 +32,7 @@ Newnotes = class
         
         #newnotes-#{id}-note-panel li.note {
             list-style: none;
-            line-height: 1em;
+            line-height: 1.5em;
         }
         
         #newnotes-#{id}-note-panel li {
@@ -40,19 +40,21 @@ Newnotes = class
             list-style-position: inside;
             line-height: 1.15em;
         }
-        
+    
         #newnotes-#{id}-note-panel li, #newnotes-#{id}-filter-list-body div {
             cursor: pointer;
-            padding-top: 0.5em;
-            padding-bottom: 0.5em;
+            padding: 0.4em 0;
         }
         
         #newnotes-#{id}-note-panel li.compacted {
-            white-space: nowrap;
             overflow: hidden;
-            height: 1.1em;
         }
-
+        
+        #newnotes-#{id}-note-panel li.compacted p,
+        #newnotes-#{id}-note-panel li.compacted p + * {
+            display:none;
+        }
+        
         #newnotes-#{id}-note-panel > .fullscreen-narrow {
             font-size:1.4em;
         }
@@ -152,6 +154,10 @@ Newnotes = class
             background-size: 100% 30px;
             background-position-y: 12px;
             background-attachment: local;
+        }
+        
+        #newnotes-#{id}-note-panel .paper.disconnected {
+            background: rgb(219, 219, 219);
         }
 
         #newnotes-#{id}-note-panel .white-paper {
@@ -394,8 +400,21 @@ Newnotes = class
                 commands.addCommand
                     name: "save_or_add"
                     bindKey:
-                        win: "Ctrl-Return", mac: "Ctrl-Return"
-                    exec: => @new()
+                        win: "Return", mac: "Return"
+                    exec: (editor) =>
+                        document = editor.getSession().getDocument()
+                        last_row = document.getLength() - 1
+                        last_col = document.getLine(last_row).length
+                        range = editor.getSelectionRange()
+                        if not @editor.editing or range.isEnd last_row, last_col then @new()
+                        else @editor._.insert '\n'
+                            
+                    
+                commands.addCommand
+                    name: "save_or_add_prev"
+                    bindKey:
+                        win: "Alt-Return", mac: "Alt-Return"
+                    exec: => @new(before:on)
                     
                 commands.addCommand
                     name: "export"
@@ -500,8 +519,21 @@ Newnotes = class
                     exec: (editor, args) => @clear_filter(); editor.focus()
 
                 commands.addCommand
-                    name: "togglenode"
-                    bindKey: win: "Return", mac: "Return"
+                    name: "togglepriority_or_split_node_or_newline"
+                    bindKey: win: "Ctrl-Return", mac: "Ctrl-Return"
+                    exec: (editor, args) =>
+                        if not @editor.editing then @toggle_priority(); editor.focus()
+                        else
+                            document = editor.getSession().getDocument()
+                            last_row = document.getLength() - 1
+                            last_col = document.getLine(last_row).length
+                            range = editor.getSelectionRange()
+                            if not range.isEnd(last_row, last_col) then @split(); editor.focus()
+                            else @editor._.insert '\n'
+
+                commands.addCommand
+                    name: "toggle_or_newline"
+                    bindKey: win: "Shift-Return", mac: "Shift-Return"
                     exec: (editor, args) =>
                         document = editor.getSession().getDocument()
                         last_row = document.getLength() - 1
@@ -512,18 +544,13 @@ Newnotes = class
                             @list()
                             editor.focus()
                             yes
-                        else 
-                            no
-
-                commands.addCommand
-                    name: "togglepriority"
-                    bindKey: win: "Shift-Return", mac: "Shift-Return"
-                    exec: (editor, args) => @toggle_priority(); editor.focus()
+                        else @editor._.insert '\n'
 
                 commands.addCommand
                     name: "pin"
                     bindKey: win: "Ctrl-Shift-Return", mac: "Ctrl-Shift-Return"
-                    exec: (editor, args) => @pin(); editor.focus()
+                    exec: (editor, args) => 
+                        if not @editor.editing then @pin(); editor.focus()
 
             else
                 @editor.use_ace = no
@@ -630,6 +657,8 @@ Newnotes = class
                 document.id("newnotes-#{@id}-note-log#{if switched is on then 'on' else 'off'}").removeClass 'hidden'
                 document.id("newnotes-#{@id}-note-log#{if switched is on then 'off' else 'on'}").addClass 'hidden'
                 if @is_connected then setTimeout (=> @get_data_modified_date.call @), 100
+
+                document.id("newnotes-#{@id}-list-body")[(if switched then 'add' else 'remove') + 'Class'] 'disconnected'
                 
             if @url?.connected?
                 new Request
@@ -643,7 +672,7 @@ Newnotes = class
                                 
         'new': (option) ->
             @remove_if_empty()
-            note = @newnotes.add '', unless option?.at_end then @current_get() else undefined
+            note = @newnotes.add '', (if option?.at_end then undefined else @current_get()), (if option?.before then 0 else 1)
             @on_tagging_change note
             @current_set note.uuid
             @editor.set ''
@@ -657,6 +686,20 @@ Newnotes = class
             @list()
             @on_note_modified()
         
+    
+        split: ->
+            document = @editor._.getSession().getDocument()
+            last_row = document.getLength() - 1
+            last_col = document.getLine(last_row).length
+            pos = @editor._.getCursorPosition()
+            Range = require('ace/range').Range
+            del_range = new Range pos.row, pos.column, last_row, last_col
+            del_text = @editor._.getSession().getTextRange del_range
+            
+            this.editor._.getSession().remove del_range
+            @new()
+            this.editor._.setValue del_text
+
         sort: ->
             note = @current_get()
             @newnotes.sort note
@@ -1202,7 +1245,7 @@ Newnotes = class
             result = title: note.title, content: undefined, is_compacted:no
             
             line_break_index = note.title.indexOf '\n'
-            if line_break_index <= 0 then line_break_index = 80
+            if line_break_index <= 0 then line_break_index = 160
             if 0 < line_break_index < note.title.length
                 result.title = note.title.substr 0, line_break_index
                 result.content = note.title.substr line_break_index if options?.with_content
@@ -1288,11 +1331,11 @@ Newnotes = class
         @data = Newnotes.new_data()
         return
 
-    add: (title, after) ->
+    add: (title, after, step = -1) ->
         parent = if @path.length > 0 then @data.by.id[@path.getLast()].parent else undefined
         note = new Newnotes.Note title, parent, (do => dimensions = {}; dimensions[k] = v.value for own k,v of @dimensions; dimensions)
         list = parent?.subs ? @data.by.root
-        if after? then for item, index in list then if item is after then list.splice index+1, 0, note ; break
+        if after? then for item, index in list then if item is after then list.splice index+step, 0, note ; break
         else list.push note
         
         @data.by.id[note.uuid] = note
