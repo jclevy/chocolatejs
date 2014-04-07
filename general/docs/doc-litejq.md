@@ -17,6 +17,7 @@ It helps to manipulate the DOM in a cross-browser compatible way and implements 
  - [$.each](#litejQ-each)
  - [$.map](#litejQ-map)
  - [$.extend](#litejQ-extend)
+ - [$.globalEval](#litejQ-globalEval)
  - [.get](#litejQ-fn-get)
  - [.each](#litejQ-fn-each)
  - [.splice](#litejQ-fn-splice)
@@ -74,7 +75,7 @@ It helps to manipulate the DOM in a cross-browser compatible way and implements 
 ---    
 
     ! html
-    <script src='/static/ijax/litejq.js'></script>
+    <script src='/static/lib/litejq.js'></script>
     
     <style>
         pre {
@@ -218,6 +219,13 @@ return control of `$` back to the other library with a call to `$.noConflict()`.
     ]
    
 ---
+
+## <a name="litejQ-globalEval"></a> $.globalEval(text) [⌂](#litejQ-Summary)
+
+*Execute some JavaScript code globally*
+
+---
+
 
 ## <a name="litejQ-fn-get"></a> .get(num) [⌂](#litejQ-Summary)
 

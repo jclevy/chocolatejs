@@ -1,6 +1,6 @@
-# Here is the root of the Ijax system. 
+# Here is the root of the Chocolate system. 
 
-# It animates the ijax.server *world*
+# It animates the Chocolate server *world*
 # by providing a **start** service that starts our World as an https server
 
 # It also provides a Session management to maintain the requestor identity between requests
@@ -13,7 +13,7 @@ Interface = require './interface'
 Document = require './document'
 Reserve = require './reserve'
 QueryString = require './querystring'
-Uuid = require '../general/intentware/uuid'
+_ = require '../general/chocodash'
 
 #### Workflow sessions management
 
@@ -21,7 +21,7 @@ Uuid = require '../general/intentware/uuid'
 class Sessions
     constructor: (cache) ->
         # The sessions store is managed by the `Document.Cache` service
-        store = @store = cache.ensure 'Intentware_Workflow_Sessions_Store', {}
+        store = @store = cache.ensure 'Locco_Workflow_Sessions_Store', {}
         
         # The `cleanup` function will be called 
         # when a session will expire to remove it from the list
@@ -64,7 +64,7 @@ class Sessions
         # If we didn't find a session in store
         # we create a new Session with a new id and store it in `store`
         if createSession
-            browser_session_id = Uuid()
+            browser_session_id = _.Uuid()
             session = @store[browser_session_id] ?= new Session(browser_session_id, remoteAddress)
             
         session
@@ -174,7 +174,7 @@ class World
                 session = sessions.get(request)
                 
                 # We call the Interface service to make an exchange between the requestor and the place specified in `where`
-                Interface.exchange so, what, how, where, region, params, appdir, datadir, backdoor_key, request, session, (result) ->
+                Interface.exchange space, so, what, how, where, region, params, appdir, datadir, backdoor_key, request, session, (result) ->
                     # We will send back a cookie with an id and an expiration date
                     result.headers['Set-Cookie'] = 'bsid=' + session.id + ';path=/;secure;httponly;expires=' + session.expires.toUTCString()
                     # And here is our response to the requestor

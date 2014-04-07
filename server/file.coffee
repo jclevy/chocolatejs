@@ -1,4 +1,4 @@
-# **File** is a system module which offers services on Ijax system files
+# **File** is a system module which offers services on Chocolate system files
 # 
 # It provides :
 #
@@ -394,15 +394,15 @@ clientInterface = ->
                     }
                 """
         body ->
-            script src:"/static/mootools/mootools-core.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/ace.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/mootools/mootools-core.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/ace.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
     
             div '#ide', ->
                 div '#toolbar', ->

@@ -184,8 +184,7 @@ options =
 
 Doccolate = { generate, options }
 _module = window ? module
-_module.exports = Doccolate
-_module.Doccolate = Doccolate if window?
+_module[if _module.exports? then "exports" else "Doccolate"] = Doccolate
 
 # Micro-templating, originally by John Resig, borrowed by way of
 # [Underscore.js](http://documentcloud.github.com/underscore/).

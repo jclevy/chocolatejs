@@ -1,12 +1,12 @@
 # **Immediate** programing environment
-Ui = require('../general/intentware/interface').Ui
+Chocokup = require '../general/chocokup'
 Doccolate = require '../general/doccolate'
 
 exports.interface = (__) ->
     exports.enter(__)
     
 exports.enter = (__) ->
-    new Ui.Document 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, appdir:__.appdir, ->
+    new Chocokup.App 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, appdir:__.appdir, ->
         style
             type:"text/css" 
             media:"screen"
@@ -103,6 +103,9 @@ exports.enter = (__) ->
             .white-background {
                 background-color: white;
             }
+            .transparent-background {
+                background-color: transparent;
+            }
             .round.frame {
                 padding: 10px 10px;
                 border-radius: 10px;
@@ -168,34 +171,35 @@ exports.enter = (__) ->
             text @params.doccolate_style
 
         text "<script>_ide = {}; _ide.appdir = '#{@params.appdir}'; _sofkey = #{if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null'};</script>\n"
-        script src:"/static/ace/ace.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/ext-searchbox.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/ext-language_tools.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/snippets/coffee.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/snippets/javascript.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/snippets/css.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/snippets/text.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/snippets/html.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/snippets/markdown.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ijax/doccolate.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ijax/newnotes.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/datejs/date.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/ace.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/ext-searchbox.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/ext-language_tools.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/snippets/coffee.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/snippets/javascript.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/snippets/css.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/snippets/text.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/snippets/html.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/snippets/markdown.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/lib/doccolate.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/datejs/date.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/mootools/mootools-core-uncompressed.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/lib/newnotes.js", type:"text/javascript", charset:"utf-8"
 
         body ->
             panel ->
                 header '#header', ->
-                    panel -> span '#.choco_title.float-left', 'Chocolate.js'
+                    panel -> span '#.choco_title.float-margin-left', 'Chocolate.js'
                     box -> panel '#title', -> ''
                     panel ->
-                        a '#toggle-fullscreen.float-right', style:'font-size: 16pt;text-decoration: none;', href:"#", onclick:"_ide.toggleFullscreen();", -> '«»'
-                        a '#switch-panel.float-right', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchScreens();", -> '|||'
+                        a '#toggle-fullscreen.float-margin-right', style:'font-size: 16pt;text-decoration: none;', href:"#", onclick:"_ide.toggleFullscreen();", -> '«»'
+                        a '#switch-panel.float-margin-right', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchScreens();", -> '|||'
                 footer '#footer', ->
                 body ->
                     panel '#main-panel', proportion:'served', ->
@@ -278,9 +282,9 @@ exports.enter = (__) ->
                                                                             a '#toggle-debug', href:"#", onclick:"_ide.toggleExperimentPanel('debug');", -> 'Debug'
                                                                         panel proportion:'half', ->
                                                                             panel ->
-                                                                                a href:"#", onclick:"_ide.changeDebugColWidth(-1);", -> '-'
+                                                                                a href:"#", title:"Reduce column width", onclick:"_ide.changeDebugColWidth(-1);", -> '-'
                                                                             panel ->
-                                                                                a href:"#", onclick:"_ide.changeDebugColWidth(1);", -> '+'                                                        
+                                                                                a href:"#", title:"Increase column width",  onclick:"_ide.changeDebugColWidth(1);", -> '+'                                                        
                                                         body ->
                                                             panel '#experiment-js-panel-main', -> 
                                                                 box '#.white.round', -> body '#experiment-js-panel.source-code.dl-s-default', ->
@@ -289,7 +293,15 @@ exports.enter = (__) ->
                                                     panel '#experiment-chocodown-compiled.hidden', ->
                                                         footer ->
                                                             panel proportion:'half', ->
-                                                                box -> a '#toggle-html.selected', href:"#", onclick:"_ide.toggleExperimentPanel('html');", -> 'Html'
+                                                                box -> 
+                                                                    panel proportion:'half-served', ->
+                                                                        panel ->
+                                                                            a '#toggle-html.selected', href:"#", onclick:"_ide.toggleExperimentPanel('html');", -> 'Html'
+                                                                        panel proportion:'half', ->
+                                                                            panel ->
+                                                                                a href:"#", title:"Indented Chocokup", onclick:"_ide.toggleFormatChocokup(true);", -> '↘'
+                                                                            panel ->
+                                                                                a href:"#", title:"Raw Chocokup", onclick:"_ide.toggleFormatChocokup(false);", -> '→'
                                                                 box -> a '#toggle-dom', href:"#", onclick:"_ide.toggleExperimentPanel('dom');", -> 'Dom'                                                        
                                                         body ->
                                                             panel '#experiment-html-panel-main', -> 
@@ -299,13 +311,13 @@ exports.enter = (__) ->
                                                                     iframe '#experiment-dom-panel.expand.fullscreen.white-background', frameborder:'0', ->
                                             panel -> box '#.grey.round', -> body '#experiment-run-panel.source-code', ''
                                         panel '#documentation-panel.hidden', -> 
-                                            box '#.chocomilk.round', -> 
-                                                iframe '#documentation-doccolate-panel.expand.fullscreen.white-background', frameborder:'0', ->
+                                            box '#.white.round', -> 
+                                                iframe '#documentation-doccolate-panel.expand.fullscreen.transparent-background', frameborder:'0', ->
                                         panel '#specolate-panel.hidden', proportion:'half-served', orientation:'vertical', -> 
                                             panel ->
                                                 header ->
                                                     panel 'Spec'
-                                                    box -> a '#run-specolate.float-right', href:"#", onclick:"_ide.run_specolate();", -> 'Run'
+                                                    box -> a '#run-specolate.float-margin-right', href:"#", onclick:"_ide.run_specolate();", -> 'Run'
                                                 body ->
                                                     box '#specolate-panel-main.chocoblack.round', -> panel '#specolate-panel-editor', ''
                                             panel -> box '#.grey.round', -> body '#specolate-result-panel.source-code', ''
@@ -313,7 +325,7 @@ exports.enter = (__) ->
                                 panel '#help-display.hidden', proportion:'full', ->
                                     header ->
                                         panel '#help-title', -> ''
-                                        panel '#doclosehelpdisplay', -> a '#close-help-display.float-right', style:'text-decoration: none;', href:"#", onclick:"_ide.close_help_panel();", -> 'x'
+                                        panel '#doclosehelpdisplay', -> a '#close-help-display.float-margin-right', style:'text-decoration: none;', href:"#", onclick:"_ide.close_help_panel();", -> 'x'
                                     body ->
                                         panel '#help-display-body', ->
                         panel ->
@@ -354,15 +366,8 @@ exports.enter = (__) ->
                                             footer -> panel '#help-selector-panel.hidden', ->
                                                 select '#help-selector', onchange:"_ide.select_help_panel(true);", ->
                                             body ->
-                                                panel '#help-chocolate-panel', -> box '#.chocomilk.round', -> body '#help-chocolate-display', ->
-                                                panel '#help-coffeescript-panel.hidden', -> box '#.chocomilk.round', -> body '#help-coffeescript-display', ->
-                                                panel '#help-chocokup-panel.hidden', -> box '#.chocomilk.round', -> body '#help-chocokup-display', ->
-                                                panel '#help-specolate-panel.hidden', -> box '#.chocomilk.round', -> body '#help-specolate-display', ->
-                                                panel '#help-doccolate-panel.hidden', -> box '#.chocomilk.round', -> body '#help-doccolate-display', ->
-                                                panel '#help-newnotes-panel.hidden', -> box '#.chocomilk.round', -> body '#help-newnotes-display', ->
-                                                panel '#help-litejq-panel.hidden', -> box '#.chocomilk.round', -> body '#help-litejq-display', ->
-                                                panel '#help-node-panel.hidden', -> box '#.chocomilk.round', -> body '#help-node-display', ->
-                                                panel '#help-chocodown-panel.hidden', -> box '#.chocomilk.round', -> body '#help-chocodown-display', ->
+                                                box '#.chocomilk.round', -> panel ->
+                                                    iframe '#help-frame-panel.expand fullscreen', frameborder: '0', ->
 
         coffeescript ->
             sofkey = _sofkey
@@ -381,7 +386,13 @@ exports.enter = (__) ->
                 help : {}
             codeMode = 'opened'
             debugColumnWidth = 7
-
+            formatChocokup = off
+            
+            console_log = console.log
+            console.log = (text) ->
+                _ide.display_message text
+                console_log.apply console, arguments
+            
             translate = (text) -> text
             
             # Display opened source files list
@@ -1100,7 +1111,7 @@ exports.enter = (__) ->
                     when 'help'
                         if (k for own k of frames.help).length > 0 then _ide.toggleMainDisplay 'help'
                         if  document.id('toggle-help-chocolate').hasClass('selected') and 
-                            document.id('help-chocolate-display').get('html').trim() is '' then _ide.toggleHelpPanel 'chocolate'
+                            _ide.iframe_infos(document.id('help-frame-panel')).doc.body.innerHTML.trim() is '' then _ide.toggleHelpPanel 'chocolate'
                     when 'notes'
                         if document.id('notes-panel').get('html') is ''
                             load_url = '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/www/' else '' ) + 'data/newnotes_data.json?how=raw'
@@ -1110,16 +1121,14 @@ exports.enter = (__) ->
             _ide.toggleHelpPanel = (what) ->
                 list = ['chocolate', 'coffeescript', 'chocokup', 'specolate', 'doccolate', 'newnotes', 'litejq', 'node', 'chocodown']
                 
-                (document.id('help-' + item + '-panel').addClass('hidden') unless document.id('help-' + item + '-panel').hasClass('hidden')) for item in list
-                document.id('help-' + what + '-panel').removeClass('hidden')
-                
                 document.id('toggle-help-' + item).removeClass('selected') for item in list
                 document.id('toggle-help-' + what).addClass 'selected'
                 
                 request = new Request
                     url: (if sofkey? then '/!/' + sofkey else '') + "/-/general/docs/doc-#{what}.md?how=raw"
                     onSuccess: ->
-                        document.id("help-#{what}-display").set 'html', (Doccolate.generate what + '.md', @response.text).replace new RegExp('(\<a target="_blank" href=")(http[s]*://)(.*?)"', 'g'), '<a href="#" onclick="javascript:_ide.display_help_panel(this.text, \'$2$3\')"'
+                        style = '<style>' + Chocokup.Css.coder + '\n' + Chocokup.Css.core + '</style>'
+                        _ide.iframe_write document.id("help-frame-panel"), style + (Doccolate.generate what + '.md', @response.text).replace new RegExp('(\<a target="_blank" href=")(https://)(.*?)"', 'g'), '<a href="#" onclick="javascript:parent._ide.display_help_panel(this.text, \'$2$3\'); return false;"'
                         
                     onFailure: (xhr) -> _ide.display_message "Error with _ide.toggleHelpPanel() : #{xhr.status}"
                 .get()
@@ -1185,8 +1194,9 @@ exports.enter = (__) ->
                             editor.selection.moveCursorTo start, 0
             
             _ide.run_doccolate = (init) ->
-                _ide.iframe_write document.id('documentation-doccolate-panel'), 
-                    (if sources.current isnt '' then Doccolate.generate sources.current, editor.getSession().getValue() else ''), 
+                style = '<style>' + Chocokup.Css.core + '</style>'
+                _ide.iframe_write document.id('documentation-doccolate-panel'),
+                    (if sources.current isnt '' then style + Doccolate.generate sources.current, editor.getSession().getValue() else ''), 
                     (if init? then left:editor.getSession().getScrollLeft(), top:editor.getSession().getScrollTop(), elemW:-1, elemH:editor.getSession().getScreenLength() * editor.renderer.lineHeight - editor.renderer.scroller.clientHeight else undefined)
 
             _ide.error_message = (error) ->
@@ -1211,45 +1221,54 @@ exports.enter = (__) ->
                 document.id('experiment-run-panel').set 'text', result
 
             _ide.run_specolate = ->
+                if _ide.run_specolate.running then return
+                
+                _ide.run_specolate.running = on
+                
                 onSuccess = (list) ->
-                        sources.specs[_ide.get_spec_filename sources.current].spec_run_result = list
-                        document.id('specolate-result-panel').set 'text', list.join '\n'
-                
-                onEnd = ->
+                    sources.specs[_ide.get_spec_filename sources.current].spec_run_result = list
+                    document.id('specolate-result-panel').set 'text', list.join '\n'
                     document.id('specolate-run-panel').contentWindow.location.reload()
+                    _ide.run_specolate.running = off
                 
-                document.id('specolate-run-panel').contentWindow.Specolate.inspect 'json', sources.current, {}, (result) -> 
-                    list = []
-                    client_result = result
-                    if client_result.count.total > 0 
-                        client_result.log[0] = translate 'In browser :'
-                        client_result.log[1] =           '------------'
-                        list = client_result.log;
+                onFailure = ->
+                    document.id('specolate-run-panel').contentWindow.location = '/-/server/studio?iframe_body'
+                    _ide.run_specolate.running = off
+                
+                try
+                    document.id('specolate-run-panel').contentWindow.Specolate.inspect 'json', sources.current, {}, (result) -> 
+                        list = []
+                        client_result = result
+                        if client_result.count.total > 0 
+                            client_result.log[0] = translate 'In browser :'
+                            client_result.log[1] =           '------------'
+                            list = client_result.log;
+                        
+                        request = new Request.JSON
+                            url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{sources.current}?so=eval&how=raw"
+                            onSuccess: (server_result) ->
+                                if server_result.count.total > 0 
+                                    server_result.log[0] = translate 'On server :'
+                                    server_result.log[1] =           '-----------'
+                                    server_result.log.unshift('') if client_result.count.total > 0
+                                    list = list.concat server_result.log
+                                
+                                list.unshift ''
+                                list.unshift translate "#{client_result.count.failed + server_result.count.failed} failed out of #{client_result.count.total + server_result.count.total}"
+                                onSuccess list
+                                
+                            onFailure: (xhr) -> 
+                                _ide.display_message "Error with _ide.run_specolate() : #{xhr.status}"
+                                onFailure()
+                        .get()
+                catch
+                    onFailure()
                     
-                    request = new Request.JSON
-                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{sources.current}?so=eval&how=raw"
-                        onSuccess: (server_result) ->
-                            if server_result.count.total > 0 
-                                server_result.log[0] = translate 'On server :'
-                                server_result.log[1] =           '-----------'
-                                server_result.log.unshift('') if client_result.count.total > 0
-                                list = list.concat server_result.log
-                            
-                            list.unshift ''
-                            list.unshift translate "#{client_result.count.failed + server_result.count.failed} failed out of #{client_result.count.total + server_result.count.total}"
-                            onSuccess list
-                            onEnd()
-                            
-                        onFailure: (xhr) -> 
-                            _ide.display_message "Error with _ide.run_specolate() : #{xhr.status}"
-                            onEnd()
-                    .get()
-            
             _ide.changeDebugColWidth = (delta) ->
                 if debugColumnWidth + delta > 3
                     debugColumnWidth += delta
                     _ide.compile_coffeescript_code()
-            
+                    
             _ide.compile_coffeescript_code = ->
                 source = experiment_editor.getSession().getValue()
                 no_debug = document.id('experiment-debug-panel-main').hasClass 'hidden'
@@ -1471,11 +1490,16 @@ exports.enter = (__) ->
                         
                 document.id('experiment-run-panel').set 'text', result
 
+            _ide.toggleFormatChocokup = (value) ->
+                formatChocokup = value
+                _ide.compile_chocodown_code()
+                    
             _ide.compile_chocodown_code = ->
                 source = chocodown_editor.getSession().getValue()
                 try
-                    html = new Chocodown.converter().makeHtml source
+                    html = new Chocodown.converter({formatChocokup}).makeHtml source
                     document.id('experiment-html-panel').set 'text', html
+                    html = "<html><head><head><style>#{Chocokup.Css.core}</style><body>#{html}</body></html>"
                     _ide.iframe_write document.id('experiment-dom-panel'), html
                     chocodown_editor.focus()
                     document.id('experiment-run-panel').set 'text', ''
@@ -1654,7 +1678,7 @@ exports.enter = (__) ->
                 _ide.goto_dir '.'
 
 exports.iframe_body = ->
-    panel = new Ui.Document 'Specolate client runner', ->
-        script src:"/static/jasmine/jasmine.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/ijax/specolate.js", type:"text/javascript", charset:"utf-8"
+    panel = new Chocokup.App 'Specolate client runner', ->
+        script src:"/static/vendor/jasmine/jasmine.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/lib/specolate.js", type:"text/javascript", charset:"utf-8"
     panel.render()

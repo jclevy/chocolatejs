@@ -72,5 +72,4 @@ class Debugate
                     {data, total}
 
 _module = window ? module
-_module.exports = Debugate
-_module.Debugate = Debugate if window?
+_module[if _module.exports? then "exports" else "Debugate"] = Debugate

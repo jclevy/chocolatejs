@@ -63,11 +63,15 @@
 // file before uncommenting it.
 //
 
-
+(function(){
 //
 // Showdown namespace
 //
 var Showdown = {};
+
+if  ((typeof CoffeeScript === "undefined" || CoffeeScript == null) || (typeof require === "function")) require('coffee-script');
+if  ((typeof Chocokup === "undefined" || Chocokup == null) || (typeof require === "function")) Chocokup = require('./chocokup');
+if  ((typeof Highlight === "undefined" || Highlight == null) || (typeof require === "function")) Highlight = require('./highlight');
 
 if  (typeof CoffeeScript !== "undefined" && CoffeeScript != null) { Showdown.CoffeeScript = CoffeeScript }
 if  (typeof Chocokup !== "undefined" && Chocokup != null) { Showdown.Chocokup = Chocokup }
@@ -81,9 +85,7 @@ if  (typeof Highlight !== "undefined" && Highlight != null) { Showdown.Highlight
 //
 Showdown.converter = function (options) {
     if (options != null) {
-        Showdown.CoffeeScript = options.CoffeeScript;
-        Showdown.Chocokup = options.Chocokup;
-        Showdown.Highlight = options.Highlight;
+        if (Showdown.Chocokup != null) Showdown.Chocokup.format = options.formatChocokup
     }
 
 //
@@ -919,7 +921,7 @@ var _DoCodeBlocks = function(text) {
                             case '#! chocokup':
                             case '! chocokup':
                                 try {
-                                      coderun = new Showdown.Chocokup.Panel(codeblock).render({locals:{Chocokup:Showdown.Chocokup}});
+                                      coderun = new Showdown.Chocokup.Panel(codeblock).render({format:Showdown.Chocokup.format, locals:{Chocokup:Showdown.Chocokup}});
                                 }
                                 catch (e) {
                                     coderun = 'Chocokup error: ' + e.message + ': ' + codeblock;
@@ -1413,4 +1415,5 @@ var escapeCharacters_callback = function(wholeMatch,m1) {
 
 // export
 _module = typeof window !== "undefined" && window !== null ? window : module;
-_module.exports = Chocodown = Showdown;
+_module[typeof _module.exports != "undefined" ? "exports" : "Chocodown"] = Chocodown = Showdown;
+})();

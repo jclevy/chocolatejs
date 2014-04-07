@@ -1,10 +1,8 @@
-# **Reserve** is a system module which offers services on Ijax system database  
+# **Reserve** is a system module which offers services on Chocolate system database  
 
 Sqlite = require 'sqlite3'
 Events = require 'events'
-Data = require '../general/intentware/data'
-Uuid = require '../general/intentware/uuid'
-Flow = require '../general/chocoflow'
+{Uuid} = _ = require '../general/chocodash'
 
 #### Path
 # **Path** : it's a list of addresses in a buffer
@@ -264,7 +262,7 @@ class Space
                     when Space.Relation.Type.association then 'association' 
                     when Space.Relation.Type.matter then 'matter'
                             
-                Flow.serialize @, (defer, local) ->
+                _.serialize @, (defer, local) ->
                     # Convert `parent_id` to int if it's a uuid
                     unless parent.options?.id_isnt_uuid 
                         defer (next) -> @Intention.get_id parent_id, (error, data) -> parent_id = data ; next()
@@ -333,11 +331,11 @@ class Space
                         callback? @Intention.get_id_stmt
                 
             get_id: (uuid, callback) =>
-                if Data.type(uuid) is Data.Type.String
+                if _.type(uuid) is _.Type.String
                     uuid = Uuid.parse uuid, new Buffer(16)
                 
                 if Buffer.isBuffer uuid
-                    Flow.serialize @, (defer) ->
+                    _.serialize @, (defer) ->
                         stmt = null
                         defer (next) -> @Intention.get_get_id_statement (o) -> stmt = o ; next()
                         defer -> stmt.get [uuid], (error, data) ->
@@ -373,9 +371,9 @@ class Space
             create: (options, callback) =>
                 {uuid, name, data, intention, matter, position} = options
         
-                if Data.type(uuid) is Data.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
+                if _.type(uuid) is _.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
                 
-                Flow.serialize @, (defer) ->
+                _.serialize @, (defer) ->
                     stmt = null
                     defer (next) -> @Container.get_create_statement matter, (o) -> stmt = o ; next()
                     defer -> stmt.run [uuid ? Uuid({}, new Buffer(16)), intention, matter, name, data, position], (error) -> callback? error, if not error then @lastID else null
@@ -383,9 +381,9 @@ class Space
             destroy: (options, callback) =>
                 {id, uuid} = options
                 
-                if Data.type(uuid) is Data.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
+                if _.type(uuid) is _.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
                 
-                Flow.serialize @, (defer) ->
+                _.serialize @, (defer) ->
                     stmt = null
                     defer (next) -> @Container.get_destroy_statement uuid, (o) -> stmt = o ; next()
                     defer -> stmt.run [id ? uuid], (error) -> callback? error
@@ -404,7 +402,7 @@ class Space
             insert: (options, callback) =>
                 {container, scope} = options
         
-                Flow.serialize @, (defer) ->
+                _.serialize @, (defer) ->
                     stmt = null
                     defer (next) -> @Document.get_insert_statement (o) -> stmt = o ; next()
                     defer -> stmt.run [container, scope], (error) -> callback? error, if not error then @lastID else null
@@ -433,9 +431,9 @@ class Space
     create_data: (item, callback) ->
         {uuid, name, intention, type, data, parent, position} = item
         
-        type ?= Data.type data
+        type ?= _.type data
         
-        Flow.serialize @, (defer) ->
+        _.serialize @, (defer) ->
             unless not parent? or parent.relation?.matter? then defer (next) -> @Relation.get Space.Relation.Type.matter, parent, (error, matter) ->
                 if error then callback? error; return
                 parent.relation ?= {}
@@ -444,16 +442,16 @@ class Space
                 
             defer ->
                 intention ?= switch type
-                    when Data.Type.Boolean then Space.Container.Family.Data.boolean
-                    when Data.Type.Number then (if data % 1 is 0 then Space.Container.Family.Data.integer else Space.Container.Family.Data.number)
-                    when Data.Type.Date then Space.Container.Family.Data.date
-                    when Data.Type.String
+                    when _.Type.Boolean then Space.Container.Family.Data.boolean
+                    when _.Type.Number then (if data % 1 is 0 then Space.Container.Family.Data.integer else Space.Container.Family.Data.number)
+                    when _.Type.Date then Space.Container.Family.Data.date
+                    when _.Type.String
                         if Uuid.isUuid data then Space.Container.Family.Data.Binary.Uuid._
                         else Space.Container.Family.Data.string
-                    when Data.Type.Object
+                    when _.Type.Object
                         if data instanceof Buffer then Space.Container.Family.Data.Binary._
                         else Space.Container.Family.Data._
-                    when Data.Type.Function then data = data.toString() ; Space.Container.Family.Action.Operation.javascript
+                    when _.Type.Function then data = data.toString() ; Space.Container.Family.Action.Operation.javascript
                     else Space.Container.Family.Data._
                     
                 if @Container.is_family(intention, Space.Container.Family.Data.Binary.Uuid._)
@@ -469,7 +467,7 @@ class Space
     create_object: (item, callback) ->
         {uuid, name, type, parent, contained, position} = item
 
-        Flow.serialize @, (defer, local) ->
+        _.serialize @, (defer, local) ->
             relation_type = if contained then Space.Relation.Type.scope else Space.Relation.Type.matter
             relation_name = if contained then 'scope' else 'matter'
             
@@ -483,7 +481,7 @@ class Space
                 
             defer (next) ->
                 object_type = switch type 
-                    when Data.Type.Array then Space.Container.Family.Document.array
+                    when _.Type.Array then Space.Container.Family.Document.array
                     else Space.Container.Family.Document._
                 
                 @Container.create {uuid, name, intention:object_type, matter:parent?.relation?.matter?.id, position}, (error, id) =>
@@ -512,13 +510,13 @@ class Space
         
         materialize = (current, callback) =>
             {item, name, parent, position} = current
-            {uuid, type, intention} = {uuid:@uuid(item, name, parent?.object), type:Data.type(item), intention:null}
+            {uuid, type, intention} = {uuid:@uuid(item, name, parent?.object), type:_.type(item), intention:null}
             
             if name is '_' then return callback error, parent?.relation
 
             if objects[uuid ? item]?
                 if uuid?
-                    item = uuid ; type = Data.type(item)
+                    item = uuid ; type = _.type(item)
                     intention = Space.Container.Family.Data.Binary.Uuid.reference
                     uuid = Uuid()
             
@@ -526,7 +524,7 @@ class Space
 
             switch type
             
-                when Data.Type.Object, Data.Type.Array
+                when _.Type.Object, _.Type.Array
                     objects[uuid ? item] = on
                     
                     contained = parent?.object?._?[name]?.inside
@@ -537,8 +535,8 @@ class Space
                         granparent = {relation}
                         
                         switch type 
-                            when Data.Type.Object
-                                Flow.serialize (defer, local) ->
+                            when _.Type.Object
+                                _.serialize (defer, local) ->
                                     for own name, value of item
                                         unless error?
                                             do (name, value) -> 
@@ -548,8 +546,8 @@ class Space
                                     
                                     defer -> callback err, relation
 
-                            when Data.Type.Array
-                                Flow.serialize (defer, local) ->
+                            when _.Type.Array
+                                _.serialize (defer, local) ->
                                     pos = 0
                                     for own name, value of item
                                         unless error?
@@ -565,7 +563,7 @@ class Space
                         if err then error = err
                         callback err, relation
         
-        Flow.serialize @, (defer, local) ->
+        _.serialize @, (defer, local) ->
             stage_is_live = @stage().live()
             
             unless stage_is_live then defer (next) -> 
@@ -618,18 +616,18 @@ class Space
                     parent_id = o.parent_uuid ? o.parent_scope_uuid
                     if parent_id?
                         if (parent = @world[Uuid.unparse(parent_id)])?
-                            _ = parent._ ?= {}
+                            __ = parent._ ?= {}
                             
-                            switch type = Data.type parent
-                                when Data.Type.Object, Data.Type.Array
+                            switch type = _.type parent
+                                when _.Type.Object, _.Type.Array
                                     js_ext = {uuid}
                                     if o.parent_scope_uuid? then js_ext.inside = yes
                                     
                                     if o.name?
-                                        _[o.name] = js_ext
+                                        __[o.name] = js_ext
                                         parent[o.name] = c
-                                    else if type is Data.Type.Array
-                                        _[parent.length.toString()] = js_ext
+                                    else if type is _.Type.Array
+                                        __[parent.length.toString()] = js_ext
                                         parent.push c
                             
                         
@@ -733,7 +731,7 @@ class Space
                                 # scan document structure
                                 matter_data = []
                                 
-                                Flow.serialize @, (defer) ->
+                                _.serialize @, (defer) ->
                                     for o in scope_data
                                         scan_options = {matter:yes}
                                         scan_options.depth = options.depth - (if scope_data.depth? then scope_data.depth - 1 else 0) if options?.depth?

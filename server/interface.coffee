@@ -1,7 +1,7 @@
-# Here is the Interface service of the Ijax system.
-# As all non-intentional services, it resides in the *system* sub-section of the *Ijax* section.
+# Here is the Interface service of the Chocolate system.
+# As all non-intentional services, it resides in the *system* sub-section of the *Chocolate* section.
 
-# It manages the exchanges the ijax.server *world*
+# It manages the exchanges the Chocolate server *world*
 # by providing an **exchange** service that can receive a request and produce a response.
 
 # It requires **Node.js events** to communicate with asynchronous functions
@@ -11,10 +11,11 @@ Fs = require 'fs'
 Crypto = require 'crypto'
 File = require './file'
 Formidable = require 'formidable'
-CoffeeScript = require 'coffee-script'
+Chocodash = require '../general/chocodash'
 Chocokup = require '../general/chocokup'
 Chocodown = require '../general/chocodown'
 Highlight = require '../general/highlight'
+Interface = require '../general/locco/interface'
 
 #### Cook
 # `cook` serves a cookies object containing cookies from the sent request
@@ -25,11 +26,12 @@ exports.cook = (request) ->
 
 #### Exchange
 # `exchange` operates the interface
-exports.exchange = (so, what, how, where, region, params, appdir, datadir, backdoor_key, request, session, send) ->
+exports.exchange = (space, so, what, how, where, region, params, appdir, datadir, backdoor_key, request, session, send) ->
     
     config = require('../' + datadir + '/config')
     where = where.replace(/\.\.[\/]*/g, '')
-    context = {request, session, appdir, datadir}
+
+    context = {space, request, session, appdir, datadir}
     
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
@@ -51,20 +53,25 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
         
             when 'web', 'edit', 'help'
                 # render if instance of Chocokup
+                
+                if result instanceof Interface.Reaction
+                    result = result.bin
+                
                 if result instanceof Chocokup
                     try
                         result = result.render { backdoor_key }
                     catch error
                         return has500 error
-                    
+                
+                
                 # Quirks mode in ie6
                 if /msie 6/i.test request.headers['user-agent']
                     result = '<?xml version="1.0" encoding="iso-8859-1"?>\n' + result
                     
                 # Defaults to Unicode
-                if result.indexOf?('</head>') > 0
+                if result?.indexOf?('</head>') > 0
                     result = result.replace('</head>', '<meta http-equiv="content-type" content="text/html; charset=utf-8" /></head>')
-                else if result.indexOf?('<body') > 0
+                else if result?.indexOf?('<body') > 0
                     result = result.replace('<body', '<head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body')
                 else
                     result = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + result + '</body></html>'
@@ -93,16 +100,21 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             method = require required
             
             method = method[name] for name in action.split('.') when method? if method?
-                    
+            
+            self = null
             if method instanceof Function
                 infos = method.toString().match(/function\s+\w*\s*\((.*?)\)/)
                 args = infos[1].split(/\s*,\s*/) if infos?
+            else if method instanceof Interface
+                    self = method
+                    method = method.submit
+                    args = ['{__}']
             else method = undefined
                 
-            {method, args}
+            {method, args, self}
         catch error
             error.source = module:required, method:action
-            {method:undefined, action:undefined, error}
+            {method:undefined, action:undefined, self:undefined, error}
         
     # `respondStatic` will send an HTTP response
     respondStatic = (status, headers, body) ->
@@ -144,7 +156,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                             respondStatic 200, headers, switch extension
                                 when '.md', '.markdown', '.cd', '.chocodown' 
                                     try
-                                        html = new Chocodown.converter({CoffeeScript, Chocokup, Highlight}).makeHtml file.toString()
+                                        html = new Chocodown.converter().makeHtml file.toString()
                                         if html.indexOf('<body') < 0 then html = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + html + '</body></html>' else html
                                     catch error
                                         'Error loading ' + where + ': ' + error
@@ -195,7 +207,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             # if so is 'do' and what is public then authorize access  
             when 'do' 
                 if how is 'web'
-                    {method, args, error} = getMethodInfo required, what
+                    {method, args, self, error} = getMethodInfo required, what
                     return if has500 error
                     if (method?) # TODO - should implement security checking
                         what_is_public = yes
@@ -203,7 +215,7 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
                 if how is 'web' and where isnt 'ping'
-                    {method, args, error} = getMethodInfo required, 'interface'
+                    {method, args, self, error} = getMethodInfo required, 'interface'
                     return if has500 error
                     if (method?) # TODO - should implement security checking
                         so = 'do'
@@ -311,22 +323,29 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
                     module = require required 
                     method = module[action]
                 else if so is 'do'
-                    {method, args:expected_args, error} = getMethodInfo required, what
+                    {method, args:expected_args, self, error} = getMethodInfo required, what
                     return if has500 error
                     if '__' in expected_args then params['__'] = context
                     args = []
-                    args_index = 0
-                    for arg_name in expected_args
-                        args.push if params[arg_name] isnt undefined then params[arg_name] else params[ '__' + args_index++ ]
-                    while args_index >= 0
-                       if params['__' + args_index] is undefined then args_index = -1
-                       else args.push params[ '__' + args_index++ ]
+                    
+                    if expected_args[0] is '{__}'
+                        bin = {__:context}
+                        bin[k] = v for k, v of params when k isnt '__'
+                        args.push bin
+                    else
+                        args_index = 0
+                        for arg_name in expected_args
+                            args.push if params[arg_name] isnt undefined then params[arg_name] else params[ '__' + args_index++ ]
+                        while args_index >= 0
+                           if params['__' + args_index] is undefined then args_index = -1
+                           else args.push params[ '__' + args_index++ ]
 
-                produced = method args...
+                produced = method.apply self, args
                 
-                if produced instanceof Events.EventEmitter
-                    produced.on 'end', (answer) ->
-                        respond answer
+                if produced instanceof Chocodash.Publisher
+                    produced.subscribe (answer) -> respond answer
+                else if produced instanceof Events.EventEmitter
+                    produced.on 'end', (answer) -> respond answer
                 else respond produced
             else
                 respond ''
@@ -337,10 +356,10 @@ exports.exchange = (so, what, how, where, region, params, appdir, datadir, backd
     exchangeSimple = () ->
         path = if where is '' and so isnt 'move' then where = 'default' else where
         path = 'www/' + path if appdir is '.'
-        
+
         if canExchangeClassic path
             where = path
-            try exchangeClassic() catch err then respond ''
+            try exchangeClassic() catch err then hasSofkey() and has500(err) or respond ''
         else
             switch so
                 when 'do'
@@ -393,7 +412,7 @@ exports.register_key = (__) ->
         event
 
 # `forgetKey` provides a UI to clear keys from browser session cache
-exports.forget_key = (__) ->
+exports.forget_keys = (__) ->
     forget_kup = ->
         form method:"post", ->
             input name:"action", type:"submit", value:"Logoff"

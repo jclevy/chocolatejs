@@ -12,6 +12,6 @@ perfect for data-intensive real-time applications that run across distributed de
 
 [Node.js documentation](http://nodejs.org/api/)
 
-[Node modules registry](http://search.npmjs.org/)
+[Node modules registry](https://npmjs.org/)
 
 [Nodecloud - a Node.js resource directory](http://www.nodecloud.org/)

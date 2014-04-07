@@ -27,7 +27,7 @@ Using a pure Coffeescript syntax, you can write this:
             
 which translates into:
 
-    div class="space">
+    <div class="space">
       <div class="header space">
         <div class="content">
           header
@@ -51,7 +51,7 @@ which translates into:
 and displays as :
 
 <div style="position:relative;width:200px;height:200px;background-color:white;">
-div class="space">
+<div class="space">
 <div class="header space">
 <div class="content">
 header
@@ -182,6 +182,41 @@ With a box you can make a panel have thick borders inside its parent block.
 
  - panel
  - box
+
+&nbsp;
+
+----------------------------------------------------------------------------------
+
+## id
+
+A function that returns an integer one can use to build an Html id attribute
+
+### Example
+
+        ids = clear: id()
+        
+        body ->
+            button "##{ids.clear}", "clear"
+            
+        coffeescript {ids}, ->
+            $ -> 
+                $("##{ids.clear}").on "click", ->
+                    alert "clear"
+    
+will become
+
+        <body>
+            <button id="_0">clear</button>
+        </body>
+        <script>
+            var ids = {"clear":"_0"};
+            
+            return $(function() {
+                return $("#" + ids.clear).on("click", function() {
+                    return alert("clear");
+                });
+            });
+        </script>
 
 &nbsp;
 

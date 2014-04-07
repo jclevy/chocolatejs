@@ -171,6 +171,19 @@ $.extend = ->
     # Return the modified object
     target
 
+$.globalEval = (text) ->
+	return text unless text
+	
+	if window.execScript then window.execScript text
+	else
+		script = document.createElement 'script'
+		script.setAttribute 'type', 'text/javascript'
+		script.text = text
+		document.head.appendChild script
+		document.head.removeChild script
+		
+	return text
+
 $.Environment = do ->
     _current = null
     
@@ -248,6 +261,7 @@ $.Ajax = do ->
         xhr: -> new window.XMLHttpRequest()
         crossDomain: false
         timeout: 0
+        cache: true
 
     $.ajax = (url, options) ->
         options = if typeof url is "object" then url else $.extend options, {url}
@@ -258,8 +272,13 @@ $.Ajax = do ->
             settings.url += "?" + $.param(settings.data) if settings.data?
         else
             settings.data = $.param(settings.data)
+        
+        dataType = settings.dataType.toLowerCase()
+        
+        if settings.cache is off or options?.cache isnt on and dataType in ['jsonp', 'script']
+            settings.url += (if settings.url.indexOf('?') >= 0 then '&' else '?') + "_=" + (_xhrId++).toString(36)
 
-        return _jsonp(settings) if settings.dataType.toLowerCase() is 'jsonp'
+        return _jsonp(settings) if dataType is 'jsonp'
 
         xhr = settings.xhr()
         xhr.onreadystatechange = ->
@@ -292,12 +311,16 @@ $.Ajax = do ->
 
     $.getJson = (url, data, success) -> $.get url, data, success, Ajax_default.mime
 
+    $.getScript = (url, success) -> $.get url, undefined, success, "script"
+
     $.param = (parameters) ->
         serialize = []
         for parameter of parameters
             if parameters.hasOwnProperty(parameter)
                 serialize.push "#{encodeURIComponent parameter}=#{encodeURIComponent parameters[parameter]}"
         serialize.join '&'
+
+    _xhrId = Date.now()
 
     _xhrStatus = (xhr, settings) ->
         if (xhr.status >= 200 and xhr.status < 300) or xhr.status is 0
@@ -341,13 +364,17 @@ $.Ajax = do ->
     _parseResponse = (xhr, settings) ->
         response = xhr.responseText
         if response
-            if settings.dataType is Ajax_default.mime
-                try
-                    response = JSON.parse(response)
-                catch error
-                    response = error
-                    _xhrError "$.ajax: Parse Error", xhr, settings
-            else response = xhr.responseXML if settings.dataType is "xml"
+            switch settings.dataType 
+                when Ajax_default.mime
+                    try
+                        response = JSON.parse(response)
+                    catch error
+                        response = error
+                        _xhrError "$.ajax: Parse Error", xhr, settings
+                when "xml"
+                    response = xhr.responseXML
+                when "script"
+                    $.globalEval response
         response
         
     _jsonp = (settings) ->
@@ -745,7 +772,6 @@ Style = do ($) ->
 
 # Dom functions
 Dom = do ($) ->
-    
     text: (value) ->
         unless value?
             ret = []

@@ -1,7 +1,7 @@
 unless window?
-    QueryString = require '../../general/intentware/querystring'
+    QueryString = require '../../server/querystring'
     
-    describe 'Intentware.QueryString', ->
+    describe 'QueryString', ->
         it 'should decode a querystring in an array', ->
             sqarr = QueryString.parse "a=test&b=3&c=1", null, null, ordered:yes
             expect(sqarr.list[0].key + ':' + sqarr.list[0].value).toBe('a:test')

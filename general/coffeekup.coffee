@@ -10,11 +10,11 @@
 # stiff.
 
 if window?
-  coffeekup = window.exports = window.CoffeeKup = {}
+  coffeekup = window[if window.exports? then "exports" else "Coffeekup"] = {}
   coffee = if CoffeeScript? then CoffeeScript else null
 else
   coffeekup = exports
-  coffee = require 'coffee-script'
+  coffee = require('coffee-script')
 
 coffeekup.version = '0.3.1edge'
 
@@ -94,33 +94,35 @@ coffeekup.self_closing = merge_elements 'void', 'obsolete_void'
 # This is the basic material from which compiled templates will be formed.
 # It will be manipulated in its string form at the `coffeekup.compile` function
 # to generate the final template function. 
-skeleton = (data = {}) ->
+skeleton = (__data = {}) ->
   # Whether to generate formatted HTML with indentation and line breaks, or
   # just the natural "faux-minified" output.
-  data.format ?= off
+  __data.format ?= off
 
   # Whether to autoescape all content or let you handle it on a case by case
   # basis with the `h` function.
-  data.autoescape ?= off
+  __data.autoescape ?= off
 
   # Internal CoffeeKup stuff.
   __ck =
     buffer: []
       
     esc: (txt) ->
-      if data.autoescape then h(txt) else String(txt)
+      if __data.autoescape then h(txt) else String(txt)
 
     tabs: 0
+    
+    id: 0
 
     repeat: (string, count) -> Array(count + 1).join string
 
-    indent: -> text @repeat('  ', @tabs) if data.format
+    indent: -> text @repeat('  ', @tabs) if __data.format
 
     # Adapter to keep the builtin tag functions DRY.
     tag: (name, args) ->
       combo = [name]
       combo.push i for i in args
-      tag.apply data, combo
+      tag.apply __data, combo
 
     render_idclass: (str) ->
       classes = []
@@ -162,18 +164,18 @@ skeleton = (data = {}) ->
         when 'string', 'number', 'boolean'
           text @esc(contents)
         when 'function'
-          text '\n' if data.format
+          text '\n' if __data.format
           @tabs++
-          result = contents.call data
+          result = contents.call __data
           if typeof result is 'string'
             @indent()
             text @esc(result)
-            text '\n' if data.format
+            text '\n' if __data.format
           @tabs--
           @indent()
 
     render_tag: (name, idclass, attrs, contents) ->
-      @indent()
+      @indent() if __ck.buffer[__ck.buffer.length-1] is "\n"
     
       text "<#{name}"
       @render_idclass(idclass) if idclass
@@ -181,14 +183,14 @@ skeleton = (data = {}) ->
   
       if name in @self_closing
         text ' />'
-        text '\n' if data.format
+        text '\n' if __data.format
       else
         text '>'
   
         @render_contents(contents)
 
         text "</#{name}>"
-        text '\n' if data.format
+        text '\n' if __data.format
   
       null
 
@@ -212,6 +214,10 @@ skeleton = (data = {}) ->
 
     __ck.render_tag(name, idclass, attrs, contents)
 
+  id = (value) -> 
+    __ck.id = parseInt value if value? and typeof value is "number"
+    '_' + __ck.id++
+  
   totext = (f) ->
     temp_buffer = []
     old_buffer = __ck.buffer
@@ -228,7 +234,7 @@ skeleton = (data = {}) ->
     
   doctype = (type = 'default') ->
     text __ck.doctypes[type]
-    text '\n' if data.format
+    text '\n' if __data.format
     
   text = (txt) ->
     __ck.buffer.push String(txt)
@@ -236,14 +242,20 @@ skeleton = (data = {}) ->
 
   comment = (cmt) ->
     text "<!--#{cmt}-->"
-    text '\n' if data.format
+    text '\n' if __data.format
   
-  coffeescript = (param) ->
-    switch typeof param
+  coffeescript = (param, func) ->
+    if (func)
+      # `coffeescript {value:"sample"} -> alert value'` becomes:
+      # `<script>var value="sample";(function () {return alert(value);})();</script>`
+      script "#{__ck.coffeescript_helpers}\nvar " + ("#{k}=" + JSON.stringify(v) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);"
+      __ck.coffeescript_helpers = "" # needed only once in a `render`
+    else switch typeof param
       # `coffeescript -> alert 'hi'` becomes:
       # `<script>;(function () {return alert('hi');})();</script>`
       when 'function'
         script "#{__ck.coffeescript_helpers}(#{param}).call(this);"
+        __ck.coffeescript_helpers = "" # needed only once in a `render`
       # `coffeescript "alert 'hi'"` becomes:
       # `<script type="text/coffeescript">alert 'hi'</script>`
       when 'string'
@@ -261,7 +273,7 @@ skeleton = (data = {}) ->
     text "<!--[if #{condition}]>"
     __ck.render_contents(contents)
     text "<![endif]-->"
-    text '\n' if data.format
+    text '\n' if __data.format
 
   null
 
@@ -282,7 +294,7 @@ stringify = ->
             when '[object Boolean]' then o
             when '[object Number]' then o
             when '[object Date]' then "new Date(#{o.valueOf()})"
-            when '[object Function]' then "function(){return (#{o.toString()}).apply(data, arguments);}"# Make sure these functions have access to `data` as `@/this`.
+            when '[object Function]' then "function(){return (#{o.toString()}).apply(__data, arguments);}"# Make sure these functions have access to `__data` as `@/this`.
             when '[object Math]' then 'Math'
             when '[object String]' then "'#{o.replace /\'/g, '\\\''}'"
             when '[object Undefined]' then 'void 0'
@@ -332,12 +344,12 @@ coffeekup.compile = (template, options = {}) ->
 
   # If `locals` is set, wrap the template inside a `with` block. This is the
   # most flexible but slower approach to specifying local variables.
-  code += 'with(data.locals){' if options.locals
-  code += "(#{template}).call(data);"
+  code += 'with(__data.locals){' if options.locals
+  code += "(#{template}).call(__data);"
   code += '}' if options.locals
   code += "return __ck.buffer.join('');"
   
-  new Function('data', code)
+  new Function('__data', code)
 
 cache = {}
 

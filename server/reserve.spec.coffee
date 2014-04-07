@@ -1,7 +1,6 @@
 unless window?
     Reserve = require '../server/reserve'
-    Uuid = require '../general/intentware/uuid'
-    Data = require '../general/intentware/data'
+    {Uuid} = _ = require '../general/chocodash'
 
     describe 'Reserve', ->
         describe 'Space', ->
@@ -93,7 +92,7 @@ unless window?
                         expect(new_todo.title).toBe 'new_todo'
                         expect(new_todo.test_data.boolean).toBe yes
                         expect(new_todo.test_struct.object.name).toBe 'object in struct'
-                        expect(Data.type new_todo.date.creation).toBe '[object Date]'
+                        expect(_.type new_todo.date.creation).toBe '[object Date]'
                         expect(new_todo.date.creation.toString()).toBe todo.date.creation.toString()
 
                 it 'should read first level of a JS Object from database', ->

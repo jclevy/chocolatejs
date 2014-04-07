@@ -1,4 +1,4 @@
-Uuid = require './intentware/uuid'
+_ = require './chocodash'
 Chocokup = require './chocokup'
 Highlight = require './highlight'
 Chocodown = require './chocodown'
@@ -82,15 +82,7 @@ Newnotes = class
             color: #999;
         }
 
-        #{
-        unless @params.inherit_selected_class
-            '''
-            #newnotes-''' + id + '''-note-panel li.selected {
-                background-color:rgba(0,0,0,0.1);
-            }
-            '''
-        else ''
-        }
+        #{unless @params.inherit_selected_class then '#newnotes-' + id + '-note-panel li.selected {background-color:rgba(0,0,0,0.1);}' else ''}
         
         .newnotes-priority-Now {
             color:red;
@@ -176,10 +168,8 @@ Newnotes = class
             background-size: 100% 30px;
             background-position-y: 12px;
             background-attachment: local;
-        }
+        }"""
 
-        """
-        
         style @params.code_css
         
         css_class = @params.box_css_class ? ''
@@ -615,9 +605,9 @@ Newnotes = class
                 .post()
         
         logoff : ->
-            if @url?.forget_key?
+            if @url?.forget_keys?
                 new Request
-                    url: @url.forget_key
+                    url: @url.forget_keys
                     noCache: yes
                     onSuccess: (data) => 
                         @switch_login on
@@ -1235,7 +1225,7 @@ Newnotes = class
                 selector.set 'html', "<option value='all'>All</option>" + @html_options "#{name}", selector.value, yes
 
     @Note: class
-        constructor: (@title, @parent, @dimensions, @uuid = Uuid()) ->
+        constructor: (@title, @parent, @dimensions, @uuid = _.Uuid()) ->
             @subs = []
             @date =
                 creation: new Date()
@@ -1498,9 +1488,9 @@ Newnotes = class
         Newnotes.enter(__)
     
     @enter: (__) ->
-        Ui = require('./intentware/interface').Ui
+        Chocokup = require './chocokup'
         stats = require('fs').statSync require.resolve '../general/newnotes.coffee'
-        new Ui.Document 'Newnotes', with_coffee:yes, manifest:"/-/general/newnotes?manifest&how=manifest", appdir:__.appdir, ->
+        new Chocokup.App 'Newnotes', with_coffee:yes, manifest:"/-/general/newnotes?manifest&how=manifest", appdir:__.appdir, ->
             style
                 type:"text/css" 
                 media:"screen"
@@ -1516,11 +1506,12 @@ Newnotes = class
                 }
                 """
             text '<script>_sofkey = ' + (if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null') + "; _appdir = '#{@params.appdir}';" + '</script>\n'
-            script src:"/static/ace/ace.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ace/theme-chrome.js", type:"text/javascript", charset:"utf-8"
-            script src:"/static/ijax/newnotes.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/ace.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/ace/theme-chrome.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/vendor/mootools/mootools-core-uncompressed.js", type:"text/javascript", charset:"utf-8"
+            script src:"/static/lib/newnotes.js", type:"text/javascript", charset:"utf-8"
             
             body ->
                 panel '#notes-panel', ''
@@ -1538,22 +1529,23 @@ Newnotes = class
                     modified_date = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/file?getModifiedDate&' + (if _appdir is '.' then 'www/' else '') + 'data/newnotes_data.json&how=raw'
                     ping = '/' + (if sofkey? then '!/' + sofkey else '') + '-/ping?how=raw'
                     register_key = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/interface?register_key&how=raw'
-                    forget_key = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/interface?forget_key&how=raw'
-                    Newnotes.create_panel element_id:'notes-panel', url: {load, save, connected, modified_date, ping, register_key, forget_key}, taste:taste, standalone:yes, ace_theme:'ace/theme/chrome'
+                    forget_keys = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/interface?forget_keys&how=raw'
+                    Newnotes.create_panel element_id:'notes-panel', url: {load, save, connected, modified_date, ping, register_key, forget_keys}, taste:taste, standalone:yes, ace_theme:'ace/theme/chrome'
     
     @manifest: (__) ->
-        Ui = require('./intentware/interface').Ui
+        Chocokup = require './chocokup'
         
         to_cache = """
-        #{Ui.Document.manifest.cache}
-        /static/ace/ace.js
-        /static/ace/mode-coffee.js
-        /static/ace/mode-markdown.js
-        /static/ace/theme-chrome.js
-        /static/ijax/coffeekup.js
-        /static/ijax/chocokup.js
-        /static/ijax/chocodown.js
-        /static/ijax/newnotes.js
+        #{Chocokup.App.manifest.cache}
+        /static/vendor/ace/ace.js
+        /static/vendor/ace/mode-coffee.js
+        /static/vendor/ace/mode-markdown.js
+        /static/vendor/ace/theme-chrome.js
+        /static/lib/coffeekup.js
+        /static/lib/chocokup.js
+        /static/lib/chocodown.js
+        /static/vendor/mootools/mootools-core-uncompressed.js
+        /static/lib/newnotes.js
         /#{(if __.appdir is '.' then '-/www/' else '')}data/newnotes_data.json?how=raw
         """
 
@@ -1569,7 +1561,7 @@ Newnotes = class
  
         """
         CACHE MANIFEST
-        # v0.05.004
+        # v0.05.005
         # Files Timestamp
         #
         #{time_stamps}
@@ -1578,7 +1570,7 @@ Newnotes = class
         #{to_cache}
         
         NETWORK:
-        /static/ijax/
+        /static/lib/
         /-/ping
         /-/server/file?getModifiedDate
         
@@ -3023,5 +3015,4 @@ Newnotes = class
         return
         
 _module = window ? module
-_module.exports = Newnotes
-_module.Newnotes = Newnotes if window?
+_module[if _module.exports? then "exports" else "Newnotes"] = Newnotes

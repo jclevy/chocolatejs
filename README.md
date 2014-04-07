@@ -15,37 +15,41 @@
      `-..____________..-'                                    |__/      
                                                      
 
-# Chocolate - WebApps with a sweet taste
+# Chocolate - Full stack Node.js framework
 
-Chocolate is a simple Node.js webapp framework built using Coffeescript. 
+Chocolate is an experimental Node.js webapp framework built using Coffeescript. 
 
 It includes :
-   
- - an **online IDE** (with Coffeescript, Javascript, Css and Markdown support)
 
- - an online and immediate **playground** for Coffeescript, Chocokup and Doccolate
+ - **Chocolate Studio** -- an **online IDE** (with Coffeescript, Javascript, Css and Markdown support)
+
+ - **Locco** -- the Chocolate protocol : so, what, where, how...
+
+ - **Chocolate playground** -- an online and immediate **playground** for Coffeescript, Chocokup and Doccolate
+
+ - **Chocokup** -- a 100% pure CoffeeScript templating language that helps build web user interfaces (based on Coffeekup)
+
+ - **Chocodown** -- Chocokup-aware port of Markdown (based on Showdown)
+
+ - **Specolate** -- a behavior/test driven development tool (based on Jasmine) that works client and server side
+
+ - **Doccolate** -- an online documentation editing tool (based on Docco)
+
+ - **Chocodash** -- toobox for javascript object identity, types, serialization and asynchronous calls and signals management
+
+ - **liteJq** -- a lite jQuery-compatible library
+
+ - **Chocoss** -- a Css framework
+
+ - **ChocoDB** -- a kind of nosql database running on SQLite
 
  - a basic **source control** with Git
-
- - **ChocoDB**: a kind of nosql database running on SQLite.
-
- - **Chocoflow**: a really simple tool to help manage asynchronous calls serialization.
-
- - **Chocokup**: a templating language that helps build web user interfaces using 100% pure CoffeeScript (based on Coffeekup)
- 
- - **Chocodown**: Chocokup-aware port of Markdown (based on Showdown)
-
- - **Specolate**: a behavior/test driven development tool (based on Jasmine) that works client and server side
-
- - **Doccolate**: an online documentation editing tool (based on Docco)
- 
- - **litejQ**: a lite jQuery-compatible library
 
  -  **NewNotes**: a promising note taking tool
 
 Chocolate integrates:
 
- > [Node.js](http://nodejs.org) - [Coffeescript](http://coffeescript.org) - [Ace](http://ace.ajax.org) - [Mootools](http://mootools.net) - [Docco](http://jashkenas.github.com/docco/) - [Coffeekup](http://coffeekup.org) - [Jasmine](http://pivotal.github.com/jasmine) - [Highlight.js](http://softwaremaniacs.org/soft/highlight/en) - [Showdown](https://github.com/coreyti/showdown) - [Git](http://git-scm.com) - [Impress](http://bartaz.github.com/impress.js/#/bored)
+ > [Node.js](http://nodejs.org) - [Coffeescript](http://coffeescript.org) - [Ace](http://ace.ajax.org) - [Docco](http://jashkenas.github.com/docco/) - [Coffeekup](http://coffeekup.org) - [Jasmine](http://pivotal.github.com/jasmine) - [Reactor](https://github.com/fynyky/reactor.js) - [Highlight.js](http://softwaremaniacs.org/soft/highlight/en) - [Showdown](https://github.com/coreyti/showdown) - [Ccss](https://github.com/aeosynth/ccss) - [Git](http://git-scm.com) - [Impress](http://bartaz.github.com/impress.js/#/bored)
 
 &nbsp;
 
@@ -53,44 +57,89 @@ Chocolate integrates:
 
 ## Version
 
-Chocolate v0.0.9 - 2013/12/04
+Chocolate v0.0.10 - 2014/04/07
 
 NEW FEATURES
 
-- [litejQ](#Choco-litejQ) : a lite jQuery-compatible library (9kb compressed and gziped) 
-  aimed at replacing Mootools in Chocolate and becoming its client-side scripts foundation.
-- with Chocodown
- - inline tests: open litejQ documentation (/general/docs/doc-litejq.md) 
-   and open the doccolate panel (Doc) to see the `check` function working.
-- in Locco:
- - can call a function in a sub-object inside a module  
-  `https//myserver/mymodule?MyObject.function?param1&param2`
- - params can be unnamed and numeric when calling a function inside a module  
-  `https//myserver/mymodule?add?123&9872`
-- in Studio:
- - can change debug evaluation column width by pressing +/- buttons 
-- in Newnotes:
- - create a new note by pressing Return 
- - when editing, create a new note by pressing Return if cursor at the end
- - when editing, insert a newline with Ctrl + Return or Shift + Return or press only return if not at note's end
- - toggle a note by pressing Shift-Return
- - toggle note priority by pressing Ctrl-Return when not editing
- - insert a new note before a note with Alt + Return
- - split a note in two notes with Ctrl-Shift-Return when editing
+Chocolate directory structure
+
+- moved vendor libraries from /static to /static/vendor
+- renamed **/general/intentware** folder to **/general/locco**  
+  You **should** update references to this folder if you use it in your Chocolate application
+- renamed **/static/ijax** folder to **/static/lib**  
+  You **should** rename this folder if you have one in your Chocolate application
+- renamed **/static/ijax/ijax.js** file to **/static/lib/locco.js**  
+  You **should** rename this file if you have one in your Chocolate application
+
+Locco Interface:
+
+- introduce [Interface](#Choco-Locco-Interface) service that manages security, defaults and values valid range
+- [Interface.Web](#Choco-Locco-Interface-Web) to easily create web app interface with Chocokup
+
+Chocokup:
+
+- added the `id([value])` function to generate ids (added in coffeekup)
+
+        button "##{id()}", i for i in [9..0]
+  
+- can pass parameters to embedded coffeescript block
+
+        ids = clear: id()
+        body -> button "##{ids.clear}", "clear"
+        coffeescript {ids}, ->
+            $ -> 
+                $("##{ids.clear}").on "click", -> alert "clear"
+
+- produced code is now not formatted (meaningfull whitespace problem).  
+  Should use the `format` parameter.
+- more isolated parameters: @__.content() instead of @content (idem for @body and @head) in kups
+- Chocokup.App to include Chocodash, litejQ, Coffeescript, Locco
+- [Chocoss](#Choco-Chocoss):
+  - preparing Chocokup Css Framework 
+  - added Eric Meyer's Reset CSS v2.0  
+  - introduced Css themes: reset(default), paper, writer, coder
+
+Chocodash:
+
+ - renamed Chocoflow into [Chocodash](#Choco-Dash)
+ - started to move javascript utilities into Chocodash:
+   - [\_.type](#Choco-Dash-Type), [\_.Type](#Choco-Dash-Type), [\_.defaults](#Choco-Dash-Defaults), [\_.serialize](#Choco-Dash-Async), [\_.parallelize](#Choco-Dash-Async), [\_.stringify](#Choco-Dash-Stringify), [\_.parse](#Choco-Dash-Stringify)
+   - \_.Signal, \_.Observer and \_.Publisher implement [reactive programing](#Choco-Dash-Reactive) services (from Reactor.js)
+   - add Class-like service with [\_.protoype](#Choco-Dash-Prototype) (with inherit, adopt and use)
+   - [\_.Uuid](#Choco-Dash-Uuid):
+     - added an interface in Uuid so that /-/general/locco/uuid displays a new Uuid
+
+Chocodown:
+
+- adds the formatChocokup option in Chocodown.converter
+
+Coffeekup:
+
+- added the `id` helper function that will return an incremental id
+- [Locco](#Choco-Locco) now independent from Mootools (works with litejQ or jquery) 
+
+Studio
+
+- in Chocodown panel, you can specify wether you want embedded Chocokup code to produce formatted HTML
+- Specolate has a better error handling
+- console.log is now copied in Studio message box
 
 FIXED BUGS
 
-- static files can be created or deleted through studio interface in an app
-- deleting a file was copying it in default.coffee!
-- can pass parameters to static files. They were seen as 'app' instead of 'static' if with params
-- don't execute debug compilation in coffeescript lab when debug panel is hidden
-- problem in debug panel with multiple empty strings ('')
-- chocokup css helper did not understand @media clause
+- header and footer when not in a Chocokup Panel work as standard HTML5 tags
+- renamed internal Coffeekup 'data' variable to '__data' to avoid colisions
+- display error produced in Interface.exchangeSimple when user has sofkey privileges
+- removed Chocokup **title** helper. Now **title** works as a standard html tag
+- added Chocokup Core Css in Chocodown Lab view
+- added `panel` css class to Chocokup panels so it can be styled
+- removed useless `div` in Chocokup panels
+- Chocolate's module loader is more robust
+- server/interface forget-key renamed to forget-keys
 
 UPDATES
 
-- updated Newnotes documentation
-- updated Ace to package 12.02.2013
+- updated coffee-script to 1.7.1
+- updated Ace to package March.08.2014
 
 
 See history in **CHANGELOG.md** file
@@ -108,20 +157,32 @@ See history in **CHANGELOG.md** file
    - [Log off](#Choco-UseIt-LogOff)
    - [Enter Chocolate Studio](#Choco-UseIt-Enter)
    - [Web access to source files and functions](#Choco-UseIt-Source)
-   - [Locco: the Chocolate protocol](#Choco-UseIt-Locco)
+   - [Locco main operations](#Choco-UseIt-Locco)
  - [Chocolate Studio](#Choco-Studio)
    - [Autocomplete and snippets](#Choco-Automplete)
    - [Spec, Doc, Lab, Help and Notes panels](#Choco-Studio-panels)
  - [The Lab](#Choco-Lab)
  - [How to write Modules](#Choco-WriteModules)
  - [ChocoDB](#Choco-DB)
- - [Chocoflow](#Choco-Flow)
+ - [Chocodash](#Choco-Dash)
+   - [Javascript type management](#Choco-Dash-Type)
+   - [Better than Class with Prototypes](#Choco-Dash-Prototype)
+   - [Defaulting properties](#Choco-Dash-Defaults)
+   - [Reactive services with Signals](#Choco-Dash-Reactive)
+   - [Asynchronous calls made easy](#Choco-Dash-Async)
+   - [Javascript object serialization](#Choco-Dash-Stringify)
+   - [Uuid](#Choco-Dash-Uuid)
  - [Debugate](#Choco-Debugate)
  - [Chocokup](#Choco-Chocokup)
    - [Usage](#Choco-Chocokup-Usage)
      - [Chocokup.Document](#Choco-Chocokup-Document)
      - [Chocokup.Panel](#Choco-Chocokup-Panel)
    - [Reference](#Choco-Chocokup-Reference)
+ - [Chocoss](#Choco-Chocoss)
+ - [Locco](#Choco-Locco)
+   - [Protocol operations](#Choco-Locco-operations)
+   - [Interface](#Choco-Locco-Interface)
+   - [Interface.Web](#Choco-Locco-Interface-Web)
  - [Specolate](#Choco-Specolate)
    - [Usage](#Choco-Specolate-Usage)
  - [Doccolate](#Choco-Doccolate)
@@ -299,7 +360,7 @@ You enter that key at:
 
 To logoff go to : 
 
-    https://myserver:8026/-/server/interface?forget_key
+    https://myserver:8026/-/server/interface?forget_keys
 
 ### <a name="Choco-UseIt-Enter"></a> Enter Chocolate Studio [⌂](#Choco-Summary) 
 
@@ -329,9 +390,9 @@ To run `default.spec.coffee` specs (if you create it)
 
     https://myserver:8026/default?so=eval
 
-### <a name="Choco-UseIt-Locco"></a> Locco: the Chocolate protocol [⌂](#Choco-Summary) 
+### <a name="Choco-UseIt-Locco"></a> Locco main operations [⌂](#Choco-Summary) 
 
-Requests to Chocolate server follow theses rules (the Locco protocol):
+Requests to Chocolate server follow theses rules (the [Locco](#Choco-Locco) protocol main operations):
 
 **https**
 
@@ -364,7 +425,7 @@ They are at:
 **Default service in source file**
 
 If your source file exports an `interface` function (ie. in default.coffee):
-    
+
     exports.interface = () -> 
         'Hello world!'    
 
@@ -376,59 +437,12 @@ returns a web page with
 
     Hello world!
 
-**Locco protocol operations**
+You can use the [Interface.Web](#Choco-Interface-Web) service with [Chocokup](#Choco-Chocokup) to produce your Html page :
 
-- **`so`** indicates the action type.
-
-    - **`do`**:  execute an exported function in source file  
-        - parameters can be specified by name or by position
-    - **`move`**: 
-        - if **`what`** is specified:  
-        move **`what`** file's content to **`where`** file  
-        - otherwise, if Http request is a **POST** request then:  
-        move POST message data to **`where`** file  
-        
-    - **`eval`**: run the **where** file associated spec: ie. default.spec.coffee for default.coffee
-    - **`go`**: default action. Load **where** file and execute interface function.
-
-- **`what`** adds a precision on the action object (usualy its pathname).
-- **`where`** tells where the action should take place: a pathname
-- **`how`** asks for a special type of respond if available (web, raw, help).
-    - **`web`**: default. responds as an html document
-    - **`raw`**: responds as plain text
-    - **`help`**: responds as an html Docco help file
-    - **`edit`**: responds as an html source web editor
-
-- a **`backdoor_key`** key can be specified to have system access
-
-        https://myserver/!/my_backdoor_key/myworld/myfolder
-            
-Usage:
-
-        https://myserver/myworld/myfolder?so=move&what=/myworld/mydocument
-           Moves /myworld/mydocument file to /myworld/myfolder
-           so = move
-           what = /myworld/mydocument
-           where = /myworld/myfolder
-           how = web (by default) - will return an answer as html.
-
-        https://myserver/myworld/myfolder
-           Go to /myworld/myfolder file, 
-             load it and execute **interface** function if exists,
-             otherwise open file in editor
-           so = go (by default)
-           what = undefined
-           where = /myworld/myfolder
-           how = web (by default) - will return an answer as html.
-
-        https://myserver/myworld/myfolder?myFunc&myParamValue
-           Go to /myworld/myfolder file, 
-             load it and execute **myFunc** function if exists, with myParamValue param
-             otherwise returns empty page
-           so = do (by default when request has parameters)
-           what = myFunc
-           where = /myworld/myfolder
-           how = web (by default) - will return an answer as html.
+    Interface = require 'chocolate/general/locco/interface'
+    exports.interface = 
+        new Interface.Web ->
+            div 'Hello world #{world}!' for world in [1..5]
 
 &nbsp;
 
@@ -442,7 +456,7 @@ It displays your source files and browse through directories, has a search in fi
 It has a panel that displays log messages.  
 It can also list and open source file commited versions.
 
-You can create and move files (but not rename or delete files ! I should add this...).
+You can create, move, rename and delete files.
 
 The central panel has the code editor.
 It has syntax highlighting for Coffeescript, Javascript, CSS and Markdown.
@@ -615,7 +629,7 @@ Modules that run only in the browser will go int the `/client` folder,
 and modules that can run in both environment will be put in `/general` folder.
 
 If you put .coffee or .js files in the `/client` or `/general` folder, 
-they will be compiled if .coffee and copied to the `/static/ijax` folder 
+they will be compiled if .coffee and copied to the `/static/lib` folder 
 and will be downloadable by your javascript client code (using the provided require function).
 
 If you create a general module (that can work on server and in browser), you will need to write something like the following code:
@@ -627,12 +641,18 @@ If you create a general module (that can work on server and in browser), you wil
     _module = window ? module
     _module.exports = MyGeneralModule
 
-The exported function `interface`, if present in your module, is used to return an html content if someone calls that module with no parameter:
+The exported function `interface`, if present in your module, is used to return an [Interface.Web](#Choco-Interface-Web) object or an html content if someone calls that module with no parameter:
 
 i.e., in module `mymodule.coffee`:
 
     exports.interface = ->
         '<div>Hello</div>'
+        
+or
+
+    Interface = require 'chocolate/general/locco/interface'
+    exports.interface = 
+        new Interface.Web -> div 'Hello'
 
 Will display `Hello` when called with `https://myserver/mymodule`
 
@@ -653,6 +673,7 @@ Those function can declare a system parameter `__` which contains:
 
       .appdir: application directory
       .datadir: application data directory
+      .session: session object to store user's session data
       .request: HTTP request object
       .response: HTTP response object
 
@@ -660,6 +681,18 @@ i.e.:
 
     exports.check_appdir = (__) ->
         "Application directory is:" + __.appdir
+
+Instead of a javascript function you can call a Locco Interface:
+
+    Interface = require 'chocolate/general/locco/interface'
+    exports.say_hello = new Interface
+        rules:
+            defaults:
+                who: 'you'
+                where: 'Paris'
+        action: ->
+            'hello ' + @bin.who + ' in ' + @bin.where
+
 
 &nbsp;
 
@@ -674,16 +707,16 @@ Functions, Dates and circular references can also be saved and retrieved.
 
 A query language is on its way...
 
-Here is example taken from the /server/reserve spec file:
+Here is an example taken from the /server/reserve spec file:
 
         
-        var Uuid = require 'chocolate/general/intentware/uuid'
+        var _ = require 'chocolate/general/chocodash'
         var Sample;
         
         Sample = (function() {
           function _Class(title, uuid) {
             this.title = title;
-            this.uuid = uuid != null ? uuid : Uuid();
+            this.uuid = uuid != null ? uuid : _.Uuid();
             this.list = [10, 11, 12, 13];
             this.list.extended = 'an extension';
             this.items = [
@@ -718,7 +751,7 @@ Here is example taken from the /server/reserve spec file:
         })();
         
         var sample = new Sample('test');
-        var sub_uuid = Uuid();
+        var sub_uuid = _.Uuid();
         sample.struct.object.uuid = sub_uuid;
         
         var chocodb = new Reserve.Space();
@@ -738,9 +771,258 @@ Here is example taken from the /server/reserve spec file:
 
 ---
 
-## <a name="Choco-Flow"></a> Chocoflow [⌂](#Choco-Summary) 
+## <a name="Choco-Dash"></a> Chocodash [⌂](#Choco-Summary) 
 
-Chocoflow is a really simple tool to help manage asynchronous calls serialization.
+Chocodash is a small library that includes javascript utilities:
+
+### <a name="Choco-Dash-Type"></a> _.Type, _.type [⌂](#Choco-Summary) 
+
+`_.type` returns the type of an object
+
+        _type({}) === '[object Object]'
+
+`_.Type` provides a Type enumeration
+
+        _type({}) === _.Type.Object
+    
+        _.Type = 
+            Object: '[object Object]'
+            Array: '[object Array]'
+            Boolean: '[object Boolean]'
+            Number: '[object Number]'
+            Date: '[object Date]'
+            Function: '[object Function]'
+            Math: '[object Math]'
+            String: '[object String]'
+            Undefined: '[object Undefined]'
+            Null: '[object Null]'
+    
+### <a name="Choco-Dash-Prototype"></a> _.prototype [⌂](#Choco-Summary) 
+
+`_.prototype` makes it easy to create a Javascript prototype
+
+following the classical class way:
+
+*Coffeescript:*
+
+        Service = _.prototype 
+            add: (a,b) -> a+b
+            sub: (a,b) -> a-b
+            
+*Javascript:*
+
+        Service = _.prototype({
+          add: function(a, b) {
+            return a + b;
+          },
+          sub: function(a, b) {
+            return a - b;
+          }
+        });
+
+or the mixin way:
+
+*Coffeescript:*
+
+        Service = _.prototype()
+        Service.use ->
+            @add = (a,b) -> a+b
+            @sub = (a,b) -> a-b
+
+*Javascript:*
+
+        Service = _.prototype();
+        
+        Service.use(function() {
+          this.add = function(a, b) {
+            return a + b;
+          };
+          return this.sub = function(a, b) {
+            return a - b;
+          };
+        });
+
+Then use your prototype to create javascript objects:
+
+        sevr = new Service();
+        expect(serv instanceof Service).toBe(true);
+        expect(serv.add(1,1)).toBe(2);
+
+You can define a prototype initializer by using the `constructor` keyword:
+
+*Coffeescript:*
+
+        Service = _.prototype 
+            constructor: (@name) ->
+        
+        serv = new Service "MyDoc"
+        expect(serv.name).toBe "MyDoc"
+
+*Javascript:*
+
+        Service = _.prototype({
+          constructor: function(name) {
+            this.name = name;
+          }
+        });
+        
+        serv = new Service("MyDoc");
+        
+        expect(serv.name).toBe("MyDoc");
+
+You can also create a prototype by adopting/copying  
+another prototype's beahaviour and adding new functions:
+
+*Coffeescript:*
+
+        MoreMath = ->
+            @multiply = (a,b) -> a * b
+            @divide = (a,b) -> a / b
+            
+        CopiedService = _.prototype adopt:Service, use:MoreMath
+        cop = new CopiedService
+        
+        expect(cop.add 2,2).toBe 4
+        expect(cop.multiply 3,3).toBe 9
+
+*Javascript:*
+
+        MoreMath = function() {
+          this.multiply = function(a, b) {
+            return a * b;
+          };
+          return this.divide = function(a, b) {
+            return a / b;
+          };
+        };
+        
+        CopiedService = _.prototype({
+          adopt: Service,
+          use: MoreMath
+        });
+        
+        cop = new CopiedService;
+        
+        expect(cop.add(2, 2)).toBe(4);
+        expect(cop.multiply(3, 3)).toBe(9);
+
+You can finally create a prototype by inheriting
+another prototype's beahaviour and adding new functions 
+that can access parent's overriden function:
+
+*Coffeescript:*
+
+        InheritedService = _.prototype 
+            inherit:Service
+            use: -> @sub = (a,b) -> a + ' - ' + b + ' = ' + _.super @, a,b
+        
+        inh = new InheritedService
+        expect(inh.add 2,2).toBe 4
+        expect(inh.sub 2,2).toBe "2 - 2 = 0"
+     
+*Javascript:*
+
+        InheritedService = _.prototype({
+          inherit: Service,
+          use: function() {
+            return this.sub = function(a, b) {
+              return a + ' - ' + b + ' = ' + _.super(this, a, b);
+            };
+          }
+        });
+        
+        inh = new InheritedService;
+        
+        expect(inh.add(2, 2)).toBe(4);
+        expect(inh.sub(2, 2)).toBe("2 - 2 = 0");
+
+### <a name="Choco-Dash-Defaults"></a> _.defaults [⌂](#Choco-Summary) 
+
+`_.defaults` ensure default values are set on an object
+
+Set default values if not set:
+
+        o = _.defaults({first:1}, {second:2});
+        
+        expect(o.first).toBe(1);
+        expect(o.second).toBe(2);
+
+Set default values on sub-object if not set and preserve other values:
+
+        o = _.defaults({second:{sub1:'sub1'}}, {first:2, second:sub2:'sub2'});
+        
+        expect(o.first).toBe(2);
+        expect(o.second.sub1).toBe('sub1');
+        expect(o.second.sub2).toBe('sub2');
+
+### <a name="Choco-Dash-Reactive"></a> _.Signal, _.Observer, _.Publisher [⌂](#Choco-Summary) 
+
+Here are Chocolate's **reactive** services.
+
+**_.signal** represents a value which can be observed
+
+Signals are objects representing observed values. They are read by executing the `value()` function with no arguments.  
+They are set by executing the `value()` function with a signal definition as the only argument.
+
+    a = new _.Signal(1);
+    b = new _.Signal(function(){ a.value() });
+    expect(a.value()).toEqual(1);
+    expect(b.value()).toEqual(1);
+        
+    a.value(2);
+    expect(a.value()).toEqual(2);
+    expect(b.value()).toEqual(2);
+    
+    
+**_.Observer** reports signal changes
+
+Observers are defined in a manner similar to Signals
+
+The primary differences of observers are:
+
+ - they have no value to read
+ - they cannot be observed themselves
+ - they are notified only after signals have all been updated
+
+They are called upon Signal change:
+
+        a = new _.Signal(1);
+        b = null;
+        c = new _.Observer(function(){ b = a.value() });
+        expect(b).toEqual(1);
+        
+        a.value(2);
+        expect(b).toEqual(2);
+    
+
+Together, Signals and Observers form a directed acyclic graph.
+Signals form the root and intermediate nodes of the graph, while Observers form the leaf nodes in the graph.
+
+When a signal is updated, it propagates its changes through the graph.
+Observers are updated last after all affected signals have been updated.
+From the perspective of observers, all signals are updated atomically and instantly .
+
+
+**_.Publisher** reports basic signal changes to one-to-many reporters.
+They use one internal pair of Signal and Observer
+    
+
+        asyncFunc = function() {
+          var publisher = new _.Publisher;
+          
+          var callback = function() {
+            return publisher.notify('done');
+          };
+          doAsyncStuff(callback);
+          
+          return publisher;
+        };
+        
+        asyncFunc().subscribe(function(answer) { // do something when notified });
+
+### <a name="Choco-Dash-Async"></a> _.serialize, _.parallelize [⌂](#Choco-Summary) 
+
+Really simple tools to help manage asynchronous calls serialization.
 
 You can change this javascript code:
 
@@ -754,7 +1036,7 @@ You can change this javascript code:
 
 to this code:
 
-        Flow.serialize(function(defer, local) {
+        _.serialize(function(defer, local) {
           defer(function(next) {
             return db.createOrGetTable(function(table) {
               local.table = table;
@@ -786,7 +1068,7 @@ or in Coffeescript, this code:
                     
 to this code:
 
-        Flow.serialize (defer, local) ->
+        _.serialize (defer, local) ->
             defer (next) -> db.createOrGetTable (table) -> local.table = table; next()
             defer (next) -> local.table.insertRow row,  -> next()
             defer (next) -> db.select query (rows) -> local.rows = rows; next()
@@ -797,9 +1079,9 @@ to this code:
 It helps you mix synchronous and asynchronous, iterative and recursive code, 
 in a **simple** way with **no new concept** to learn.
     
-Here is an example taken from /general/chocoflow spec file:
+Here is an example taken from /general/chocodash spec file:
 
-        var Flow, end, start, time1, time2, time3, aync_func;
+        var _, end, start, time1, time2, time3, aync_func;
 
         aync_func = function(duration, cb) {
           return setTimeout((function() {
@@ -807,12 +1089,12 @@ Here is an example taken from /general/chocoflow spec file:
           }), duration);
         };
 
-        Flow = require('chocolate/general/chocoflow');
+        _ = require('chocolate/general/chocodash');
         
         start = new Date().getTime();
         time1 = time2 = time3 = end = null;
         
-        Flow.serialize(function(defer) {
+        _.serialize(function(defer) {
         
           defer(function(next) {
             return aync_func(250, function(time) {
@@ -845,7 +1127,47 @@ Here is an example taken from /general/chocoflow spec file:
           end = new Date().getTime();
         });
         
+### <a name="Choco-Dash-Stringify"></a> _.stringify, _.parse [⌂](#Choco-Summary) 
 
+`_.stringify` transforms a javascript object in a string that can be parsed back as an object
+
+You can stringify every property of an object, even a function or a Date:
+
+        o = {
+            u: void 0,
+            n: null,
+            i: 1,
+            f: 1.11,
+            s: '2',
+            b: true,
+            add: function(a, b) { return a + b; },
+            d: new Date("Sat Jan 01 2011 00:00:00 GMT+0100")
+        };
+
+        s = _.stringify o
+        expect(s).toBe "{u:void 0,n:null,i:1,f:1.11,s:'2',b:true,add:function (a, b) {\n          return a + b;\n        },d:new Date(1293836400000)}"
+
+
+`_.parse` transforms a stringified javascript object back to a javascript object
+
+        a = _.parse "{u:void 0,n:null,i:1,f:1.11,s:'2',b:true,add:function (a, b) {\n          return a + b;\n        },d:new Date(1293836400000)}"
+
+        expect(a.u).toBe undefined
+        expect(a.n).toBe null
+        expect(a.i).toBe 1
+        expect(a.f).toBe 1.11
+        expect(a.s).toBe '2'
+        expect(a.b).toBe yes
+        expect(a.add(1,1)).toBe 2
+        expect(a.d.valueOf()).toBe new Date("Sat Jan 01 2011 00:00:00 GMT+0100").valueOf()
+        
+### <a name="Choco-Dash-Uuid"></a> _.Uuid [⌂](#Choco-Summary) 
+
+`_.Uuid` helps to generate RFC4122(v4) UUIDs, and also non-RFC compact ids
+
+        Uuid() // produces a string like "88a8814c-fd78-44cc-b4c1-dbff3cc63abd"
+        
+        expect(Uuid.parse("49A15746135C4DEDAB55B2C5F74BD5BB").toString()).toBe([73, 161, 87, 70, 19, 92, 77, 237, 171, 85, 178, 197, 247, 75, 213, 187].toString());
 
 &nbsp;
 
@@ -921,7 +1243,7 @@ and displays as a main panel with a left and a right service panels.
 You can also write Css code using Chocokup:
 
     panel "#calc", ->
-        button i for i in [9..0]
+        button "##{id()}", i for i in [9..0]
         button '+' ; button '-'
         button '.by3', '='           
             
@@ -960,12 +1282,21 @@ insert an `interface` function that returns a new `Chocokup.Document`
     Chocokup = require 'chocolate/general/chocokup'
     
     exports.interface = ->
-        new Chocokup.Document 'Chocolate - Wep Apps with a sweet taste', ->
+        new Chocokup.Document 'Chocolate - Wep Apps with a sweet taste', theme:'writer'->
             body ->
                 "Welcome to Chocolatejs.org !"
 
             
 Then open a web browser and open that page: ie. https://myserver/mypage
+
+Chocokup documents include the Eric Meyer's reset CSS. 
+
+You can select few `themes`:
+
+ - reset: (default) Eric Meyer's reset CSS
+ - paper: reset CSS + traditional CSS values
+ - writer: paper CSS + classic Blog CSS values
+ - coder: paper CSS + developer Blog CSS values
 
 #### <a name="Choco-Chocokup-Panel"></a> Chocokup.Panel [⌂](#Choco-Summary) 
 
@@ -982,6 +1313,147 @@ If you only want to build a partial document, you can use `Chocokup.Panel`
 ### <a name="Choco-Chocokup-Reference"></a> Reference [⌂](#Choco-Summary) 
 
 Read the complete Chocokup reference in Chocolate Studio Chocokup help panel.
+
+
+&nbsp;
+
+---
+
+## <a name="Choco-Chocoss"></a> Chocoss [⌂](#Choco-Summary) 
+
+Chocoss is a Css templating system currently being developed inside Chocokup
+
+Five simple reset types and a static grid system are added to Chocokup fluid panel system.
+
+The reset types are:
+
+ - reset: the Eric Meyer's Css Reset. Reset things like default line heights, margins and font sizes of headings, and so on...
+ - basic: apply `reset` and redefine basic styles.
+ - paper: apply `basic` and add margins
+ - writer: general blog type reset based on `paper`
+ - coder: developer blog type reset based on `paper`
+
+&nbsp;
+
+---
+
+## <a name="Choco-Locco"></a> Locco [⌂](#Choco-Summary) 
+
+Locco is the Chocolate protocol. It helps manage data, workflows and interfaces.
+
+### <a name="Choco-Locco-operations"></a>Protocol operations [⌂](#Choco-Summary) 
+
+- **`so`** indicates the action type.
+
+    - **`do`**:  execute an exported function in source file  
+        - parameters can be specified by name or by position
+    - **`move`**: 
+        - if **`what`** is specified:  
+        move **`what`** file's content to **`where`** file  
+        - otherwise, if Http request is a **POST** request then:  
+        move POST message data to **`where`** file  
+        
+    - **`eval`**: run the **where** file associated spec: ie. default.spec.coffee for default.coffee
+    - **`go`**: default action. Load **where** file and execute interface function.
+
+- **`what`** adds a precision on the action object (usualy its pathname).
+- **`where`** tells where the action should take place: a pathname
+- **`how`** asks for a special type of respond if available (web, raw, help).
+    - **`web`**: default. responds as an html document
+    - **`raw`**: responds as plain text
+    - **`help`**: responds as an html Docco help file
+    - **`edit`**: responds as an html source web editor
+
+- a **`backdoor_key`** key can be specified to have system access
+
+        https://myserver/!/my_backdoor_key/myworld/myfolder
+            
+Usage:
+
+        https://myserver/myworld/myfolder?so=move&what=/myworld/mydocument
+           Moves /myworld/mydocument file to /myworld/myfolder
+           so = move
+           what = /myworld/mydocument
+           where = /myworld/myfolder
+           how = web (by default) - will return an answer as html.
+
+        https://myserver/myworld/myfolder
+           Go to /myworld/myfolder file, 
+             load it and execute **interface** function if exists,
+             otherwise open file in editor
+           so = go (by default)
+           what = undefined
+           where = /myworld/myfolder
+           how = web (by default) - will return an answer as html.
+
+        https://myserver/myworld/myfolder?myFunc&myParamValue
+           Go to /myworld/myfolder file, 
+             load it and execute **myFunc** function if exists, with myParamValue param
+             otherwise returns empty page
+           so = do (by default when request has parameters)
+           what = myFunc
+           where = /myworld/myfolder
+           how = web (by default) - will return an answer as html.
+
+### <a name="Choco-Locco-Interface"></a>Interface [⌂](#Choco-Summary) 
+
+Locco Interface is a javascript protoype that provides the following services:
+
+**Rules** enforcement:
+
+ - default values : ensures that default values are set
+ - security control : ensures current user has access rights
+ - values validation control : ensures values are valid before proceeding
+ - steps execution: execute asynchronous preparation steps before main action
+
+**Action** execution:
+
+ - execute interface main action
+ - returns synchronously or asynchronously an Interface.Reaction
+ 
+When Chocolate workflow service receives a request, it loads the corresponding module.
+If the module has an property named `interface` which is an instance of Locco `Interface`,
+it submits the provided parameters and the system context (__) in a `bin` to the interface:
+        
+        Interface = require 'chocolate/general/locco/interface'
+        exports.interface = new Interface
+            rules:
+                defaults:
+                    who: 'you'
+                    where: 'Paris'
+            action: ->
+                'hello ' + @bin.who + ' in ' + @bin.where
+
+`Interface` service makes explicit what you have to deal with when you create an interface.
+
+### <a name="Choco-Locco-Interface-Web"></a>Interface.Web [⌂](#Choco-Summary) 
+
+An `Interface.Web` service makes it easy to build a web interface component.
+
+You just declare an interface where the `action` is some Chocokup code that can access data stored in the provided `bin`.
+That interface can embed other `Interface.Web` modules:
+
+        welcome_user = new Interface.Web
+                rules:
+                    defaults:
+                        welcome_message: -> 'Welcome'
+                        
+                        login_panel: new Interface.Web
+                            rules:
+                                defaults:
+                                    login: -> 'Login'
+                                    signin: -> 'Sign in'
+                            action: (bin = @bin) ->
+                                a href:'#', bin.login
+                                a href:'#', bin.signin
+        
+                action: (bin = @bin) ->
+                    if bin.__.session.user?.has_signed_in
+                        span bin.welcome_message
+                        span bin.__.session.user.name
+                    else
+                        login_panel bin.login_panel.bin
+
 
 &nbsp;
 
@@ -1134,13 +1606,12 @@ Read the complete Newnotes reference in Chocolate Studio Newnotes help panel.
 
 ## <a name="Choco-RoadMap"></a> Road Map [⌂](#Choco-Summary) 
 
-Chocolate is currently (2013/12) an experiment that needs to be completed and polished:
+Chocolate is currently (2014/04) an experiment that needs to be completed and polished:
 
- - data management: offline and online synchronization
- - responsive user interface services
- - robust live coffeescript (and javascript) in lab tab
  - user management
- - security management
+ - responsive user interface services
+ - data management: offline and online synchronization
+ - robust live coffeescript (and javascript) in lab tab
  - link source context to notes in Newnotes
  - ...
 

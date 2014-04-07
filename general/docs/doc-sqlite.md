@@ -4,5 +4,5 @@ SQLite is a software library that implements a self-contained, serverless, zero-
 
 **References**
 
- - [Sqlite web site](http://www.sqlite.org/)
- - [Documentation](http://www.sqlite.org/docs.html)
+ - [Sqlite web site](https://www.sqlite.org/)
+ - [Documentation](https://www.sqlite.org/docs.html)

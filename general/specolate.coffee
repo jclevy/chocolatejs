@@ -1,5 +1,3 @@
-_exports = if window? then window.Specolate = {} else module.exports
-
 log = []
 available = true
 finished = true
@@ -140,4 +138,5 @@ class Specolate
     @has_finished: ->
         finished
 
-_exports.inspect = Specolate.inspect
+_module = window ? module
+_module[if _module.exports? then "exports" else "Specolate"] = Specolate

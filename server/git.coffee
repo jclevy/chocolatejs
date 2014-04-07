@@ -499,7 +499,7 @@ class DiffsParser extends ItemsParser
         [/^[ \-+](.*)/, (match) ->
             # "?" is a fix for "+++"/"---" lines in the header
             @item.chunks?[-1..][0].lines.push match[1]]
-        [//, ->]
+        [/(?:)/, ->]
     ]
 
 Parsers =
