@@ -1,9 +1,9 @@
 {
     "name": "chocolate",
-    "version": "0.0.10",
+    "version": "0.0.11",
     "description": "A full stack Node.js web framework built using Coffeescript",
     "preferGlobal": "true",
-    "keywords": ["fullstack", "reactive", "coffeescript", "framework", "online", "ide", "web", "app", "markdown", "jasmine", "ace", "jquery", "mootools", "coffeekup", "docco", "git", "impress"],
+    "keywords": ["fullstack", "reactive", "coffeescript", "framework", "online", "ide", "web", "app", "markdown", "jasmine", "ace", "jquery", "coffeekup", "docco", "git", "impress"],
     "homepage": "https://chocolatejs.org",
     "repository": "git://github.com/jclevy/chocolatejs",
     "bugs": { "url" : "http://github.com/jclevy/chocolatejs/issues"

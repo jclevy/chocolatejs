@@ -15,7 +15,7 @@
      `-..____________..-'                                    |__/      
                                                      
 
-# Chocolate - Full stack Node.js framework
+## Chocolate - Full stack Node.js framework
 
 Chocolate is an experimental Node.js webapp framework built using Coffeescript. 
 
@@ -57,7 +57,25 @@ Chocolate integrates:
 
 ## Version
 
-Chocolate v0.0.10 - 2014/04/07
+**Chocolate v0.0.11 - (2014-04-11)**
+
+UPDATES
+
+Chocodash
+
+- _.super was working only in a simple case
+
+FIXED BUGS
+
+Chocodash
+
+- static/lib/chocodash.js was not correctly recompiled in v0.0.10
+
+Locco
+
+- Interface replaced @rules and @action by provided params in constructor instead of merging them
+
+**Chocolate v0.0.10 - 2014/04/07**
 
 NEW FEATURES
 

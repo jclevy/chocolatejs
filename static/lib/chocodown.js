@@ -69,7 +69,7 @@
 //
 var Showdown = {};
 
-if  ((typeof CoffeeScript === "undefined" || CoffeeScript == null) || (typeof require === "function")) require('coffee-script').register();
+if  ((typeof CoffeeScript === "undefined" || CoffeeScript == null) || (typeof require === "function")) require('coffee-script');
 if  ((typeof Chocokup === "undefined" || Chocokup == null) || (typeof require === "function")) Chocokup = require('./chocokup');
 if  ((typeof Highlight === "undefined" || Highlight == null) || (typeof require === "function")) Highlight = require('./highlight');
 

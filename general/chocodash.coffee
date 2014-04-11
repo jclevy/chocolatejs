@@ -125,14 +125,28 @@ _.prototype = (options, more) ->
     created
 
 # `_.super` calls the parent's function in an overriden function
-_.super = (self) ->
-    name = null
-    parent = arguments.callee
-    while (parent = parent.caller)? and not name? then for k,v of self.constructor.prototype then if parent is v then name = k; break
+_.super = () ->
+    super_func = null
+    [func, self] = arguments
     
-    name ?= 'constructor'
-    return self.constructor.__super__[name].apply self, Array.prototype.slice.call arguments, 1
-
+    if typeof func isnt 'function' then self = func; func = null
+    
+    _func = if func? then func else arguments.callee.caller
+    
+    _name = null
+    constructor = self.constructor
+    while constructor and not super_func?
+    
+        for own k, v of constructor.prototype
+            if _func is v then _name = k; break
+    
+        super_func = constructor.__super__[_name] if _name?
+    
+        unless super_func?
+            constructor = if constructor.__super__? then constructor.__super__.constructor else null 
+    
+    if super_func
+        return super_func.apply self, Array.prototype.slice.call arguments, if func? then 2 else 1 
 
 # `_.stringify` transforms a javascript object in a string that can be parsed back as an object
 #
@@ -266,13 +280,14 @@ _.parallelize = (self, fn) ->
 #          expect(o.second.sub1).toBe('sub1')
 #          expect(o.second.sub2).toBe('sub2')
 _.defaults = (object, defaults) ->
-        set = (o, d) ->
-            for own k,v of d
-                if _.type(o[k]) is _.Type.Object and _.type(v) is _.Type.Object then set o[k], v
-                else o[k] = v if not o[k]?
-            o
-           
-        set object, defaults
+    set = (o, d) ->
+        for own k,v of d
+            o ?= {}
+            if _.type(o[k]) is _.Type.Object and _.type(v) is _.Type.Object then set o[k], v
+            else o[k] = v if not o[k]?
+        o
+       
+    set object, defaults
         
 # Signals and Observers
 # Adapted from Reactor written by fynyky (https://github.com/fynyky/reactor.js) 

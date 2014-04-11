@@ -5,7 +5,11 @@ Interface = _.prototype
 
     constructor: (service) ->
         service = action:service if typeof service is 'function'
-        {@rules, @action} = service
+        
+        @rules = _.defaults @rules, service.rules if service?.rules?
+        @action = service.action if service?.action?
+        
+        return
     
     review: (bin, reaction, next) ->
         check =
@@ -85,7 +89,7 @@ Interface = _.prototype
                 publisher.notify reaction
         
         publisher
-    
+
 Interface.Reaction = _.prototype
     constructor: (@bin, @certified) ->
 
@@ -94,14 +98,14 @@ Interface.Web = _.prototype inherit:Interface, use: ->
     @type = 'App'
 
     @review = (bin, reaction, next) ->
-
+        
         _.serialize @, (step) ->
-            step (next) -> result = _.super @, bin, reaction, next; next() unless result is next
+            step (next) -> result = _.super Interface.Web::review, @, bin, reaction, next; next() unless result is next
             step off, ->
                 reaction.bin = ''
                 for name, service of bin when service instanceof Interface.Web
                     reaction.kups ?= {}
-                    reaction.kups[name] ?= service.action
+                    reaction.kups[name] ?= service.action?.overriden ? service.action
                 next()
         
         next
@@ -119,7 +123,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                     when 'Panel'then new Chocokup.Panel {bin, kups}, chocokup_code
                     else new Chocokup[@type] bin?.name ? '', {bin, kups}, chocokup_code
                     
-            @action.overriden = on
+            @action.overriden = chocokup_code
         
         _.super @, bin
 
