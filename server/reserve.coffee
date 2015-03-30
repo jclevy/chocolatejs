@@ -110,11 +110,16 @@ class Space
                 _                   : '8'
             Prototype :
                 _                   : '9'
+                javascript          : '91'
 
     # spaces collection and accessors
     @spaces : {}
     @ensure : (path, name) -> Space.spaces[path + '/' + name] ? new Space(path, name)
     @get : (path) -> Space.spaces[path]
+    
+    @read: (container_id, options, callback, __) -> __?.space?.read container_id, options, callback
+    @write: (object, options, callback, __) -> __?.space?.write object, options, callback
+    @forget: (object, name, parent, callback, __) -> __?.space?.forget object, name, parent, callback
     
     # `constructor` - uses a sqlite database
     constructor: (@path = '.', @name = 'reserve.db') ->
@@ -130,6 +135,7 @@ class Space
                 @db.close()
                 
             @db.exec """
+                PRAGMA journal_mode = WAL;
                 PRAGMA foreign_keys = ON;
                 
                 CREATE TABLE IF NOT EXISTS container (
@@ -345,7 +351,7 @@ class Space
         #### Container
         @Container =
             get_create_statement: (matter, callback) =>
-                if (matter?)
+                if matter?
                     return callback? @Container.create_with_matter_stmt if @Container.create_with_matter_stmt?
                     @Container.create_with_matter_stmt =
                         @db.prepare "INSERT INTO container (uuid, position, intention, matter, name, data) VALUES (?1, (SELECT ifnull(?6, ifnull(MAX(position), 0) + 1) FROM container WHERE matter = ?3), ?2, ?3, ?4, ?5)", => 
@@ -356,8 +362,32 @@ class Space
                         @db.prepare "INSERT INTO container (uuid, position, intention, matter, name, data) VALUES (?1, (SELECT ifnull(?6, ifnull(MAX(position), 0) + 1) FROM container LEFT JOIN matter ON matter.container = container.id WHERE matter.depth = 1 OR container.matter IS NULL), ?2, ?3, ?4, ?5)", => 
                             callback? @Container.create_without_matter_stmt
             
+            get_modify_statement: (intention, name, data, matter, position, callback) =>
+                mask = 0
+                mask |= 0x01 if intention isnt undefined
+                mask |= 0x02 if name isnt undefined
+                mask |= 0x04 if data isnt undefined
+                mask |= 0x08 if matter isnt undefined
+                mask |= 0x10 if position isnt undefined
+                
+                stmt_name = "update_#{mask}_stmt"
+                
+                return callback? @Container[stmt_name] if @Container[stmt_name]?
+                
+                clause = []
+                clause.push 'intention=?2' if intention isnt undefined
+                clause.push 'name=?3' if name isnt undefined
+                clause.push 'data=?4' if data isnt undefined
+                clause.push 'matter=?5' if matter isnt undefined
+                clause.push 'position=?6' if position isnt undefined
+                
+                @Container[stmt_name] =
+                    @db.prepare "UPDATE container SET #{clause.join ','} WHERE uuid = ?1", => 
+                        callback? @Container[stmt_name]
+
+            
             get_destroy_statement: (uuid, callback) =>
-                if (uuid?)
+                if uuid?
                     return callback? @Container.destroy_with_uuid_stmt if @Container.destroy_with_uuid_stmt? 
                     @Container.destroy_with_uuid_stmt =
                         @db.prepare "DELETE FROM container WHERE uuid = ?", =>
@@ -378,6 +408,19 @@ class Space
                     defer (next) -> @Container.get_create_statement matter, (o) -> stmt = o ; next()
                     defer -> stmt.run [uuid ? Uuid({}, new Buffer(16)), intention, matter, name, data, position], (error) -> callback? error, if not error then @lastID else null
             
+            modify: (options, callback) =>
+                {uuid, name, data, intention, matter, position} = options
+                
+                return unless uuid?
+
+                if _.type(uuid) is _.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
+
+                _.serialize @, (defer) ->
+                    stmt = null
+                    defer (next) -> @Container.get_modify_statement intention, name, data, matter, position, (o) -> stmt = o ; next()
+                    defer -> stmt.run [uuid, intention, name, data, matter, position], (error) -> callback? error
+            
+                
             destroy: (options, callback) =>
                 {id, uuid} = options
                 
@@ -413,7 +456,7 @@ class Space
     uuid: (object, name, parent) ->
         return undefined unless object?
         
-        if object.uuid is null then parent?._?[name]?.uuid else object.uuid
+        object.uuid ? object._?._?.uuid ? parent?._?[name]?.uuid
 
     # `stage` - manages transactions on Space operations
     stage: ->
@@ -508,32 +551,45 @@ class Space
         objects = {}
         error = null
         
+        object_id = null
+        
         materialize = (current, callback) =>
             {item, name, parent, position} = current
             {uuid, type, intention} = {uuid:@uuid(item, name, parent?.object), type:_.type(item), intention:null}
             
+            object_id = uuid unless object_id?
+            
             if name is '_' then return callback error, parent?.relation
 
-            if objects[uuid ? item]?
-                if uuid?
-                    item = uuid ; type = _.type(item)
-                    intention = Space.Container.Family.Data.Binary.Uuid.reference
-                    uuid = Uuid()
+            if objects[uuid ? item]? and uuid?
+                item = uuid ; type = _.type(item)
+                intention = Space.Container.Family.Data.Binary.Uuid.reference
+                uuid = Uuid()
             
+            unless options.not_extended
+                if _.isObject item
+                    item._ ?= if type is _.Type.Array then [] else {}
+                    item._._ ?= {uuid}
+                if parent?.object?
+                    parent.object._ ?= if _.type(parent.object) is _.Type.Array then [] else {}
+                    index = name ? position
+                    parent.object._[index] ?= if type is _.Type.Array then [] else {}
+                    parent.object._[index].uuid ?= uuid ?= Uuid()
+
             children_relation_options = id_isnt_uuid:yes, relation_is_new:yes, parent_is_new:yes
 
             switch type
             
                 when _.Type.Object, _.Type.Array
                     objects[uuid ? item] = on
-                    
+                
                     contained = parent?.object?._?[name]?.inside
                 
                     @create_object {uuid, name, type, parent, contained, position}, (err, id, relation) ->
                         if err? then error = err; return callback(err)
                         
                         granparent = {relation}
-                        
+
                         switch type 
                             when _.Type.Object
                                 _.serialize (defer, local) ->
@@ -548,11 +604,11 @@ class Space
 
                             when _.Type.Array
                                 _.serialize (defer, local) ->
-                                    pos = 0
                                     for own name, value of item
                                         unless error?
-                                            do (name, value, pos) -> 
-                                                defer (next) -> materialize {item:value, name: (if parseInt(name).toString() is name then undefined else name), parent:{parent:granparent, object:item, id:id, relation:local.children_relation, options:children_relation_options}, position:pos++}, (err, relation) ->
+                                            do (name, value) ->
+                                                pos = null unless (pos = parseInt name).toString() is name
+                                                defer (next) -> materialize {item:value, name: (if pos? then undefined else name), parent:{parent:granparent, object:item, id:id, relation:local.children_relation, options:children_relation_options}, position:pos}, (err, relation) ->
                                                     local.children_relation = relation
                                                     next()
 
@@ -575,8 +631,8 @@ class Space
             unless stage_is_live then defer (next) -> 
                 @stage()[if error? then 'revert' else 'end'] -> next()
             
-            defer -> callback? error
-            
+            defer -> callback? error, object_id
+
     # `forget` - Remove a javascript object from database
     forget: (object, name, parent, callback) ->
         if typeof name is 'function' then callback = name; name = parent = null
@@ -584,20 +640,24 @@ class Space
         @Container.destroy {uuid}, callback if uuid?
 
     # `read` - Read a space structure in database and convert it back to a javascript object
-    read: (container_id, depth, callback) ->
-        if typeof depth is 'function' then callback = depth; depth = undefined
-
-        @look container_id, {scan:yes, depth}, (error, data) =>
+    read: (container_id, options, callback) ->
+        if typeof options is 'function' then callback = options; options = {}
+        
+        options ?= {}
+        
+        @look container_id, {scan:yes, depth:options.depth}, (error, data) =>
             
             if not error 
-                if data is null then callback? error, null; return 
+                if not data? then callback? error, null; return 
                 
                 result = null
                 for o, i in data
                     c = undefined
+                    uuid = Uuid.unparse(o.uuid)
+                    
                     switch o.intention
-                        when Space.Container.Family.Document._ then c = {}; c._ = {}
-                        when Space.Container.Family.Document.array then c = []; c._ = {}
+                        when Space.Container.Family.Document._ then c = {}; c._ = {}; c._._ = {uuid}
+                        when Space.Container.Family.Document.array then c = []; c._ = []; c._._ = {uuid}
                         when Space.Container.Family.Data.date then c = new Date o.data
                         when Space.Container.Family.Data.boolean then c = (if o.data then yes else no)
                         when Space.Container.Family.Action.Operation.javascript then c = eval("c = " + o.data)
@@ -610,26 +670,22 @@ class Space
         
                     if i is 0 then result = c
                     
-                    uuid = Uuid.unparse(o.uuid)
                     @world[uuid] = c
                     
-                    parent_id = o.parent_uuid ? o.parent_scope_uuid
-                    if parent_id?
-                        if (parent = @world[Uuid.unparse(parent_id)])?
-                            __ = parent._ ?= {}
+                    if  (parent_id = o.parent_uuid ? o.parent_scope_uuid)? and
+                        (parent = @world[Uuid.unparse(parent_id)])? and 
+                        _.isObject parent
+                        
+                            js_ext = {uuid}
+                            if o.parent_scope_uuid? then js_ext.inside = yes
                             
-                            switch type = _.type parent
-                                when _.Type.Object, _.Type.Array
-                                    js_ext = {uuid}
-                                    if o.parent_scope_uuid? then js_ext.inside = yes
-                                    
-                                    if o.name?
-                                        __[o.name] = js_ext
-                                        parent[o.name] = c
-                                    else if type is _.Type.Array
-                                        __[parent.length.toString()] = js_ext
-                                        parent.push c
-                            
+                            parent_is_array = _.type(parent) is _.Type.Array
+                        
+                            unless options.not_extended    
+                                __ = parent._ ?= if parent_is_array then [] else {}
+                                if o.name? then __[o.name] = js_ext else if parent_is_array then __[o.position] = js_ext
+
+                            if o.name? then parent[o.name] = c else if parent_is_array then parent[o.position] = c
                         
                 callback? error, result
                         
@@ -669,6 +725,7 @@ class Space
                                 parent_container.uuid as parent_uuid, 
                                 container.name, 
                                 container.data, 
+                                container.position, 
                                 container.intention
                             FROM 
                                 container 
@@ -716,6 +773,7 @@ class Space
                             parent_container.uuid as parent_scope_uuid, 
                             container.name, 
                             container.data, 
+                            container.position, 
                             container.intention
                         FROM 
                             container

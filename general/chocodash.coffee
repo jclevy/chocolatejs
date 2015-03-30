@@ -22,6 +22,20 @@ _.Type =
     Undefined: '[object Undefined]'
     Null: '[object Null]'
 
+# `_.isObject` returns true if value is not a primitive
+_.isObject = (o) ->
+    return no unless o?
+    
+    switch typeof o
+        when 'object', 'function' then yes
+        else no
+
+# `_.isBasicObject` returns true if value is a basic object
+_.isBasicObject = (o) ->
+    return no unless o?
+    
+    return o.constructor is {}.constructor
+
 # `_.prototype` makes it easy to create a Javascript prototype
 #
 # following the classical class way:
@@ -111,18 +125,18 @@ _.prototype = (options, more) ->
 
     constructor = if options?.hasOwnProperty 'constructor' then options.constructor else null
     
-    created = if constructor? then -> constructor.apply @, arguments; return 
+    ctor = if constructor? then -> constructor.apply @, arguments; return 
     else if options?.inherit? then -> Array.prototype.unshift.call(arguments, @); _.super.apply _, arguments; return else ->
-    
+
     if options?
         for name, value of options
             if name in ['adopt', 'inherit', 'use']
-                prototype[name].call created, value
-            else created::[name] = value unless name is 'constructor'
+                prototype[name].call ctor, value
+            else ctor::[name] = value unless name is 'constructor'
         
-    created[name] = fn for own name,fn of prototype when not created[name]?
+    ctor[name] = fn for own name,fn of prototype when not ctor[name]?
     
-    created
+    ctor
 
 # `_.super` calls the parent's function in an overriden function
 _.super = () ->
@@ -152,6 +166,11 @@ _.super = () ->
 #
 # You can stringify every property of an object, even a function or a Date:
 #
+# options: 
+#    prettify : multiline indented json presentation
+#    own : stringify only own object properties not inherited ones
+#    filter : do not stringify user defined types ojects unless type is present in filter list
+#
 #     o = {
 #         u: void 0,
 #         n: null,
@@ -179,16 +198,17 @@ _.stringify = ->
     else
         tab = newline = ''
     
-    doit = (o, level) ->
+    doit = (o, level, p) ->
         result = []
         level ?= 0
         indent = (tab for [0...level]).join ''
         ni = newline + indent
         nit = ni + tab
         type = Object.prototype.toString.apply o
+        # if  v isnt p.constructor.prototype[k]
         result.push switch type
-            when '[object Object]' then "{#{nit}#{(k + ':' + doit(v, level+1) for own k,v of o).join(',' + nit)}#{ni}}"
-            when '[object Array]' then "function () {#{nit}var a = []; var o = {#{nit}#{(k + ':' + doit(v, level+1) for own k,v of o).join(',' + nit)}};#{nit}for (var k in o) {a[k] = o[k];} return a; }()"
+            when '[object Object]' then "{#{nit}#{(k + ':' + doit(v, level+1) for k,v of o when (not options.filter? or (v.constructor in options.filter)) and (options.own isnt true or {}.hasOwnProperty.call(o, k))).join(',' + nit)}#{ni}}"
+            when '[object Array]' then "function () {#{nit}var a = []; var o = {#{nit}#{(k + ':' + doit(v, level+1) for own k,v of o).join(',' + nit)}};#{nit}for (var k in o) {a[k] = o[k];} return a; }()" # necessary to serialize both indexes and properties
             when '[object Boolean]' then o
             when '[object Number]' then o
             when '[object Date]' then "new Date(#{o.valueOf()})"
@@ -218,6 +238,20 @@ _.stringify = ->
 #     expect(a.d.valueOf()).toBe new Date("Sat Jan 01 2011 00:00:00 GMT+0100").valueOf()
 _.parse = (str) ->
     (new Function "return " + str)()
+
+#
+# `_.param` transforms a javascript value to an url query parameter
+#
+#     a = _.param {u:1, v:2}
+#     expect(a).toBe 'u=1&v=2'
+#
+_.param = (parameters) ->
+    return encodeURIComponent parameters if _.type(parameters) is _.Type.String
+    
+    serialize = []
+    for own parameter of parameters
+        serialize.push "#{encodeURIComponent parameter}=#{encodeURIComponent parameters[parameter]}"
+    serialize.join '&'
         
 # `serialize` helps manage asynchronous calls serialization.  
     #
@@ -265,6 +299,35 @@ _.parallelize = (self, fn) ->
     
     count = pushed.length ; for dfn in pushed then dfn.call self
 
+# `extend` copies values from an object to another object
+#
+# Copy values unless `overwrite` is false:
+#
+#     o = _.extend {first:1}, {second:2}
+#          expect(o.first).toBe(1)
+#          expect(o.second).toBe(2)
+#
+# Copy values on sub-object and overwrite values if overwrite is not false:
+#
+#     o = _.extend {second:{sub1:'sub1'}}, {first:2, second:sub1:'sub2'}
+#          expect(o.first).toBe(2)
+#          expect(o.second.sub1).toBe('sub2')
+#
+# Copy values on sub-object if not set and preserve other values if overwrite is false:
+#
+#     o = _.extend {second:{sub1:'sub1'}}, {first:2, second:sub1:'sub2'}, false
+#          expect(o.first).toBe(2)
+#          expect(o.second.sub1).toBe('sub1')
+_.extend = (object, values, overwrite) ->
+    set = (o, d) ->
+        for own k,v of d
+            o ?= {}
+            if _.type(o[k]) is _.Type.Object and _.type(v) is _.Type.Object then set o[k], v
+            else o[k] = v unless overwrite is false and o[k]?
+        o
+       
+    set object, values
+
 # `defaults` ensure default values are set on an object
 #
 # Set default values if not set:
@@ -280,15 +343,8 @@ _.parallelize = (self, fn) ->
 #          expect(o.second.sub1).toBe('sub1')
 #          expect(o.second.sub2).toBe('sub2')
 _.defaults = (object, defaults) ->
-    set = (o, d) ->
-        for own k,v of d
-            o ?= {}
-            if _.type(o[k]) is _.Type.Object and _.type(v) is _.Type.Object then set o[k], v
-            else o[k] = v if not o[k]?
-        o
-       
-    set object, defaults
-        
+    _.extend object, defaults, false
+
 # Signals and Observers
 # Adapted from Reactor written by fynyky (https://github.com/fynyky/reactor.js) 
 
@@ -340,6 +396,39 @@ _.defaults = (object, defaults) ->
 _.Signal = Signal = _.prototype
 
     adopt:
+        # Constants
+        type: "SIGNAL"
+        arrayMethods: ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
+        
+        ### Events on evalutate
+            value   REPLACE - ALL
+            set     REPLACE - ONE - at KEY
+            delete  REMOVE - ONE - at KEY
+            pop     REMOVE - ONE - at LAST
+            push    INSERT - ONE or MANY - at END 
+            reverse SORT - ALL
+            shift   REMOVE - ONE - at FIRST
+            sort    SORT - ALL
+            splice  REMOVE - ONE or MANY - at INDEX and INSERT - ONE or MANY - at INDEX
+            unshift INSERT - ONE or MANY - at FIRST
+        ###        
+        Event: 
+            Type: Insert:0, Replace:1, Remove:2, Sort:3
+            What: All:0, One:1, Many:2
+            Where: First:0, Last:1, End:2, Index:3
+        
+        EventDef:
+            value: type:'Replace', what: 'All'
+            set: type:'Replace', what:'One', where:'Index'
+            delete: type:'Remove', what:'One', where:'Index'
+            pop: type:'Remove', what:'One', where:'Last'
+            push: type:'Insert', what:'One', where:'End'
+            reverse: type:'Sort', what:'all'
+            shift: type:'Remove', what:'One', where:'First'
+            sort: type:'Sort', what:'all'
+            splice: type:'Remove', what:'One', where:'Index'
+            unshift: type:'Insert', what:'One', where:'First'
+
         # Global stack to automatically track signal dependencies
         # Whenever a signal or observer is evaluated - it puts itself on the dependency stack
         # When another signals is read - the dependency stack is checked to see who is asking
@@ -347,6 +436,10 @@ _.Signal = Signal = _.prototype
         # wWen a signal or observer's evaluation is done - it pops itself off the stack
         dependencyStack: []
         
+        # Global dictionnary to trac active transactions
+        transactions: {}
+        
+        # Defered signal management
         Defer: _.prototype
             constructor: (@signal, @observerList) -> @count = 0
             
@@ -368,7 +461,10 @@ _.Signal = Signal = _.prototype
             one: -> @count += 1
             idle: -> @count is 0
                 
-    constructor: (@definition) ->
+    constructor: (@definition, @helpers) ->
+        
+        # @helpers can contain  'set' and array functions helpers to be called in place of our version
+        for name, helper of @helpers then do (helper, name, self=@) ->  self.helpers[name] = -> helper.apply self, arguments
         
         # Cached value of this signal calculated by the evaluate function
         # Recalculated when a definition has changed or when notified by a dependency
@@ -385,7 +481,7 @@ _.Signal = Signal = _.prototype
         # Note that while the dependents is a list of evaluate objects
         # dependencies is a list of the signals themselves
         @dependencies = []
-        @dependencyType = "signal"
+        @dependencyType = Signal.type
     
         # Symmetrically - the list of other signals and observers that depend on this signal
         # Used to know who to notify when this signal has been updatedls
@@ -402,77 +498,105 @@ _.Signal = Signal = _.prototype
     # Simultaneously, in order to know what observers to notify later
     # it recursively passes through a list to collect all the observers of the updated signals
     # After the signal cascade has completed, the observers on the list are notified
+    
     evaluate: (defer, observerList) ->
         
         # by default the value is the definition
         @_value = @definition
         @_idle = true
+        @_error = null
 
-        arrayMethods = ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
-        
+        # clear old dependencies both forward and back pointers
+        for dependency in @dependencies
+            dependentIndex = dependency.dependents.indexOf @
+            dependency.dependents.splice dependentIndex, 1
+        @dependencies = []
+
         switch type = _.type @definition
         
             # if definition is a function then we need to evaluate it
             # and set it up to be notified when its dependencies change
             when _.Type.Function
 
-                # clear old dependencies
-                for dependency in @dependencies
-                    dependentIndex = dependency.dependents.indexOf @
-                    dependency.dependents.splice dependentIndex, 1
-                @dependencies = []
-    
                 # evaluate the definition and set new dependencies
-                Signal.dependencyStack.unshift @
+                Signal.dependencyStack.push @
                 
-                deferred = do (signal=@) ->
-                    (fn) ->
-                        prev = defer.signal
-                        defer.signal = signal
-                        defer.value.call defer, fn
-                        defer.signal = prev
-                        
-                result = @definition deferred
-                
-                if result is deferred
-                    @_idle = false
-                    defer.one()
-                    observer.notify(off) for observer in @observers
-                else
-                    @_value = result
-                    @_initialized = true
-                    @_idle = true
+                try
+                    deferred = do (signal=@) ->
+                        (fn) ->
+                            prev = defer.signal
+                            defer.signal = signal
+                            defer.value.call defer, fn
+                            defer.signal = prev
+                            
+                    try
+                        result = @definition deferred
+                    catch e
+                        result = undefined
+                        @_error = e
+                        if @_catch?
+                            @_catch e
+                            @_error = null
                     
-                Signal.dependencyStack.shift()
+                    if result is deferred
+                        @_idle = false
+                        defer.one()
+                        observer.notify(off) for observer in @observers
+                    else
+                        @_value = result
+                        @_initialized = true
+                        @_idle = true
+                
+                finally 
+                    Signal.dependencyStack.pop()
             
             when _.Type.Object, _.Type.Array
                 
-                # convenience method for setting properties
-                @set = (key, value) =>
-                    @definition[key] = value
-                    @value(@definition) # Manually trigger the refresh
-            
-                if type is _.Type.Array
-                    # Set the special array methods if the definition is an array
-                    # Essentially providing convenience mutator methods which automatically trigger revaluation
-                    for methodName in arrayMethods
-                        do (methodName) =>
-                            @[methodName] = =>
+                # convenience method for setting or deleting properties
+                unless @set?
+                    @set = @helpers?.set ? (key, value) =>
+                        if arguments.length is 1 
+                            @definition = key
+                        else 
+                            @definition[key] = value
+                            
+                        @value(@definition) # Manually trigger the refresh
+                
+                    @delete = @helpers?.delete ? (key) =>
+                        delete @definition[key]
+                            
+                        @value(@definition) # Manually trigger the refresh
+                        
+                    if type is _.Type.Array
+                        # Set the special array methods if the definition is an array
+                        # Essentially providing convenience mutator methods which automatically trigger revaluation
+                        for methodName in Signal.arrayMethods then do (methodName) =>
+                            @[methodName] = @helpers?[methodName] ?  =>
                                 output = @definition[methodName].apply @definition, arguments
                                 @value(@definition) # Manually trigger the refresh
                                 return output
                 
             else 
-                delete @[methodName] for methodName in arrayMethods
-                delete @set
+                if @set?
+                    delete @set
+                    delete @delete
+                    delete @[methodName] for methodName in Signal.arrayMethods
 
         # Add this signals own observers to the observer list
         if observerList? then for observer in @observers
-            observerList.push observer if (observerList.indexOf observer) < 0
+            observerList.push observer if observer? and (observerList.indexOf observer) < 0
 
         # Now propagate the evaluation to the dependant signals
         @propagate defer, observerList unless deferred? and result is deferred
 
+    # catch register a function to call when an error occurs
+    
+    catch: (report) ->
+        @_catch = report
+        if @_error?
+            @_catch @_error
+            @_error = null
+        
     # Tells whether this Signal is currently calculating its value
     idle: -> @_idle
     
@@ -491,7 +615,7 @@ _.Signal = Signal = _.prototype
         # and give them the observer list to add to as well
         # need to duplicate list since it will be modified by child evaluations
         for dependent in @dependents[...]
-            if @dependentTargets.indexOf(dependent) >= 0
+            if dependent? and @dependentTargets.indexOf(dependent) >= 0
                 dependent.evaluate defer, observerList
                 
     # The actual signal function that is returned to the caller
@@ -528,7 +652,7 @@ _.Signal = Signal = _.prototype
             @evaluate defer, observerList
             
             if defer.idle()
-                observer.trigger() for observer in observerList
+                observer.trigger() for observer in observerList[...] # Copy the list since the trigger might modify it
             
             return @_value
 
@@ -544,39 +668,28 @@ _.Signal = Signal = _.prototype
         #     register self and their dependency
         #     return value
         else
-            
             # check the global stack for the most recent dependent being evaluated
             # assume this is the caller and set it as a dependent
-            dependent = Signal.dependencyStack[0]
+            dependent = Signal.dependencyStack[Signal.dependencyStack.length - 1]
 
             # If its a signal dependency - register it as such
-            if dependent? and dependent.dependencyType is "signal"
+            # symmetrically register self as a dependency for cleaning dependencies later
+            if dependent? and dependent.dependencyType is Signal.type
+            
+                @dependents.push dependent if @dependents.indexOf(dependent) < 0
+                dependent.dependencies.push @ if dependent.dependencies.indexOf(@) < 0
 
                 # remove the dependent from the targets list if necessary
                 # this is used to avoid duplicate redundant evaluation
                 targetDependentIndex = @dependentTargets.indexOf dependent
-                @dependentTargets.splice(targetDependentIndex, 1) if targetDependentIndex >= 0
-
-                # register it as a dependent if necessary
-                existingDependentIndex = @dependents.indexOf dependent
-                @dependents.push dependent if existingDependentIndex < 0
-
-                # symmetrically - register self as a dependency
-                # this is needed for cleaning dependencies later
-                existingDependencyIndex = dependent.dependencies.indexOf @
-                dependent.dependencies.push @ if existingDependencyIndex < 0
+                @dependentTargets[targetDependentIndex] = null if targetDependentIndex >= 0
 
             # If it is a observer dependency - similarly register it as a observer
-            else if dependent? and dependent.dependencyType is "observer"
+            # symmetrically register self as a observee for cleaning dependencies later
+            else if dependent? and dependent.dependencyType is Observer.type
                 
-                # register the observer if necessary
-                existingObserverIndex = @observers.indexOf dependent
-                @observers.push dependent if existingObserverIndex < 0
-
-                # symmetrically - register self as a observee
-                # this is needed for cleaning obeserver dependencies later
-                existingObserveeIndex = dependent.observees.indexOf @
-                dependent.observees.push @ if existingObserveeIndex < 0
+                @observers.push dependent if @observers.indexOf(dependent) < 0
+                dependent.observees.push @ if dependent.observees.indexOf(@) < 0
 
             return @_value
                 
@@ -590,9 +703,13 @@ _.Signal = Signal = _.prototype
 
 _.Observer = Observer = _.prototype
 
-    constructor: (report) -> 
+    adopt:
+        # Constants
+        type: "OBSERVER"
+
+    constructor: (report) ->
         @observees = []
-        @dependencyType = "observer"
+        @dependencyType = Observer.type
 
         @observe report
 
@@ -606,13 +723,13 @@ _.Observer = Observer = _.prototype
         # clear old observees
         for observee in @observees
             observerIndex = observee.observers.indexOf @
-            observee.observers.splice observerIndex, 1
+            observee.observers.splice(dependentIndex, 1)
         @observees = []
         
         # do initial trigger and set up to listen for future updates
-        Signal.dependencyStack.unshift @
-        @report() unless @report is null
-        Signal.dependencyStack.shift()
+        Signal.dependencyStack.push @
+        try @report() if @report?
+        finally Signal.dependencyStack.pop()
         
         @_ready = true
         for observee in @observees
@@ -634,25 +751,20 @@ _.Observer = Observer = _.prototype
     trigger: ->
 
         # do trigger and set up to listen for future updates
-        Signal.dependencyStack.unshift @
-        @report() unless @report is null
-        Signal.dependencyStack.shift()
+        Signal.dependencyStack.push @
+        try @report() if @report?
+        finally Signal.dependencyStack.pop()
 
 
     # Tells whether this Observer is currently calculating its value
     ready: -> @_ready
 
 # Publishers report basic signal changes to one-to-many reporters
-# They use one internal pair of Signal and Observer
 _.Publisher = Publisher = _.prototype
     constructor:  ->
         @subscribers = []
-        @signal = new Signal()
-        @observer = new Observer => 
-            value = @signal.value()
-            report value for report in @subscribers
-    
-    notify: (value) -> @signal.value(value)
+
+    notify: (value) -> for report in @subscribers then report value
     
     subscribe: (reporter) -> @subscribers.push reporter
     
@@ -893,7 +1005,7 @@ _.Uuid = do (_module) ->
             parsed = parse value
             unparsed = unparse parsed
             return value is unparsed
-        else if Buffer.isBuffer(value)
+        else if typeof Buffer is 'function' and Buffer.isBuffer(value)
             return value.length is 16
         else 
             return false
@@ -902,4 +1014,183 @@ _.Uuid = do (_module) ->
         uuid()    
     
     uuid
+
+#
+# Actors operations services
+#
+do (_) ->
+    _.go = (where, callback) ->
+        if _.type(where) is _.Type.String then window?.location = where else  where.submit? callback
+
+    actions = []
     
+    actions.Type = Create: 1, Attach: 2, Update: 3, Detach: 4, Delete: 5
+    
+    actions.do = ({action, object, type, uuid, property, value, parent, contained}) ->
+            
+            type ?= _.type object
+            
+            # u: uuid, n: name, d:data, p:position, c:contained, a:ancestor
+            
+            switch action
+                when actions.Type.Create 
+                    actions.push what:action, where:u: uuid ? object.uuid, n:property, c:contained, a:parent, t:type
+
+                when actions.Type.Attach
+                    if type is _.Type.Array then position = property = object.length
+                    actions.push what:action, where:u:_.do.uuid({parent:object, property, create:yes}), n:property, d:value, a:object._._.uuid, p:position
+                    
+                when actions.Type.Update 
+                    actions.push what:action, where:u:_.do.uuid({parent:object, property}), d:value
+                    
+                when actions.Type.Detach 
+                    actions.push what:action, where:u:_.do.uuid({parent:object, property})
+                    
+                when actions.Type.Delete 
+                    actions.push what:action, where:u:uuid ? object.uuid
+
+    _.do = (object, uuid) ->
+        uuid ?= object.uuid
+
+    # flush actions
+    _.do.flush = ->
+        return null if actions.length is 0
+        
+        actions_ = actions[...]
+        actions.length = 0
+        actions_
+    
+    # `internal` extends a Javascript object to add _ internal properties
+    _.do.internal = (object, name, value) ->
+        if _.isObject object
+            object._ ?= if _.type(object) is _.Type.Array then [] else {}
+            object._._ ?= {}
+            if name? then object._._[name] ?= value
+        object
+
+    # `identify` extends a Javascript object so that every property has an identity
+    # `options.parent` optionaly gives the parent's object
+    # `options.name` optionaly tells the object's name given by its parent
+    _.do.identify = (object, options) ->
+        options ?= {}
+        filter = options?.filter
+        identified = {}
+        
+        identify = (current) ->
+            {item, name, parent, position} = current
+            {uuid, type} = {uuid:_.do.uuid({object:item, parent:parent?.object, property:name}), type:_.type(item)}
+            
+            if name is '_' then return
+    
+            _.do.internal item, 'uuid', uuid ? _.Uuid()
+    
+            if parent?.object?
+                parent.object._ ?= if _.type(parent.object) is _.Type.Array then [] else {}
+                index = name ? position
+                parent.object._[index] ?= if type is _.Type.Array then [] else {}
+                parent.object._[index].uuid ?= uuid ?= _.Uuid()
+    
+            switch type
+                when _.Type.Object, _.Type.Array
+                    switch type 
+                        when _.Type.Object
+                            for name, value of item when name isnt '_' and (not filter? or value.constructor in filter) and identified[value._?._?.uuid] isnt true
+                                identify {item:value, name:name, parent: object:item}
+                                if _.isObject value then identified[value._._.uuid] = true 
+                                
+                        when _.Type.Array
+                            for name, value of item when name isnt '_' and (not filter? or value.constructor in filter) and identified[value._?._?.uuid] isnt true
+                                pos = null unless (pos = parseInt name).toString() is name
+                                identify {item:value, name: (if pos? then undefined else name), parent:{object:item}, position:pos}
+                                if _.isObject value then identified[value._._.uuid] = true 
+            return
+        
+        identify {item:object, parent:(if options.parent? then object:options.parent else null), name:options.name}
+        object
+
+    # `uuid` retrieves an object uuid    
+    _.do.uuid = ({object, parent, property, create}) ->
+        if not object? and parent? and property?
+            object = parent[property]
+
+        return undefined unless object?
+        
+        uuid = object.uuid ? parent?._?[property]?.uuid
+        
+        if not uuid? and create 
+            uuid = _.Uuid()
+            if parent? and property? then parent._[property].uuid = uuid
+            object._ ?= if _.type(object) is _.Type.Array then [] else {}
+            object._._ ?= {uuid}
+        
+        uuid
+        
+    # `set` a value inside an object    
+    _.do.set = (object, property, value) ->
+        
+        return unless _.isObject object
+        
+        _.do.identify object unless object._?
+        
+        set = (o,k,v) ->
+            _.do.identify v if _.isObject(v) and not v._?
+            o[k] = v
+
+        action = actions.Type.Update
+        
+        switch _.type property
+            when _.Type.Number, _.Type.String
+                action = actions.Type.Attach unless object[property]?
+                actions.do {action, object, property, value}
+                set object, property, value
+    
+            when _.Type.Object
+                if _.type(object) is _.Type.Array
+                    for k,v of property
+                        if (index = parseInt(k)) isnt Number.NaN
+                            action = actions.Type.Attach unless object[index]?
+                            actions.do {action, object, property:index, value:v}
+                            set object, index, v
+                        else
+                            action = actions.Type.Attach unless object[k]?
+                            actions.do {action, object, property:k, value:v}
+                            set object, k, v
+                else
+                    for k,v of property
+                        action = actions.Type.Attach unless object[k]?
+                        actions.do {action, object, property:k, value:v}
+                        set object, k, v
+                        
+        object
+        
+    _.do.pop = (array) ->
+        array.pop()
+        
+    _.do.push = ->
+        array = Array.prototype.shift.call arguments
+        
+        
+        #actions.do {action:actions.Type.Attach, object:array, value:item} for item in arguments
+
+        Array.prototype.push.apply array, arguments
+        
+    _.do.reverse = ->
+        array = Array.prototype.shift.call arguments
+        Array.prototype.reverse.apply array, arguments
+        
+    _.do.shift = ->
+        array = Array.prototype.shift.call arguments
+        Array.prototype.shift.apply array, arguments
+        
+    _.do.sort = ->
+        array = Array.prototype.shift.call arguments
+        Array.prototype.sort.apply array, arguments
+        
+    _.do.splice = ->
+        array = Array.prototype.shift.call arguments
+        Array.prototype.splice.apply array, arguments
+        
+    _.do.unshift = ->
+        array = Array.prototype.shift.call arguments
+        Array.prototype.unshift.apply array, arguments
+        

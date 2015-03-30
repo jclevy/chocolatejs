@@ -4,7 +4,7 @@
 
   _ = require('../general/chocodash');
 
-  describe('prototype', function() {
+  xdescribe('prototype', function() {
     var CopiedDocument, DocWithCons, DocWithInst, Document, InheritedDocument, cop, doc, inh;
     Document = _.prototype();
     DocWithCons = DocWithInst = null;
@@ -125,7 +125,7 @@
     });
   });
 
-  describe('Data', function() {
+  xdescribe('Data', function() {
     return describe('Serialization services', function() {
       var o, s;
       o = {
@@ -144,7 +144,7 @@
       it('should stringify an object', function() {
         return expect(s = _.stringify(o)).toBe("{u:void 0,n:null,i:1,f:1.11,s:'2',b:true,add:function (a, b) {\n          return a + b;\n        },d:new Date(1293836400000)}");
       });
-      return it('should parse a string to an object', function() {
+      it('should parse a string to an object', function() {
         var a;
         a = _.parse(s);
         expect(a.u).toBe(void 0);
@@ -156,10 +156,18 @@
         expect(a.add(1, 1)).toBe(2);
         return expect(a.d.valueOf()).toBe(new Date("Sat Jan 01 2011 00:00:00 GMT+0100").valueOf());
       });
+      return it('should convert an object to url query parameters', function() {
+        var a;
+        a = _.param({
+          u: 1,
+          v: 2
+        });
+        return expect(a).toBe('u=1&v=2');
+      });
     });
   });
 
-  describe('Flow', function() {
+  xdescribe('Flow', function() {
     var f1, f2, f3;
     f1 = function(cb) {
       return setTimeout((function() {
@@ -300,6 +308,66 @@
     });
   });
 
+  describe('extend', function() {
+    it('should set values', function() {
+      var o;
+      o = _.extend({}, {
+        first: 1
+      });
+      return expect(o.first).toBe(1);
+    });
+    it('should overwrite values if already set', function() {
+      var o;
+      o = _.extend({
+        first: 1
+      }, {
+        first: 2
+      });
+      return expect(o.first).toBe(2);
+    });
+    it('should not overwrite values if already set and overwrite paramater set to false', function() {
+      var o;
+      o = _.extend({
+        first: 1
+      }, {
+        first: 2
+      }, false);
+      return expect(o.first).toBe(1);
+    });
+    it('should overwrite values and preserve other values', function() {
+      var o;
+      o = _.extend({
+        second: {
+          sub: 'sub'
+        }
+      }, {
+        first: 2,
+        second: {
+          sub: 'newsub'
+        }
+      });
+      expect(o.first).toBe(2);
+      return expect(o.second.sub).toBe('newsub');
+    });
+    return it('should set default values on sub-object if not set and preserve other values', function() {
+      var o;
+      o = _.extend({
+        second: {
+          suba: 'suba'
+        }
+      }, {
+        first: 2,
+        second: {
+          suba: 'subaa',
+          subb: 'subb'
+        }
+      }, false);
+      expect(o.first).toBe(2);
+      expect(o.second.suba).toBe('suba');
+      return expect(o.second.subb).toBe('subb');
+    });
+  });
+
   describe('defaults', function() {
     it('should set default values if not set', function() {
       var o;
@@ -350,13 +418,89 @@
     });
   });
 
+  xdescribe('Actors', function() {
+    it('should identify a JS object', function() {
+      var o, _ref, _ref1, _ref2, _ref3;
+      o = {
+        first: 1,
+        sub: {
+          second: 2
+        }
+      };
+      _["do"].identify(o);
+      expect(_.Uuid.isUuid((_ref = o._) != null ? (_ref1 = _ref.first) != null ? _ref1.uuid : void 0 : void 0)).toBe(true);
+      return expect(_.Uuid.isUuid((_ref2 = o.sub._) != null ? (_ref3 = _ref2.second) != null ? _ref3.uuid : void 0 : void 0)).toBe(true);
+    });
+    it('should set a value in an object passing an object', function() {
+      var o;
+      _["do"].identify(o = {
+        first: 1
+      });
+      _["do"].set(o, {
+        first: 2,
+        second: 3
+      });
+      expect(o.first).toBe(2);
+      return expect(o.second).toBe(3);
+    });
+    it('should set a value in an object passing a name and a value', function() {
+      var o;
+      o = {
+        first: 1
+      };
+      _["do"].set(o, 'second', 2);
+      return expect(o.second).toBe(2);
+    });
+    it('should set a value in an array passing an object', function() {
+      var o;
+      o = {
+        first: 1,
+        letters: ['a', 'b', 'c']
+      };
+      _["do"].set(o.letters, {
+        '1': 'd',
+        '0': 'e'
+      });
+      expect(o.letters[0]).toBe('e');
+      expect(o.letters[1]).toBe('d');
+      return expect(o.letters[2]).toBe('c');
+    });
+    return it('should set a value in an array passing an index and a value', function() {
+      var o;
+      o = {
+        first: 1,
+        letters: ['a', 'b', 'c']
+      };
+      _["do"].set(o.letters, 1, 'f');
+      return expect(o.letters[1]).toBe('f');
+    });
+  });
+
   Signal = _.Signal, Observer = _.Observer, Publisher = _.Publisher;
 
-  describe('Signal', function() {
+  xdescribe('Signal', function() {
     it('Signal is a Signal', function() {
       var a;
       a = new Signal(1);
       return expect(a instanceof Signal).toBe(true);
+    });
+    it('Signal propagates on Signal but not on functions', function() {
+      var a, b, c, d, e;
+      a = new Signal(1);
+      c = 0;
+      b = function() {
+        return c = a.value();
+      };
+      b();
+      e = 0;
+      d = new Signal(function() {
+        return e = a.value();
+      });
+      expect(c).toBe(1);
+      expect(e).toBe(1);
+      a.value(2);
+      expect(c).toBe(1);
+      return expect(e).toBe(2);
     });
     it('Single static signal', function() {
       var a;
@@ -568,7 +712,7 @@
         return expect(b.value()).toEqual(4);
       });
     });
-    return it("deferred multi dependents", function() {
+    it("deferred multi dependents", function() {
       var a, b, c;
       a = b = c = null;
       runs(function() {
@@ -610,9 +754,21 @@
         return expect(c.value()).toEqual(5);
       });
     });
+    return it("catch an error", function() {
+      var a, err;
+      err = void 0;
+      a = new Signal(function() {
+        throw 'an errror occured';
+      });
+      a["catch"](function(e) {
+        return err = e;
+      });
+      expect(a.value()).toBe(void 0);
+      return expect(err).toBe('an errror occured');
+    });
   });
 
-  describe("Observer", function() {
+  xdescribe("Observer", function() {
     it("basic observer", function() {
       var a, b, c;
       a = new Signal(1);
@@ -787,7 +943,7 @@
     });
   });
 
-  describe("Publisher", function() {
+  xdescribe("Publisher", function() {
     return it("Publishs a Signal captured by an Observer", function() {
       var a, b;
       a = new Publisher();
@@ -800,7 +956,7 @@
     });
   });
 
-  describe("Signal misc.", function() {
+  xdescribe("Signal misc.", function() {
     it("object setter", function() {
       var a, b;
       a = new Signal({});

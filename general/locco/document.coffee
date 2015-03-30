@@ -2,44 +2,36 @@ _ = require '../../general/chocodash'
 Data = require '../../general/locco/data'
 
 Document = _.prototype
-    constructor: (o) ->
-        if not o?.uuid? then o = new Data
+    constructor: (definition) ->
+        helpers = 
+            set: (key, value) ->
+                _.do.set @definition, key, value
+                @value(@definition)
         
-        materialize = (o, root, parent) ->
-            if not o? or typeof o isnt 'object'
-                return o
-            
-            idoc = if not parent? then root else new o.constructor()
-            
-            for own key of o
-                idoc[key] = materialize o[key], root, if o.matter then idoc else parent
-            
-            # set document matter parent
-            idoc.parent = parent if idoc.uuid? and parent?
+        for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
+            helpers[methodName] = do (methodName) -> ->
+                Array.prototype.unshift.call arguments, @definition
+                result = _.do[methodName].apply null, arguments
+                @value(@definition)
+                result
+                
+        @signal = new _.Signal definition, helpers
+    
+    use: ->
+        @set = (key, value) ->
+            # _.do.set 
+            @signal.set key, value
+        
+        @delete = (key) ->
+            @signal.delete key
+        
+        @get = -> @signal.value()
 
-            # register intentional document in local world
-            Data.register idoc
-            
-            if parent?
-                # register access by name inside document
-                if idoc.name?
-                    parent.members ?= {}
-                    member = parent.members[idoc.name]
-                    if member?
-                        if _.type(member) is _.Type.Array
-                            member.push idoc
-                        else
-                            parent.members[idoc.name] = [member, idoc]
-                    else
-                        parent.members[idoc.name] = idoc
-                # register access by index inside document if no name 
-                else if idoc.uuid?
-                    (parent.items ?= []).push idoc
-                    
-            
-            return idoc
-            
-        return materialize o, @
+        for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
+            @[methodName] = do (methodName) -> ->
+                output = @signal[methodName].apply @signal, arguments
+                return output
+
 
 _module = window ? module
-if _module.exports? then _module.exports = Document else window.Locco?.Document = Document
+if _module.exports? then _module.exports = Document else window.Locco ?= {} ; window.Locco.Document = Document

@@ -59,6 +59,7 @@ It helps to manipulate the DOM in a cross-browser compatible way and implements 
   - [.append](#litejQ-fn-append)
   - [.prepend](#litejQ-fn-prepend)
   - [.replaceWith](#litejQ-fn-replaceWith)
+  - [.after](#litejQ-fn-after)
   - [.empty](#litejQ-fn-empty)
   - [.attr](#litejQ-fn-attr)
   - [.removeAttr](#litejQ-fn-removeAttr)
@@ -256,7 +257,7 @@ return control of `$` back to the other library with a call to `$.noConflict()`.
     ! chocokup
 
     check '$', [
-        ['ajax("/-/ping?how=row", {success: function(e){result = e.status}})', '"Ok"', "cb_async"]
+        ['ajax("/-/ping?how=raw", {success: function(e){result = e.status}})', '"Ok"', "cb_async"]
     ]
     
 ---
@@ -268,7 +269,7 @@ return control of `$` back to the other library with a call to `$.noConflict()`.
     ! chocokup
 
     check '$', [
-        ['get("/-/ping?how=row", null, function(e){result = e.status}, "json")', '"Ok"', "cb_async"]
+        ['get("/-/ping?how=raw", null, function(e){result = e.status}, "json")', '"Ok"', "cb_async"]
     ]
     
 ---
@@ -291,7 +292,7 @@ return control of `$` back to the other library with a call to `$.noConflict()`.
     ! chocokup
 
     check '$', [
-        ['getJson("/-/ping?how=row", null, function(e){result = e.status})', '"Ok"', "cb_async"]
+        ['getJson("/-/ping?how=raw", null, function(e){result = e.status})', '"Ok"', "cb_async"]
     ]
     
 ---
@@ -546,6 +547,10 @@ return control of `$` back to the other library with a call to `$.noConflict()`.
 ---
 
 ## <a name="litejQ-fn-replaceWith"></a> .replaceWith(value) [⌂](#litejQ-Summary)
+
+---
+
+## <a name="litejQ-fn-after"></a> .after(value) [⌂](#litejQ-Summary)
 
 ---
 

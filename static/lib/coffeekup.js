@@ -59,6 +59,8 @@
 
   coffeekup.self_closing = merge_elements('void', 'obsolete_void');
 
+  coffeekup.id = 0;
+
   skeleton = function(__data) {
     var coffeescript, comment, doctype, h, id, ie, tag, text, totext, __ck;
     if (__data == null) {
@@ -80,7 +82,6 @@
         }
       },
       tabs: 0,
-      id: 0,
       repeat: function(string, count) {
         return Array(count + 1).join(string);
       },
@@ -233,10 +234,19 @@
       return __ck.render_tag(name, idclass, attrs, contents);
     };
     id = function(value) {
-      if ((value != null) && typeof value === "number") {
-        __ck.id = parseInt(value);
+      var ids, key, _i, _len;
+      if (typeof value === "string") {
+        ids = {};
+        for (_i = 0, _len = arguments.length; _i < _len; _i++) {
+          key = arguments[_i];
+          ids[key] = id();
+        }
+        return ids;
       }
-      return '_' + __ck.id++;
+      if ((value != null) && typeof value === "number") {
+        __data.id(parseInt(value));
+      }
+      return '_' + __data.id();
     };
     totext = function(f) {
       var old_buffer, temp_buffer;
@@ -385,7 +395,11 @@
       _ref = options.hardcode;
       for (k in _ref) {
         v = _ref[k];
-        hardcoded_locals += "var " + k + " = " + (stringify(v)) + ";";
+        if (!(options.document && typeof v === 'function')) {
+          hardcoded_locals += "var " + k + " = " + (stringify(v)) + ";";
+        } else {
+          hardcoded_locals += "var " + k + " = function() { return (" + (stringify(v)) + ").apply(this.bin ? this : __data.document, arguments) };";
+        }
       }
     }
     tag_functions = '';
@@ -393,7 +407,7 @@
     _ref1 = coffeekup.tags;
     for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
       t = _ref1[_i];
-      if (template.indexOf(t) > -1 || hardcoded_locals.indexOf(t) > -1) {
+      if (options.all_tags || template.indexOf(t) > -1 || hardcoded_locals.indexOf(t) > -1) {
         tags_used.push(t);
       }
     }
@@ -434,6 +448,13 @@
     if (data.cache == null) {
       data.cache = false;
     }
+    data.id = function(value) {
+      if (value != null) {
+        return coffeekup.id = value;
+      } else {
+        return coffeekup.id++;
+      }
+    };
     if (data.cache && (cache[template] != null)) {
       tpl = cache[template];
     } else if (data.cache) {

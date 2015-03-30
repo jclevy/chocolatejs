@@ -1,4 +1,5 @@
 # **Immediate** programing environment
+
 Chocokup = require '../general/chocokup'
 Doccolate = require '../general/doccolate'
 
@@ -6,7 +7,7 @@ exports.interface = (__) ->
     exports.enter(__)
     
 exports.enter = (__) ->
-    new Chocokup.App 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, appdir:__.appdir, ->
+    new Chocokup.App 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, ->
         style
             type:"text/css" 
             media:"screen"
@@ -20,11 +21,7 @@ exports.enter = (__) ->
                 font-family:Lucida Console,monospace;
                 font-size:9pt;
                 line-height: 12pt;
-                background-color:#4D3B33;
-                color:#DBCCB6;
-            }
-            a, select {
-                color:#DBCCB6;
+
             }
             a.selected {
                 border-bottom: 1px double;
@@ -47,58 +44,23 @@ exports.enter = (__) ->
                 border-bottom-left-radius: 7px;
                 border-top-right-radius: 8px;
             }
-            .header, .footer {
-                background-color: #392C26;
-                color: #DBCCB6;
-                font-weight: bold;
-            }
-            .sizer {
-                line-height: 2em;
-                border-top: 3px solid rgb(78, 61, 48);
-                border-right: 4px solid rgb(44, 35, 28);
-                border-bottom: 4px solid #241505;
-                border-left: 4px solid rgb(49, 37, 28);
-                margin: 1px;
-                outline: 1px solid #241505;
-                border-bottom-left-radius: 8px;
-                border-top-right-radius: 9px;
-            }
             .space.frame > .sizer {
                 outline: inherit;
             }
             .white {
                 background-color: rgba(255, 255, 255, 1);
                 color: rgba(0, 0, 0, 0.6);
-                border: 2px solid rgba(255, 204, 0, 0.3);
             }
             .white .sizer {
                 outline: none;
-            }
-            .grey {
-                background-color: #191919;
-                border: 2px solid #202020;
             }
             .chocomilk {
                 background-color:rgb(245, 242, 232);
                 border: 2px solid rgba(255, 204, 0, 0.3);
                 color: rgb(92, 75, 68);
             }
-            .chocoblack {
-                background-color: #241A15;
-                border: 1px solid #080401;
-                -webkit-box-shadow: inset 0 0 15px #080401;
-                -moz-box-shadow: inset 0 0 15px #080401;
-                -o-box-shadow: inset 0 0 15px #080401;
-                box-shadow: inset 0 0 15px #080401;           
-            }
             .chocomilk a, .chocomilk select {
                 color: rgb(92, 75, 68);
-            }
-            .frame.white.round, .frame.chocomilk.round {
-                -webkit-box-shadow: inset 0 0 20px #080401;
-                -moz-box-shadow: inset 0 0 20px #080401;
-                -o-box-shadow: inset 0 0 20px #080401;
-                box-shadow: inset 0 0 20px #080401;    
             }
             .white-background {
                 background-color: white;
@@ -106,17 +68,7 @@ exports.enter = (__) ->
             .transparent-background {
                 background-color: transparent;
             }
-            .round.frame {
-                padding: 10px 10px;
-                border-radius: 10px;
-                margin: 4px 4px;
-              }
             .round.frame > .sizer {
-                width: 98%;
-                height: 98%;
-                top: 1%;
-                left: 1%;
-                border-style:none;
                 font-size: 9pt;
                 line-height: 12pt;
             }
@@ -165,12 +117,121 @@ exports.enter = (__) ->
             #notes-panel .space .paper {
                 font-size: 11pt;
             }
+            #source_select {
+                border: none;
+                vertical-align: middle;
+            }
+            #source_close {
+                border: 1px solid;
+                padding: 0px 3px;
+                cursor:pointer;
+            }
 
+            /* darkTheme */
+            body.darkTheme {
+                background-color:#4D3B33;
+                color:#DBCCB6;
+            }
+            .darkTheme .header, .darkTheme .footer {
+                background-color: #392C26;
+                color: #DBCCB6;
+            }
+            .darkTheme a, .darkTheme select {
+                color:#DBCCB6;
+                font-weight: normal;
+            }
+            .darkTheme .sizer {
+                line-height: 2em;
+                border-top: 2px solid rgb(78, 61, 48);
+                border-right: 3px solid rgb(44, 35, 28);
+                border-bottom: 3px solid #241505;
+                border-left: 3px solid rgb(49, 37, 28);
+                margin: 1px;
+                outline: 1px solid #241505;
+                border-bottom-left-radius: 8px;
+                border-top-right-radius: 9px;
+            }
+            .darkTheme .chocoblack {
+                background-color: #241A15;
+                border: 1px solid #080401;
+                -webkit-box-shadow: inset 0 0 15px #080401;
+                -moz-box-shadow: inset 0 0 15px #080401;
+                -o-box-shadow: inset 0 0 15px #080401;
+                box-shadow: inset 0 0 15px #080401;           
+            }
+            .darkTheme .round.frame {
+                padding: 6px 6px;
+                border-radius: 6px;
+                margin: 3px 3px;
+            }
+            .darkTheme .round.frame > .sizer {
+                width: 98%;
+                height: 98%;
+                top: 1%;
+                left: 1%;
+                border-style:none;
+            }
+            .darkTheme .frame.white.round, .darkTheme .frame.chocomilk.round {
+                -webkit-box-shadow: inset 0 0 20px #080401;
+                -moz-box-shadow: inset 0 0 20px #080401;
+                -o-box-shadow: inset 0 0 20px #080401;
+                box-shadow: inset 0 0 20px #080401;    
+            }
+            .darkTheme .white {
+                border: 2px solid rgba(255, 204, 0, 0.3);
+            }
+            .darkTheme .grey {
+                background-color: #191919;
+                border: 2px solid #202020;
+            }
+            .darkTheme #source_select {
+                background-color: #4D3B33;
+                color: #DBCCB6;
+            }
+            .darkTheme #source_close {
+                border-color: #DBCCB6;
+                color: #DBCCB6;
+            }
+            
+            /* lightTheme */
+            body.lightTheme {
+                background-color: #FBFBFB;
+                color: #0E0E0E;
+            }
+            .lightTheme .header, .lightTheme .footer {
+                background-color: #DAE1EC;
+                color: #46423D;
+                border-top: 1px solid;
+            }
+            .lightTheme a, .lightTheme select {
+                color: #312E29;
+                font-weight: normal;
+            }            
+            .lightTheme .sizer {
+                border-right: 1px solid #C0C0C0;
+            }
+            .lightTheme .round.frame > .sizer > .panel {
+                padding: 4px;
+            }
+            .lightTheme .grey {
+                background-color: #F3F3F3;
+            }
+            .lightTheme #documentation-panel, .lightTheme #experiment-panel {
+                border-top: 1px solid #C0C0C0;
+            }
+            .lightTheme #source_select {
+                background-color: #FBFBFB;
+                color: #0E0E0E;
+            }
+            .lightTheme #source_close {
+                border-color: #424242;
+                color: #424242;
+            }
             """
         style -> 
             text @params.doccolate_style
 
-        text "<script>_ide = {}; _ide.appdir = '#{@params.appdir}'; _sofkey = #{if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null'};</script>\n"
+        text "<script>_ide = {}; _sofkey = #{if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null'};</script>\n"
         script src:"/static/vendor/ace/ace.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/ext-searchbox.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/ext-language_tools.js", type:"text/javascript", charset:"utf-8"
@@ -187,20 +248,25 @@ exports.enter = (__) ->
         script src:"/static/vendor/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/theme-crimson_editor.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/lib/doccolate.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/datejs/date.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/mootools/mootools-core-uncompressed.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/lib/newnotes.js", type:"text/javascript", charset:"utf-8"
 
-        body ->
+        body '.lightTheme', ->
             panel ->
                 header '#header', ->
-                    panel -> span '#.choco_title.float-margin-left', 'Chocolate.js'
-                    box -> panel '#title', -> ''
-                    panel ->
-                        a '#toggle-fullscreen.float-margin-right', style:'font-size: 16pt;text-decoration: none;', href:"#", onclick:"_ide.toggleFullscreen();", -> '«»'
-                        a '#switch-panel.float-margin-right', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchScreens();", -> '|||'
-                footer '#footer', ->
+                    panel proportion:'served', ->
+                        panel -> span '#.choco_title.float-margin-left', 'Chocolate.js'
+                        panel -> 
+                            select '#source_select.hidden', onchange:'_ide.open_file()', ''
+                            span '.float-right', -> span '#source_close.hidden', onclick:'_ide.close_file()', 'x'
+                        panel ->
+                            a '#toggle-fullscreen.float-margin-right', title:'Switch fullscreen', style:'font-size: 16pt;text-decoration: none;', href:"#", onclick:"_ide.toggleFullscreen();", -> '«»'
+                            a '#switch-panel.float-margin-right', title:'Switch side by side display', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchScreens();", -> '|||'
+                            a '#switch-theme.float-margin-right', title:'Switch theme', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchTheme();", -> '□'
+                            a '#switch-invisible.float-margin-right', title:'Switch invisible caracters display', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchInvisible();", -> '...'
                 body ->
                     panel '#main-panel', proportion:'served', ->
                         panel ->
@@ -372,6 +438,7 @@ exports.enter = (__) ->
         coffeescript ->
             sofkey = _sofkey
             editor = chocodown_editor = debug_editor = experiment_editor = specolate_editor = null
+            ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/crimson_editor' else 'ace/theme/coffee'
             debug_experiment_sync = null
             sources =
                 opened : []
@@ -532,6 +599,20 @@ exports.enter = (__) ->
                     content.push line
                 document.id('open_files_list').set 'html', content  
 
+            _ide.display_opened_files_select = ->
+                codes = []
+                codes.push item for own item of sources.codes
+                codes.sort()
+
+                content = []
+                for item in codes
+                    if_selected = if sources.current is item then ' selected="selected"' else ''
+                    content.push "<option value='#{item}'#{if_selected}>/#{item}</option>"
+                
+                selector = document.id('source_select').set 'html', content
+                selector[(if content.length > 0 then 'remove' else 'add') + 'Class'] 'hidden'
+                $$("#source_select > option[value='#{sources.current}']").setProperty 'selected', 'selected'
+
             _ide.has_modified_file = ->
                 for path in [sources.codes, sources.specs]
                     for own k,v of path then if v.modified then return yes
@@ -564,7 +645,7 @@ exports.enter = (__) ->
                 
                 if not is_spec and not sources.codes[path]?
                     # Create or recycle an editor to display source file
-                    if sources.opened.length >= 5
+                    if sources.opened.length >= 10
                         delete sources.codes[sources.opened[0]]
                         delete sources.opened[0]
                         sources.opened = sources.opened[1..]
@@ -579,7 +660,7 @@ exports.enter = (__) ->
                 _ide.toggleMainDisplay 'main'
                 
                 editor.setSession if path is '' then _ide.create_session '' else sources.codes[path].doc
-                document.id('title').set 'text', if path is '' then '' else '/' + path
+                document.id('source_close')[(if path is '' then 'add' else 'remove') + 'Class'] 'hidden'
                 sources.current = path
 
                 # Switch to Source display if current display is Experiment
@@ -593,8 +674,11 @@ exports.enter = (__) ->
                 _ide.on_file_status_changed()
                 _ide.on_content_changed init:yes
                 
+                
                 _ide.display_spec_file _ide.get_spec_filename path
 
+                if path != ''  then $$("#source_select > option[value='#{path}']").setProperty 'selected', 'selected'
+                    
                 editor.getSession().on 'changeScrollTop', (scroll) ->
                     unless document.id('documentation-panel').hasClass 'hidden'
                         iframe = document.id('documentation-doccolate-panel')
@@ -663,7 +747,7 @@ exports.enter = (__) ->
                 if filename = prompt translate("Current directory is /#{cur_dir}") + '\n\n' + translate "Enter a filename"
                     if _ide.get_extension(filename) is '' then filename += '.coffee'
                     new Request
-                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{cur_dir}/#{filename}?so=move&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + "#{cur_dir}/#{filename}?so=move&how=raw"
                         onSuccess: (responseText) ->
                             _ide.goto_dir cur_dir, ->
                                 _ide.open_file "#{cur_dir}/#{filename}"
@@ -685,7 +769,7 @@ exports.enter = (__) ->
                     when 'send'
                         if input.value isnt ''
                             iframe.addEvent 'load', on_iframe_load
-                            form.action = '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{cur_dir}/#{filename}?so=move&how=raw"
+                            form.action = '/' + (if sofkey? then '!/' + sofkey else '') + "#{cur_dir}/#{filename}?so=move&how=raw"
                             form.submit()
                     when 'done'
                         iframe.removeEvents 'load'
@@ -706,7 +790,7 @@ exports.enter = (__) ->
                 
                 move_one = (source, dest, callback) ->
                     new Request
-                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{dest}?so=move&what=#{source}&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + "#{dest}?so=move&what=#{source}&how=raw"
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.move_file.move_one() : #{xhr.status}"
                     .get()
@@ -731,7 +815,7 @@ exports.enter = (__) ->
                 
                 rename_one = (source, dest, callback) ->
                     new Request
-                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{dest}?so=move&what=#{source}&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + "#{dest}?so=move&what=#{source}&how=raw"
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.rename_file.rename_one() : #{xhr.status}"
                     .get()
@@ -757,7 +841,7 @@ exports.enter = (__) ->
                 
                 delete_one = (source, callback) ->
                     new Request
-                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "?so=move&what=#{source}&how=raw"
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + "?so=move&what=#{source}&how=raw"
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.delete_file.delete_one() : #{xhr.status}"
                     .get()
@@ -774,12 +858,13 @@ exports.enter = (__) ->
 
             _ide.open_file = (path, with_spec_file) ->
                 if sources.isOpening then return
+                unless path? then path = document.id("source_select").getSelected().get("value")[0]
                 if path.substr(0,2) is './' then path = path.substr 2
                 if sources.codes[path]? and not with_spec_file then _ide.display_code_file path; return;
                 sources.isOpening = true
                 
                 new Request
-                    url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + path + '?how=raw'
+                    url: '/' + (if sofkey? then '!/' + sofkey else '') + path + '?how=raw'
                     onSuccess: ->
                         _ide.load_file path, @response.text
                         
@@ -792,7 +877,7 @@ exports.enter = (__) ->
                         spec_path = _ide.get_spec_filename path
                         if with_spec_file or _ide.has_spec_file path
                             new Request
-                                url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + spec_path + '?how=raw'
+                                url: '/' + (if sofkey? then '!/' + sofkey else '') + spec_path + '?how=raw'
                                 onSuccess: -> 
                                     on_spec_loaded path, spec_path, @response.text
                                 onFailure: (xhr) -> sources.isOpening = false ; _ide.display_message "Error with _ide.open_file.spec_file(#{path}) : #{xhr.status}"
@@ -817,6 +902,7 @@ exports.enter = (__) ->
                 true
 
             _ide.close_file = (path, force) ->
+                unless path? then path = document.id("source_select").getSelected().get("value")[0]
                 if not (force or _ide.will_close_file path) then return no
                 sources.opened = (item for item in sources.opened when item isnt path)
                 delete sources.codes[path]
@@ -839,7 +925,7 @@ exports.enter = (__) ->
                 
                 if data? and (data isnt '')
                     myRequest = new Request.JSON
-                        url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + path + '?so=move&how=raw'
+                        url: '/' + (if sofkey? then '!/' + sofkey else '') + path + '?so=move&how=raw'
                         onSuccess: (data) ->
                             item.modified = false
                             item.from_history = false
@@ -866,12 +952,13 @@ exports.enter = (__) ->
                         url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?grep&pattern=' + pattern + '&how=raw'
                         onSuccess: (responseText) ->
                             lines = []
-                            infos = responseText.replace(/\.\//g, '').split '\n'
+                            infos = responseText.replace(/\.+\//g, '').split '\n'
                             for info in infos
                                 item = info.split ' '
                                 filename = item[0]
                                 (sources.searched[filename]={}).modifiedDate = 1000 * parseInt item[1]
-                                lines.push if filename.indexOf('.spec.coffee') >= 0 then "<a href=\"#\" onclick=\"javascript:_ide.open_file('#{filename.replace('.spec.coffee', '.coffee')}', true); _ide.toggleMainPanel('specolate')\">#{filename}</a>" else "<a href=\"#\" onclick=\"javascript:_ide.open_file('#{filename}');\">#{filename}</a>"
+                                displayed_name = filename.replace /node_modules\/chocolate/g, '-'
+                                lines.push if filename.indexOf('.spec.coffee') >= 0 then "<a href=\"#\" onclick=\"javascript:_ide.open_file('#{filename.replace('.spec.coffee', '.coffee')}', true); _ide.toggleMainPanel('specolate')\">#{displayed_name}</a>" else "<a href=\"#\" onclick=\"javascript:_ide.open_file('#{filename}');\">#{displayed_name}</a>"
                             document.id("studio-search").set 'html', lines.join '<br/>'
                         onFailure: (xhr) ->
                             document.id("studio-search").set 'html', ''
@@ -888,6 +975,7 @@ exports.enter = (__) ->
                 
                 # Display the opened and modified files list
                 _ide.display_opened_files_list()
+                _ide.display_opened_files_select()
                 
                 one_editor = if is_spec then specolate_editor else editor
                 item = if is_spec then sources.specs[path] else sources.codes[path]
@@ -966,7 +1054,7 @@ exports.enter = (__) ->
                 
                 if message = prompt translate "Enter a message for your Git commit"
                     new Request
-                        url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?commitToHistory&' + message + '&how=raw'
+                        url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?commitToHistory&message=' + message + '&repository=' + _ide.get_current_dir() + '&how=raw'
                         onSuccess: (responseText) ->
                             _ide.get_file_git_history sources.current
                             _ide.display_message translate "Files were commited to Git repository"
@@ -1001,6 +1089,21 @@ exports.enter = (__) ->
                 document.id('switch-panel').set 'text', if document.id('main-editor').hasClass('horizontal') then '≡' else '|||'
                 document.id('switch-panel').setStyle 'font-size', if document.id('main-editor').hasClass('horizontal') then '16pt' else '9pt'
                 _ide.resize_editors()
+            
+            _ide.switchTheme = ->
+                lightTheme = $(document.body).hasClass 'lightTheme'
+                $(document.body)[(if lightTheme then 'remove' else 'add') + 'Class'] 'lightTheme'
+                $(document.body)[(if lightTheme then 'add' else 'remove') + 'Class'] 'darkTheme'
+                document.id('switch-theme').set 'text', if $(document.body).hasClass('lightTheme') then '□' else '■'
+                ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/crimson_editor' else 'ace/theme/coffee'
+                editor.setTheme ace_theme
+                experiment_editor.setTheme ace_theme
+                debug_editor.setTheme ace_theme
+                chocodown_editor.setTheme ace_theme
+                specolate_editor.setTheme ace_theme
+
+            _ide.switchInvisible = ->
+                editor.setShowInvisibles not editor.getShowInvisibles()
 
             _ide.toggleMainDisplay = (what) ->
                 if what is 'main'
@@ -1055,6 +1158,9 @@ exports.enter = (__) ->
                 document.id('toggle-' + what).addClass 'selected'
                 
                 if what is 'search' then input = document.id('search_in_file_input'); input.focus(); input.select()
+            
+            _ide.insertUuid = () ->
+                editor.insert Uuid()
                 
             _ide.toggleExperimentPanel = (what) ->
                 _ide.toggleMainDisplay 'main'
@@ -1114,9 +1220,9 @@ exports.enter = (__) ->
                             _ide.iframe_infos(document.id('help-frame-panel')).doc.body.innerHTML.trim() is '' then _ide.toggleHelpPanel 'chocolate'
                     when 'notes'
                         if document.id('notes-panel').get('html') is ''
-                            load_url = '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/www/' else '' ) + 'data/newnotes_data.json?how=raw'
-                            save_url = '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/www/' else '' ) + 'data/newnotes_data.json?so=move&how=raw'
-                            Newnotes.create_panel element_id:'notes-panel', url: {load:load_url, save:save_url}, box_css_class:'chocoblack.round', inherit_selected_class:yes, ace_theme:'ace/theme/coffee', standalone:no
+                            load_url = '/' + (if sofkey? then '!/' + sofkey else '') + 'data/newnotes_data.json?how=raw'
+                            save_url = '/' + (if sofkey? then '!/' + sofkey else '') + 'data/newnotes_data.json?so=move&how=raw'
+                            Newnotes.create_panel element_id:'notes-panel', url: {load:load_url, save:save_url}, box_css_class:'chocoblack.round', inherit_selected_class:yes, ace_theme:ace_theme, standalone:no
 
             _ide.toggleHelpPanel = (what) ->
                 list = ['chocolate', 'coffeescript', 'chocokup', 'specolate', 'doccolate', 'newnotes', 'litejq', 'node', 'chocodown']
@@ -1245,7 +1351,7 @@ exports.enter = (__) ->
                             list = client_result.log;
                         
                         request = new Request.JSON
-                            url: '/' + (if sofkey? then '!/' + sofkey else '') + (if _ide.appdir is '.' then '-/' else '') + "#{sources.current}?so=eval&how=raw"
+                            url: '/' + (if sofkey? then '!/' + sofkey else '') + "#{sources.current}?so=eval&how=raw"
                             onSuccess: (server_result) ->
                                 if server_result.count.total > 0 
                                     server_result.log[0] = translate 'On server :'
@@ -1539,6 +1645,7 @@ exports.enter = (__) ->
                                 else
                                     item.has_synchro_conflict = true
                                     _ide.display_opened_files_list()
+                                    _ide.display_opened_files_select()
                                     _ide.display_message translate "File /#{item.path} was modified inside and outside the editor. There is an unresolvable conflict."
                 
                 # if no source file currently loaded, ping the server to keep the cookie alive
@@ -1569,9 +1676,8 @@ exports.enter = (__) ->
                     e = ace.edit id
                     try e.setScrollSpeed(2)
                     e.setShowPrintMargin no
-                    e.setTheme 'ace/theme/coffee'
-                    e.setShowInvisibles yes
-                    
+                    e.setTheme ace_theme
+
                     e.getSession().setMode mode ? coffeescriptMode
                     e.getSession().setUseSoftTabs yes
                     e.setOptions
@@ -1636,7 +1742,12 @@ exports.enter = (__) ->
                     name: "find in files"
                     bindKey:
                         win: "Ctrl-Shift-F",mac: "Command-Shift-F"
-                    exec: -> _ide.toggleServicePanel('search')
+                    exec: -> _ide.toggleNavigatePanel('search')
+                commands.addCommand
+                    name: "insert uuid"
+                    bindKey:
+                        win: "Ctrl-U",mac: "Command-U"
+                    exec: -> _ide.insertUuid()
                 commands.addCommand
                     name: "find previous"
                     bindKey:

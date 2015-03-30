@@ -10,7 +10,7 @@
     Prototype
 ###
 
-if window? and not window.Locco?
+if window? and not window.modules?.locco?
     window.modules = locco: window[if window.exports? then "exports" else "Locco"] = {}
 
     unless $ and $.ajax
@@ -43,12 +43,14 @@ if window? and not window.Locco?
         
         _previousExports = window.exports
         window.exports = {}
+        
+        url = '/static/lib/' + filename + '.js'
     
         $.ajax
-            url: '/static/lib/' + filename + '.js'
+            url: url
             async: false
             cache: on
-            error: (type, xhr, settings) -> alert 'Error: ' + xhr.status
+            error: (type, xhr, settings) -> console.log 'require("' + url + '") failed' + if xhr.status? then ' with error ' + xhr.status? else ''
             dataType: 'script'
         
         result = window.modules[filename] = window.exports
@@ -60,7 +62,7 @@ if window? and not window.Locco?
         result
     
     window.require.resolve = resolve = (filename) ->
-        filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/^general\//, '').replace(/^client\//, '')
+        filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/^general\//, '').replace(/^client\//, '').replace(/^server\//, '')
         filename = if (i=filename.lastIndexOf '.') >= 0 then filename[0...i] else filename
     
     window.require.cache = (used) -> use_cache = used

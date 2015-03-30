@@ -7,12 +7,16 @@
 
 Https = require 'https'
 Http = require 'http'
+WebSocket = require 'ws'
 Fs = require 'fs'
 Path = require 'path'
+Formidable = require 'formidable'
 Interface = require './interface'
 Document = require './document'
 Reserve = require './reserve'
+Workflow = require '../general/locco/workflow'
 QueryString = require './querystring'
+Url = require 'url'
 _ = require '../general/chocodash'
 
 #### Workflow sessions management
@@ -88,12 +92,25 @@ class Session
 class World
     # Here is what we do when we create a new World !
     constructor : (appdir = '.', port, key, cert) ->
-        datadir = appdir + (if appdir is '.' then '/www' else '') + '/data'
+        
+        # If Node.js crashes unexpectedly, we will receive an `uncaughtException` and log it in a file
+        process.on 'uncaughtException', (err) ->
+            Fs.createWriteStream(datadir + '/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
+    
+        cwd = process.cwd()
+        appdir =  Path.relative cwd, appdir if appdir isnt '.'
+        sysdir = Path.relative cwd, Path.resolve __dirname, '..'
+        datadir = appdir + '/data'
+        
+        appdir_abs = Path.resolve appdir
+        sysdir_abs = Path.resolve sysdir
         
         cache = new Document.Cache datadir
         sessions = new Sessions cache
         
         space = new Reserve.Space datadir
+        
+        workflow = Workflow.main 
 
         # Get application Config for Http only server and base port, key and cert options
         config = require('../' + datadir + '/config')
@@ -115,71 +132,141 @@ class World
                 
         network = if config.http_only then Http else Https
 
+        extract = (request, url) ->
+            # We extract infos from the Request
+            request.url = url if url?
+            url = Url.parse request.url
+            query = QueryString.parse url.query, null, null, ordered:yes
+            pathname = url.pathname
+            extension = Path.extname pathname
+            if (appdir_abs + pathname).indexOf(sysdir_abs) is 0 then pathname = '/-' + (appdir_abs + pathname).substr sysdir_abs.length
+            path = pathname.split '/'
+            keywords = ['so', 'what', 'sodowhat', 'how']
+
+            # Check if first param key isnt a keyword and then set `sodowhat` to that key
+            param = query.list[0]
+            if param? and  param.key not in keywords and param.value is ''
+                query.dict.sodowhat = param.key
+                query.list.push key:'sodowhat', value:param.key
+                query.list.splice 0,1
+            
+            # `params` will contains the parameters extracted from the query part of the request
+            params = {}
+            for param, param_index in query.list when param.key not in keywords
+                params[if param.value != '' then param.key else '__' + param_index] = decodeURI(if param.value isnt '' then param.value else param.key)
+            
+            # Feed workflow with action request infos
+            #
+            # `so` indicates the action type.  
+            # `what` adds a precision on the action object (usualy its name).  
+            # `where` tells where the action should take place.  
+            # `how` asks for a special type of respond if available (web, raw, help).
+            #
+            #     http://myserver/myworld/myfolder?so=move&what=/myworld/mydocument
+            #       so = move
+            #       what = /myworld/mydocument
+            #       where = /myworld/myfolder
+            #       how = web (by default) - will return an answer as Html.
+            #
+            # `backdoor_key` will contain the key you use to have system access
+            #
+            #     http://myserver/!/my_backdoor_key/myworld/myfolder
+            
+            sodowhat = query.dict['sodowhat'] ? null
+            so = ('do' if sodowhat?) ? query.dict['so'] ? 'go'
+            what = sodowhat ? query.dict['what'] ? ''
+            how = query.dict['how'] ? 'web'
+            backdoor_key = if path[1] is '!' then path[2] else ''
+            where_index = 1 + if backdoor_key isnt '' then 2 else 0
+            where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
+            region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' then 'static' else 'app'
+            where = where_path.join '/'
+            
+            session = sessions.get(request)
+            
+            {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session}
+
+        exchange = (bin, response) ->
+            Interface.exchange bin, (result) ->
+                # We will send back a cookie with an id and an expiration date
+                result.headers['Set-Cookie'] = 'bsid=' + bin.session.id + ';path=/;secure;httponly;expires=' + bin.session.expires.toUTCString()
+                # And here is our response to the requestor
+                response.writeHead result.status, result.headers
+                response.end result.body
+
+        upgrade = do ->
+            
+            websockets = {}
+            
+            Fallback_Websocket = _.prototype
+                constructor: (@id) -> @messages = []
+                send: (message) -> @messages.unshift message
+            
+            get_websocket = (request) ->
+                id = request.headers['x-litejq-websocket-id']
+                return null unless id?
+
+                websockets[id] ?= new Fallback_Websocket id
+            
+            (request, response) ->
+                upgraded = no
+                
+                empty = ->
+                    response.writeHead 200, { "Content-Type": "text/plain" }
+                    response.end ''
+                                        
+                if request.headers['x-litejq-websocket'] is 'fallback'
+                    switch request.method
+                        when 'OPTIONS'
+                            response.writeHead 200, "Content-Type": "text/plain", 'x-litejq-websocket-id':  _.Uuid()
+                            response.end ''
+                            
+                        when 'POST'
+                            upgraded = true
+                            ws = get_websocket request
+                            return empty() unless ws?
+                            
+                            fields = []
+                            form = new Formidable.IncomingForm()
+                            form
+                                .on 'field', (field, value) -> 
+                                    fields.push if value? and value isnt '' then value else field
+                                .on 'end', ->
+                                    message = _.parse fields.join ''
+                                    return empty() unless message?
+                                        
+                                    bin = extract request, message.url
+                                    bin.websocket = ws
+                                
+                                    Interface.exchange bin, (result) ->
+                                        response.writeHead result.status, result.headers
+                                        response.end "{result:#{result.body},id:#{message.id}}"
+                                    
+                            form.parse request
+                                
+                        when 'GET'
+                            upgraded = true
+                            ws = get_websocket request
+                            return empty() unless ws?
+                            
+                            response.writeHead 200, { "Content-Type": "text/plain" }
+                            response.end if message = ws.messages.pop() then message else ''
+                            
+                upgraded
+
         # We create an Https or Http server
         #
         # It will receive an [HttpRequest](http://nodejs.org/docs/latest/api/all.html#http.ServerRequest)
         # and fills an [HttpResponse](http://nodejs.org/docs/latest/api/all.html#http.ServerResponse)
         server = network.createServer.apply network, options.concat (request, response) ->
-            # If Node.js crashes unexpectedly, we will receive an `uncaughtException` and log it in a file
-            process.on 'uncaughtException', (err) ->
-                Fs.createWriteStream(datadir + '/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
-        
             try
-                # We extract infos from the Request
-                url = require('url').parse request.url
-                query = QueryString.parse url.query, null, null, ordered:yes
-                extension = Path.extname url.pathname
-                path = url.pathname.split '/'
-                keywords = ['so', 'what', 'sodowhat', 'how']
-
-                # Check if first param key isnt a keyword and then set `sodowhat` to that key
-                param = query.list[0]
-                if param? and  param.key not in keywords and param.value is ''
-                    query.dict.sodowhat = param.key
-                    query.list.push key:'sodowhat', value:param.key
-                    query.list.splice 0,1
+                # upgrade a fallback websocket call
+                return if upgrade request, response
                 
-                # `params` will contains the parameters extracted from the query part of the request
-                params = {}
-                for param, param_index in query.list when param.key not in keywords
-                    params[if param.value != '' then param.key else '__' + param_index] = decodeURI(if param.value isnt '' then param.value else param.key)
-                
-                # Feed workflow with action request infos
-                #
-                # `so` indicates the action type.  
-                # `what` adds a precision on the action object (usualy its name).  
-                # `where` tells where the action should take place.  
-                # `how` asks for a special type of respond if available (web, raw, help).
-                #
-                #     http://myserver/myworld/myfolder?so=move&what=/myworld/mydocument
-                #       so = move
-                #       what = /myworld/mydocument
-                #       where = /myworld/myfolder
-                #       how = web (by default) - will return an answer as Html.
-                #
-                # `backdoor_key` will contain the key you use to have system access
-                #
-                #     http://myserver/!/my_backdoor_key/myworld/myfolder
-                
-                sodowhat = query.dict['sodowhat'] ? null
-                so = ('do' if sodowhat?) ? query.dict['so'] ? 'go'
-                what = sodowhat ? query.dict['what'] ? ''
-                how = query.dict['how'] ? 'web'
-                backdoor_key = if path[1] is '!' then path[2] else ''
-                where_index = 1 + if backdoor_key isnt '' then 2 else 0
-                where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
-                region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' then 'static' else 'app'
-                where = where_path.join '/'
-                
-                session = sessions.get(request)
-                
+                # Extract 'so, do, what...' infos from the Request
+                bin = extract request
                 # We call the Interface service to make an exchange between the requestor and the place specified in `where`
-                Interface.exchange space, so, what, how, where, region, params, appdir, datadir, backdoor_key, request, session, (result) ->
-                    # We will send back a cookie with an id and an expiration date
-                    result.headers['Set-Cookie'] = 'bsid=' + session.id + ';path=/;secure;httponly;expires=' + session.expires.toUTCString()
-                    # And here is our response to the requestor
-                    response.writeHead result.status, result.headers
-                    response.end result.body
+                exchange bin, response
 
             # If we have an error, we send it back as is.
             catch err
@@ -192,9 +279,20 @@ class World
         unless config.http_only
             # Start Http server with redirection to Https
             Http.createServer (request, response) ->
-                    response.writeHead 302, {'Location': "https://#{request.headers.host}" }
-                    response.end ''
+                response.writeHead 302, {'Location': "https://#{request.headers.host}" }
+                response.end ''
             .listen port+1
+
+        new WebSocket.Server {server} 
+        .on 'connection', (ws) ->
+            ws.on 'message', (str) ->
+                message = _.parse str
+                bin = extract ws.upgradeReq, message.url
+
+                Interface.exchange bin, (result) ->
+                    ws.send "{result:#{result.body},id:#{message.id}}" if result.body? and result.body isnt ''
+        
+        return
         
 #### Start
 # The main workflow service.
@@ -205,3 +303,8 @@ exports.start = (appdir, port) ->
 
 exports.say_hello = (who = 'you', where = 'there') ->
     'hello ' + who + ' in ' + where
+
+exports.ping_json = ->
+    date: new Date()
+    town: 'Paris'
+    zip: 75000

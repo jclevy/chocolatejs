@@ -4,10 +4,6 @@
 #https://github.com/dciccale/ki.js
 #https://github.com/ded/domready
 
-# $ main method
-# a = css selector, dom object, or function
-# returns instance
-
 return unless window? and not (window.$? and window.$.fn? and window.$.fn.jquery?)
 
 core_version = "0.1.0"
@@ -172,17 +168,17 @@ $.extend = ->
     target
 
 $.globalEval = (text) ->
-	return text unless text
-	
-	if window.execScript then window.execScript text
-	else
-		script = document.createElement 'script'
-		script.setAttribute 'type', 'text/javascript'
-		script.text = text
-		document.head.appendChild script
-		document.head.removeChild script
-		
-	return text
+    return text unless text
+    
+    if window.execScript then window.execScript text
+    else
+        script = document.createElement 'script'
+        script.setAttribute 'type', 'text/javascript'
+        script.text = text
+        document.head.appendChild script
+        document.head.removeChild script
+        
+    return text
 
 $.Environment = do ->
     _current = null
@@ -236,6 +232,105 @@ $.Environment = do ->
     isOnline: ->
         navigator.onLine
 
+$.websocket = (url, options = {}) ->
+
+    # Creates a fallback object implementing the WebSocket interface
+    FallbackSocket = (url, options  = {}) ->
+        
+        # WebSocket interface constants
+        CONNECTING = 0
+        OPEN = 1
+        CLOSING = 2
+        CLOSED = 3
+
+        pollInterval = null
+        openTimout = null
+        
+        options.fallbackPollInterval ?= 3000
+        options.fallbackPollParams ?= {}
+        options.fallbackOnly ?= false
+
+        furl = url.replace('ws:', 'http:').replace('wss:', 'https:')
+
+        # create WebSocket object
+        fws =
+            # ready state
+            readyState: CONNECTING
+
+            bufferedAmount: 0
+
+            send: (data) ->
+                return false unless fws.socket_id?
+                
+                success = true
+                $.ajax
+                    type: 'POST'
+                    url: furl + '?' + $.param getFallbackParams()
+                    data: data
+                    dataType: 'text'
+                    headers: 
+                        'x-litejq-websocket':'fallback'
+                        'x-litejq-websocket-id': fws.socket_id
+                    contentType : "application/x-www-form-urlencoded; charset=utf-8"
+                    success: (data) -> fws.onmessage "data" : data
+                    error: (xhr) -> success = false; fws.onerror(xhr)
+                return success
+
+            close: () ->
+                clearTimeout openTimout
+                clearInterval pollInterval
+                this.readyState = CLOSED
+                fws.onclose()
+                
+            onopen: ->
+            onmessage: ->
+            onerror: ->
+            onclose: ->
+
+            previousRequest: null
+            currentRequest: null
+            socket_id: null
+
+        getFallbackParams = () ->
+            # update timestamp of previous and current poll request
+            fws.previousRequest = fws.currentRequest;                    
+            fws.currentRequest = new Date().getTime();
+
+            # extend default params with plugin options
+            return $.extend {"previousRequest": fws.previousRequest, "currentRequest": fws.currentRequest}, options.fallbackPollParams
+
+        poll = ->
+            return unless fws.socket_id?
+            $.ajax
+                type: 'GET'
+                url: furl + '?' + $.param getFallbackParams()
+                dataType: 'text'
+                headers: 
+                    'x-litejq-websocket':'fallback'
+                    'x-litejq-websocket-id': fws.socket_id
+                success: (data) -> 
+                    fws.onmessage "data" : data
+                    if data? and data isnt '' then setTimeout poll, 0
+                error: (xhr) -> fws.onerror(xhr)
+
+        $.ajax
+            type: 'OPTIONS'
+            url: furl
+            dataType: 'text'
+            headers: 'x-litejq-websocket':'fallback'
+            success: (data, xhr) -> 
+                fws.socket_id = xhr.getResponseHeader('x-litejq-websocket-id')
+                fws.readyState = OPEN
+                fws.onopen()
+                poll()
+                pollInterval = setInterval poll, options.fallbackPollInterval
+            error: (xhr) -> fws.onerror(xhr)
+
+        return fws
+    
+    if options.fallbackOnly or not window.WebSocket then new FallbackSocket(url, options)
+    else new WebSocket(url)
+
 $.Ajax = do ->
     Ajax_default =
         type: "GET"
@@ -244,6 +339,7 @@ $.Ajax = do ->
     Ajax_mime_types =
         script: "text/javascript, application/javascript"
         json: "application/json"
+        'json-late': "application/json-late"
         xml: "application/xml, text/xml"
         html: "text/html"
         text: "text/plain"
@@ -269,7 +365,9 @@ $.Ajax = do ->
         settings = $.extend {}, Ajax_settings, options
 
         if settings.type is Ajax_default.type
-            settings.url += "?" + $.param(settings.data) if settings.data?
+            if settings.data?
+                settings.url += "?" + $.param(settings.data) 
+                delete settings.data
         else
             settings.data = $.param(settings.data)
         
@@ -281,6 +379,7 @@ $.Ajax = do ->
         return _jsonp(settings) if dataType is 'jsonp'
 
         xhr = settings.xhr()
+
         xhr.onreadystatechange = ->
             if xhr.readyState is 4
                 clearTimeout abortTimeout
@@ -314,6 +413,8 @@ $.Ajax = do ->
     $.getScript = (url, success) -> $.get url, undefined, success, "script"
 
     $.param = (parameters) ->
+        return encodeURIComponent parameters if $.type(parameters) is 'string'
+        
         serialize = []
         for parameter of parameters
             if parameters.hasOwnProperty(parameter)
@@ -691,7 +792,6 @@ Events = do ($) ->
     
         return @
 
-
     # on method
     # event = string event type i.e 'click'
     # selector = target an item for delegation
@@ -714,7 +814,6 @@ Events = do ($) ->
     unbind: (event, callback) ->
         @each -> _unsubscribe @, event, callback ; return
 
-
     delegate: (selector, event, callback) ->
         @each (i, element) ->
             _subscribe element, event, callback, selector, (fn) ->
@@ -730,6 +829,20 @@ Events = do ($) ->
         @each ->
             _unsubscribe @, event, callback, selector
             return
+
+    triggerHandler: (event, args) ->
+        result = null
+
+        @each (i, element) ->
+            e = _createProxy(if $.type(event) is 'string' then $.Event(event) else event)
+            e._args = args
+            e.target = element
+            element_id = _getElementId element
+            $.each _findHandlers(element_id, event.type ? event), (i, handler) ->
+                result = handler.proxy e
+                return false if e.isImmediatePropagationStopped?() 
+                
+        result
 
 # Style functions
 Style = do ($) ->
@@ -772,6 +885,27 @@ Style = do ($) ->
 
 # Dom functions
 Dom = do ($) ->
+    _stripScripts = (text, callback) ->
+        scripts = []
+        html = text.replace /<script([\s\S]*?)>([\s\S]*?)<\/script>/gi, (all, attr, code) -> scripts.push {attr, code}; return ''
+
+        callback.call @, html
+        
+        if scripts.length > 0
+            for item in scripts
+                src = item.attr.match(/src.*?=.*?[\"'](.+?)[\"']/i)
+                src = src[1] if src?
+                code = item.code
+                if (src isnt null and src isnt '') or code isnt ''
+                    script = document.createElement 'script'
+                    script.setAttribute 'src', src if src isnt null
+                    script.setAttribute 'type', 'text/javascript'
+                    script.text = code if code isnt ""
+                    @appendChild script
+
+        
+        return
+
     text: (value) ->
         unless value?
             ret = []
@@ -781,14 +915,14 @@ Dom = do ($) ->
             @.empty().append((@[0] and @[0].ownerDocument or document).createTextNode(value));
 
     html: (value) ->
+
         type = $.type(value)
         if type is "undefined"
             (if @length > 0 then @[0].innerHTML else)
         else
             @each ->            
                 if type is "string"
-                    @innerHTML = value
-                    return
+                    _stripScripts.call @, value, (html) -> @innerHTML = html
                 else if type is "array"
                     $(@).html(v) for v in value
                 else
@@ -798,7 +932,8 @@ Dom = do ($) ->
         type = $.type(value)
         @each ->
             if type is "string"
-                @insertAdjacentHTML "beforeend", value
+                _stripScripts.call @, value, (html) -> @insertAdjacentHTML "beforeend", html
+                
             else if type is "array"
                 $(@).append(v) for v in value
             else
@@ -808,9 +943,9 @@ Dom = do ($) ->
         type = $.type(value)
         @each ->
             if type is "string"
-                @insertAdjacentHTML "afterbegin", value
+                _stripScripts.call @, value, (html) -> @insertAdjacentHTML "afterbegin", html
             else if type is "array"
-                value.each (index, value) => @insertBefore value, @firstChild
+                $(@).prepend(v) for v in value
             else
                 @insertBefore value, @firstChild
 
@@ -819,13 +954,24 @@ Dom = do ($) ->
         @each ->
             if @parentNode
                 if type is "string"
-                    @insertAdjacentHTML "beforeBegin", value
+                    _stripScripts.call @, value, (html) -> @insertAdjacentHTML "beforeBegin", html
                 else if type is "array"
-                    value.each (index, value) => @parentNode.insertBefore value, @
+                    $(@).replaceWith(v) for v in value
                 else
                     @parentNode.insertBefore value, @
         @remove()
 
+    after: (value) ->
+        type = $.type(value)
+        @each ->
+            if @parentNode
+                if type is "string"
+                    _stripScripts.call @, value, (html) -> @insertAdjacentHTML "afterend", html
+                else if type is "array"
+                    $(@).after(v) for v in value
+                else
+                    @parentNode.insertBefore value, $(@).next()
+        
     empty: () ->
         @each -> @innerHTML = ""
         
@@ -879,9 +1025,15 @@ core =
     length: 0 
     
     # init method (internal use)
-    # a = selector, dom element or function    
+    # a = selector, dom element, function, object or array    
     init: (a) ->
-        core_array.push.apply @, if a and a.nodeType then [a] else (if "" + a is a then core_toArray(document.querySelectorAll(a)) else (if /^f/.test(typeof a) then [$(document).ready(a)] else if $.type(a) is 'array' then a else[]))
+        core_array.push.apply @, if a and a.nodeType then [a] 
+        else (if "" + a is a then core_toArray(document.querySelectorAll(a)) 
+        else (if /^f/.test(typeof a) then [$(document).ready(a)] 
+        else switch $.type(a) 
+            when 'array' then a 
+            when 'object' then [a]
+            else[]))
     
     toArray: -> [].slice.call this
 
@@ -953,6 +1105,21 @@ String::trim ?= -> return this.replace /^\s+|\s+$/g, ''
 
 # JSON
 window.JSON ?= do ->
+    cx = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g
+    escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g
+    gap = undefined
+    indent = undefined
+    meta =
+        "\b": "\\b"
+        "\t": "\\t"
+        "\n": "\\n"
+        "\f": "\\f"
+        "\r": "\\r"
+        "\"": "\\\""
+        "\\": "\\\\"
+
+    rep = undefined
+    
     f = (n) -> (if n < 10 then "0" + n else n)
     
     quote = (string) ->
@@ -996,13 +1163,13 @@ window.JSON ?= do ->
                         if typeof rep[i] is "string"
                             k = rep[i]
                             v = str(k, value)
-                            partial.push quote(k) + ((if gap then ": " else ":")) + v    if v
+                            partial.push quote(k) + (if gap then ": " else ":") + v if v
                         i += 1
                 else
                     for k of value
                         if Object::hasOwnProperty.call(value, k)
                             v = str(k, value)
-                            partial.push quote(k) + ((if gap then ": " else ":")) + v    if v
+                            partial.push quote(k) + (if gap then ": " else ":") + v if v
                 
                 v = (if partial.length is 0 then "{}" else (if gap then "{\n" + gap + partial.join(",\n" + gap) + "\n" + mind + "}" else "{" + partial.join(",") + "}"))
                 gap = mind
@@ -1013,30 +1180,15 @@ window.JSON ?= do ->
 
         String::toJSON = Number::toJSON = Boolean::toJSON = -> @valueOf()
         
-    cx = /[\u0000\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g
-    escapable = /[\\\"\x00-\x1f\x7f-\x9f\u00ad\u0600-\u0604\u070f\u17b4\u17b5\u200c-\u200f\u2028-\u202f\u2060-\u206f\ufeff\ufff0-\uffff]/g
-    gap = undefined
-    indent = undefined
-    meta =
-        "\b": "\\b"
-        "\t": "\\t"
-        "\n": "\\n"
-        "\f": "\\f"
-        "\r": "\\r"
-        "\"": "\\\""
-        "\\": "\\\\"
-
-    rep = undefined
-    
     stringify: (value, replacer, space) ->
         gap = ""
         indent = ""
         
         if typeof space is "number" then i = 0 ; while i < space then indent += " " : i += 1
-        else indent = space    if typeof space is "string"
+        else indent = space if typeof space is "string"
         
         rep = replacer
-        throw new Error("JSON.stringify")    if replacer and typeof replacer isnt "function" and (typeof replacer isnt "object" or typeof replacer.length isnt "number")
+        throw new Error("JSON.stringify") if replacer and typeof replacer isnt "function" and (typeof replacer isnt "object" or typeof replacer.length isnt "number")
         
         str "", "": value
 
@@ -1146,6 +1298,11 @@ $.support.ownLast = i isnt "0"
 
 # indexOf
 Array.prototype.indexOf ?= (elem) ->
-    for i in [0...this.length] by 1
-        if this[i] is elem then return i
+    if this.charAt?
+        for i in [0...this.length] by 1
+            if this.charAt(i) is elem then return i
+    else
+        for i in [0...this.length] by 1
+            if this[i] is elem then return i
+            
     return -1;

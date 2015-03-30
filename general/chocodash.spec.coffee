@@ -1,6 +1,6 @@
 _ = require '../general/chocodash'
 
-describe 'prototype', ->
+xdescribe 'prototype', ->
     Document = _.prototype()
     DocWithCons = DocWithInst = null
     doc = null
@@ -83,7 +83,7 @@ describe 'prototype', ->
     it 'makes an inherited Prototype dependant of its model', ->
         expect(inh.add 2,2).toBe "2 2"
 
-describe 'Data', ->
+xdescribe 'Data', ->
     describe 'Serialization services', ->
         o = 
             u:undefined
@@ -110,7 +110,11 @@ describe 'Data', ->
             expect(a.add(1,1)).toBe 2
             expect(a.d.valueOf()).toBe new Date("Sat Jan 01 2011 00:00:00 GMT+0100").valueOf()
 
-describe 'Flow', ->
+        it 'should convert an object to url query parameters', ->
+            a = _.param {u:1, v:2}
+            expect(a).toBe 'u=1&v=2'
+
+xdescribe 'Flow', ->
     f1 = (cb) -> setTimeout (-> cb new Date().getTime()), 250
     f2 = (cb) -> setTimeout (-> cb new Date().getTime()), 150
     f3 = (cb) -> setTimeout (-> cb new Date().getTime()), 350
@@ -175,6 +179,26 @@ describe 'Flow', ->
             expect(end - start).toBeGreaterThan 3 * time1M - 1
             expect(next - start).toBeLessThan 4
 
+describe 'extend', ->
+    it 'should set values', ->
+        o = _.extend {}, {first:1}
+        expect(o.first).toBe(1)
+    it 'should overwrite values if already set', ->
+        o = _.extend {first:1}, {first:2}
+        expect(o.first).toBe(2)
+    it 'should not overwrite values if already set and overwrite paramater set to false', ->
+        o = _.extend {first:1}, {first:2}, false
+        expect(o.first).toBe(1)
+    it 'should overwrite values and preserve other values', ->
+        o = _.extend {second:{sub:'sub'}}, {first:2, second:{sub:'newsub'}}
+        expect(o.first).toBe(2)
+        expect(o.second.sub).toBe('newsub')
+    it 'should set default values on sub-object if not set and preserve other values', ->
+        o = _.extend {second:{suba:'suba'}}, {first:2, second:suba:'subaa', subb:'subb'}, false
+        expect(o.first).toBe(2)
+        expect(o.second.suba).toBe('suba')
+        expect(o.second.subb).toBe('subb')
+
 describe 'defaults', ->
     it 'should set default values if not set', ->
         o = _.defaults {}, {first:1}
@@ -192,14 +216,63 @@ describe 'defaults', ->
         expect(o.second.suba).toBe('suba')
         expect(o.second.subb).toBe('subb')
 
+xdescribe 'Actors', ->
+    it 'should identify a JS object', ->
+        o = {first:1, sub:second:2}
+        _.do.identify o
+        expect(_.Uuid.isUuid o._?.first?.uuid).toBe true
+        expect(_.Uuid.isUuid o.sub._?.second?.uuid).toBe true
+
+
+    it 'should set a value in an object passing an object', ->
+        _.do.identify o = {first: 1}
+        _.do.set o, first:2, second:3
+        expect(o.first).toBe 2
+        expect(o.second).toBe 3
+
+    it 'should set a value in an object passing a name and a value', ->
+        o = {first: 1}
+        _.do.set o, 'second', 2
+        expect(o.second).toBe 2
+
+    it 'should set a value in an array passing an object', ->
+        o = {first: 1, letters:['a','b','c']}
+        _.do.set o.letters, '1':'d', '0':'e'
+        expect(o.letters[0]).toBe 'e'
+        expect(o.letters[1]).toBe 'd'
+        expect(o.letters[2]).toBe 'c'
+        
+    it 'should set a value in an array passing an index and a value', ->
+        o = {first: 1, letters:['a','b','c']}
+        _.do.set o.letters, 1, 'f'
+        expect(o.letters[1]).toBe 'f'
+        
 {Signal, Observer, Publisher} = _
 
-describe 'Signal', ->
+xdescribe 'Signal', ->
 
   it 'Signal is a Signal', ->
     a = new Signal 1
 
     expect(a instanceof Signal).toBe true
+    
+  it 'Signal propagates on Signal but not on functions', ->
+    a = new Signal 1
+    
+    c = 0
+    b = -> c = a.value()
+    b()
+    
+    e = 0
+    d = new Signal -> e = a.value()
+
+    expect(c).toBe 1
+    expect(e).toBe 1
+    
+    a.value(2)
+    
+    expect(c).toBe 1
+    expect(e).toBe 2
     
   it 'Single static signal', ->
     a = new Signal 1
@@ -386,7 +459,14 @@ describe 'Signal', ->
         expect(b.value()).toEqual 4
         expect(c.value()).toEqual 5
         
-describe "Observer", ->
+  it "catch an error", ->
+      err = undefined
+      a = new Signal -> throw 'an errror occured'
+      a.catch (e) -> err = e
+      expect(a.value()).toBe undefined
+      expect(err).toBe 'an errror occured'
+
+xdescribe "Observer", ->
   it "basic observer", ->
     a = new Signal 1
     expect(a.value()).toEqual 1
@@ -501,7 +581,7 @@ describe "Observer", ->
         expect(b.value()).toEqual 6
         expect(c.value()).toEqual 6
 
-describe "Publisher", ->
+xdescribe "Publisher", ->
   it "Publishs a Signal captured by an Observer", ->
       a = new Publisher()
       b = 0
@@ -509,7 +589,7 @@ describe "Publisher", ->
       a.notify 123
       expect(b).toEqual 123
         
-describe "Signal misc.", ->
+xdescribe "Signal misc.", ->
   it "object setter", ->
     a = new Signal {}
     b = new Signal -> "Serialized: " + JSON.stringify(a.value())

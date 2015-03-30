@@ -45,7 +45,7 @@ It includes :
 
  - a basic **source control** with Git
 
- -  **NewNotes**: a promising note taking tool
+ -  **NewNotes** -- a promising note taking tool
 
 Chocolate integrates:
 
@@ -57,107 +57,15 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.11 - (2014-04-11)**
-
-UPDATES
-
-Chocodash
-
-- _.super was working only in a simple case
-
-FIXED BUGS
-
-Chocodash
-
-- static/lib/chocodash.js was not correctly recompiled in v0.0.10
-
-Locco
-
-- Interface replaced @rules and @action by provided params in constructor instead of merging them
-
-**Chocolate v0.0.10 - 2014/04/07**
+**Chocolate v0.0.12 - (2015-03-30)**
 
 NEW FEATURES
 
-Chocolate directory structure
-
-- moved vendor libraries from /static to /static/vendor
-- renamed **/general/intentware** folder to **/general/locco**  
-  You **should** update references to this folder if you use it in your Chocolate application
-- renamed **/static/ijax** folder to **/static/lib**  
-  You **should** rename this folder if you have one in your Chocolate application
-- renamed **/static/ijax/ijax.js** file to **/static/lib/locco.js**  
-  You **should** rename this file if you have one in your Chocolate application
-
-Locco Interface:
-
-- introduce [Interface](#Choco-Locco-Interface) service that manages security, defaults and values valid range
-- [Interface.Web](#Choco-Locco-Interface-Web) to easily create web app interface with Chocokup
-
-Chocokup:
-
-- added the `id([value])` function to generate ids (added in coffeekup)
-
-        button "##{id()}", i for i in [9..0]
-  
-- can pass parameters to embedded coffeescript block
-
-        ids = clear: id()
-        body -> button "##{ids.clear}", "clear"
-        coffeescript {ids}, ->
-            $ -> 
-                $("##{ids.clear}").on "click", -> alert "clear"
-
-- produced code is now not formatted (meaningfull whitespace problem).  
-  Should use the `format` parameter.
-- more isolated parameters: @__.content() instead of @content (idem for @body and @head) in kups
-- Chocokup.App to include Chocodash, litejQ, Coffeescript, Locco
-- [Chocoss](#Choco-Chocoss):
-  - preparing Chocokup Css Framework 
-  - added Eric Meyer's Reset CSS v2.0  
-  - introduced Css themes: reset(default), paper, writer, coder
-
-Chocodash:
-
- - renamed Chocoflow into [Chocodash](#Choco-Dash)
- - started to move javascript utilities into Chocodash:
-   - [\_.type](#Choco-Dash-Type), [\_.Type](#Choco-Dash-Type), [\_.defaults](#Choco-Dash-Defaults), [\_.serialize](#Choco-Dash-Async), [\_.parallelize](#Choco-Dash-Async), [\_.stringify](#Choco-Dash-Stringify), [\_.parse](#Choco-Dash-Stringify)
-   - \_.Signal, \_.Observer and \_.Publisher implement [reactive programing](#Choco-Dash-Reactive) services (from Reactor.js)
-   - add Class-like service with [\_.protoype](#Choco-Dash-Prototype) (with inherit, adopt and use)
-   - [\_.Uuid](#Choco-Dash-Uuid):
-     - added an interface in Uuid so that /-/general/locco/uuid displays a new Uuid
-
-Chocodown:
-
-- adds the formatChocokup option in Chocodown.converter
-
-Coffeekup:
-
-- added the `id` helper function that will return an incremental id
-- [Locco](#Choco-Locco) now independent from Mootools (works with litejQ or jquery) 
-
-Studio
-
-- in Chocodown panel, you can specify wether you want embedded Chocokup code to produce formatted HTML
-- Specolate has a better error handling
-- console.log is now copied in Studio message box
 
 FIXED BUGS
 
-- header and footer when not in a Chocokup Panel work as standard HTML5 tags
-- renamed internal Coffeekup 'data' variable to '__data' to avoid colisions
-- display error produced in Interface.exchangeSimple when user has sofkey privileges
-- removed Chocokup **title** helper. Now **title** works as a standard html tag
-- added Chocokup Core Css in Chocodown Lab view
-- added `panel` css class to Chocokup panels so it can be styled
-- removed useless `div` in Chocokup panels
-- Chocolate's module loader is more robust
-- server/interface forget-key renamed to forget-keys
 
 UPDATES
-
-- updated coffee-script to 1.7.1
-- updated Ace to package March.08.2014
 
 
 See history in **CHANGELOG.md** file
@@ -704,10 +612,9 @@ Instead of a javascript function you can call a Locco Interface:
 
     Interface = require 'chocolate/general/locco/interface'
     exports.say_hello = new Interface
-        rules:
-            defaults:
-                who: 'you'
-                where: 'Paris'
+        defaults:
+            who: 'you'
+            where: 'Paris'
         action: ->
             'hello ' + @bin.who + ' in ' + @bin.where
 
@@ -1435,10 +1342,9 @@ it submits the provided parameters and the system context (__) in a `bin` to the
         
         Interface = require 'chocolate/general/locco/interface'
         exports.interface = new Interface
-            rules:
-                defaults:
-                    who: 'you'
-                    where: 'Paris'
+            defaults:
+                who: 'you'
+                where: 'Paris'
             action: ->
                 'hello ' + @bin.who + ' in ' + @bin.where
 
@@ -1452,18 +1358,17 @@ You just declare an interface where the `action` is some Chocokup code that can 
 That interface can embed other `Interface.Web` modules:
 
         welcome_user = new Interface.Web
-                rules:
-                    defaults:
-                        welcome_message: -> 'Welcome'
-                        
-                        login_panel: new Interface.Web
-                            rules:
-                                defaults:
-                                    login: -> 'Login'
-                                    signin: -> 'Sign in'
-                            action: (bin = @bin) ->
-                                a href:'#', bin.login
-                                a href:'#', bin.signin
+                defaults:
+                    welcome_message: -> 'Welcome'
+                    
+                    login_panel: new Interface.Web
+                        rules:
+                            defaults:
+                                login: -> 'Login'
+                                signin: -> 'Sign in'
+                        action: (bin = @bin) ->
+                            a href:'#', bin.login
+                            a href:'#', bin.signin
         
                 action: (bin = @bin) ->
                     if bin.__.session.user?.has_signed_in

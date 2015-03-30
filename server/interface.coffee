@@ -11,7 +11,7 @@ Fs = require 'fs'
 Crypto = require 'crypto'
 File = require './file'
 Formidable = require 'formidable'
-Chocodash = require '../general/chocodash'
+_ = require '../general/chocodash'
 Chocokup = require '../general/chocokup'
 Chocodown = require '../general/chocodown'
 Highlight = require '../general/highlight'
@@ -26,12 +26,13 @@ exports.cook = (request) ->
 
 #### Exchange
 # `exchange` operates the interface
-exports.exchange = (space, so, what, how, where, region, params, appdir, datadir, backdoor_key, request, session, send) ->
-    
+exports.exchange = (bin, send) ->
+    {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket} = bin
+
     config = require('../' + datadir + '/config')
     where = where.replace(/\.\.[\/]*/g, '')
 
-    context = {space, request, session, appdir, datadir}
+    context = {space, workflow, request, websocket, session, sysdir, appdir, datadir}
     
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
@@ -40,7 +41,12 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
             when 'web', 'edit', 'help' then 'html'
             when 'manifest' then 'cache-manifest'
             else 'plain'
-            
+        
+        unless as is 'raw'
+            switch request.headers['accept']?.split(',')[0] 
+                when 'application/json' then as = 'json'
+                when 'application/json-late' then as = 'json-late'
+
         response_headers = { "Content-Type":"#{type}/#{subtype}; charset=utf-8" }
         
         switch as
@@ -48,8 +54,11 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
                 response_headers['Cache-Control'] = 'max-age=0'
                 response_headers['Expires'] = new Date().toUTCString()
                 
-            when 'raw'
-                result = JSON.stringify result unless Object.prototype.toString.call(result) is '[object String]'
+            when 'raw', 'json'
+                result = JSON.stringify result unless as is 'raw' and Object.prototype.toString.call(result) is '[object String]'
+        
+            when 'json-late'
+                result = _.stringify result
         
             when 'web', 'edit', 'help'
                 # render if instance of Chocokup
@@ -97,7 +106,7 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
     # `getMethodInfo` retrieve a method and its parameters from a required module
     getMethodInfo = (required, action) ->
         try
-            method = require required
+            method = module = require required
             
             method = method[name] for name in action.split('.') when method? if method?
             
@@ -108,7 +117,7 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
             else if method instanceof Interface
                     self = method
                     method = method.submit
-                    args = ['{__}']
+                    args = ['{__}', module]
             else method = undefined
                 
             {method, args, self}
@@ -163,7 +172,7 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
                                 else file
                         
             check_in_appdir = ->
-                appdir_ = if appdir is '.' then 'www' else appdir
+                appdir_ = appdir ? '.' 
                 required = Path.resolve appdir_ + '/' +  where
                 if required.indexOf(Path.resolve(appdir_) + '/static') is 0
                     return Fs.exists required, (exists) ->
@@ -205,12 +214,11 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
 
         switch so
             # if so is 'do' and what is public then authorize access  
-            when 'do' 
-                if how is 'web'
-                    {method, args, self, error} = getMethodInfo required, what
-                    return if has500 error
-                    if (method?) # TODO - should implement security checking
-                        what_is_public = yes
+            when 'do'
+                {method, args, self, error} = getMethodInfo required, what
+                return if has500 error
+                if (method?) # TODO - should implement security checking
+                    what_is_public = yes
     
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
@@ -342,7 +350,7 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
 
                 produced = method.apply self, args
                 
-                if produced instanceof Chocodash.Publisher
+                if produced instanceof _.Publisher
                     produced.subscribe (answer) -> respond answer
                 else if produced instanceof Events.EventEmitter
                     produced.on 'end', (answer) -> respond answer
@@ -355,7 +363,6 @@ exports.exchange = (space, so, what, how, where, region, params, appdir, datadir
     # However, if a file can be required at the specified path, a classic exchange will occur
     exchangeSimple = () ->
         path = if where is '' and so isnt 'move' then where = 'default' else where
-        path = 'www/' + path if appdir is '.'
 
         if canExchangeClassic path
             where = path

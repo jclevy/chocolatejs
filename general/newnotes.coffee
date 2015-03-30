@@ -1490,7 +1490,7 @@ Newnotes = class
     @enter: (__) ->
         Chocokup = require './chocokup'
         stats = require('fs').statSync require.resolve '../general/newnotes.coffee'
-        new Chocokup.App 'Newnotes', with_coffee:yes, manifest:"/-/general/newnotes?manifest&how=manifest", appdir:__.appdir, ->
+        new Chocokup.App 'Newnotes', theme:'basic', with_coffee:yes, manifest:"/-/general/newnotes?manifest&how=manifest", appdir:__.appdir, ->
             style
                 type:"text/css" 
                 media:"screen"
@@ -1523,10 +1523,10 @@ Newnotes = class
                         # should do someting
                     
                     taste = if window.getSize().x < 640 then 'fullscreen-narrow' else 'fullscreen-wide'
-                    load = '/' + (if sofkey? then '!/' + sofkey else '') + (if _appdir is '.' then '-/www/' else '') + 'data/newnotes_data.json?how=raw'
-                    save = '/' + (if sofkey? then '!/' + sofkey else '') + (if _appdir is '.' then '-/www/' else '') + 'data/newnotes_data.json?so=move&how=raw'
+                    load = '/' + (if sofkey? then '!/' + sofkey else '') + 'data/newnotes_data.json?how=raw'
+                    save = '/' + (if sofkey? then '!/' + sofkey else '') + 'data/newnotes_data.json?so=move&how=raw'
                     connected = '/' + (if sofkey? then '!/' + sofkey else '') + '-/general/newnotes?connected&how=raw'
-                    modified_date = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/file?getModifiedDate&' + (if _appdir is '.' then 'www/' else '') + 'data/newnotes_data.json&how=raw'
+                    modified_date = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/file?getModifiedDate&' + 'data/newnotes_data.json&how=raw'
                     ping = '/' + (if sofkey? then '!/' + sofkey else '') + '-/ping?how=raw'
                     register_key = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/interface?register_key&how=raw'
                     forget_keys = '/' + (if sofkey? then '!/' + sofkey else '') + '-/server/interface?forget_keys&how=raw'
@@ -1546,7 +1546,7 @@ Newnotes = class
         /static/lib/chocodown.js
         /static/vendor/mootools/mootools-core-uncompressed.js
         /static/lib/newnotes.js
-        /#{(if __.appdir is '.' then '-/www/' else '')}data/newnotes_data.json?how=raw
+        /data/newnotes_data.json?how=raw
         """
 
         to_cache_list = []
@@ -1561,7 +1561,7 @@ Newnotes = class
  
         """
         CACHE MANIFEST
-        # v0.05.005
+        # v0.05.009
         # Files Timestamp
         #
         #{time_stamps}
@@ -1576,6 +1576,7 @@ Newnotes = class
         
         FALLBACK:
         /-/general/newnotes?connected /-/general/newnotes?disconnected
+        
         """
 
     #### This is experimental !!!
@@ -1925,6 +1926,10 @@ Newnotes = class
                                     .slide.compact {
                                         font-size: 32;
                                         line-height: 1;
+                                    }
+                                    
+                                    .slide.wide {
+                                        height: 850px;
                                     }
                                     
                                     .slide pre {

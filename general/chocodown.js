@@ -96,6 +96,7 @@ Showdown.converter = function (options) {
 var g_urls;
 var g_titles;
 var g_html_blocks;
+var g_html_protected_blocks;
 
 // Used to track when we're inside an ordered or unordered list
 // (see _ProcessListItems() for details):
@@ -116,6 +117,7 @@ this.makeHtml = function(text) {
 	g_urls = new Array();
 	g_titles = new Array();
 	g_html_blocks = new Array();
+	g_html_protected_blocks = new Array();
     
 	// attacklab: Replace ~ with ~T
 	// This lets us use tilde as an escape char to avoid md5 hashes
@@ -144,6 +146,12 @@ this.makeHtml = function(text) {
 	// contorted like /[ \t]*\n+/ .
 	text = text.replace(/^[ \t]+$/mg,"");
 
+    // Turn {{ javascript }} and {{{ coffeescript }}} blocks in script blocks	
+	text = _DoScriptBlock(text);
+
+    // Turn Meta Markup (like Chocokup) blocks in html blocks	
+	text = _DoMetaMarkupBlock(text);
+
 	// Turn block-level HTML blocks into hash entries
 	text = _HashHTMLBlocks(text);
 
@@ -154,6 +162,8 @@ this.makeHtml = function(text) {
 
 	text = _UnescapeSpecialChars(text);
 
+	text = _RestoreProtectedBlocks(text);
+	
 	// attacklab: Restore dollar signs
 	text = text.replace(/~D/g,"$$");
 
@@ -935,7 +945,7 @@ var _DoCodeBlocks = function(text) {
                             case '#! coffee': 
                             case '! coffee': 
                                 try {
-                                    coderun = "<script language='javascript'>" + Showdown.CoffeeScript.compile(codeblock, {bare: true}) + "</script>";
+                                    coderun = "<script>" + Showdown.CoffeeScript.compile(codeblock, {bare: true}) + "</script>";
                                 }
                                 catch (e) {
                                     coderun = 'CoffeeScript error: ' + e.message + ': ' + codeblock;
@@ -946,7 +956,7 @@ var _DoCodeBlocks = function(text) {
                             case '! javascript': 
                             case '#! js': 
                             case '! js':
-                                coderun = "<script language='javascript'>" + codeblock + "</script>";
+                                coderun = "<script>" + codeblock + "</script>";
                                 break;
 
                             case '#! css': 
@@ -1005,6 +1015,10 @@ var _DoCodeBlocks = function(text) {
 var hashBlock = function(text) {
 	text = text.replace(/(^\n+|\n+$)/g,"");
 	return "\n\n~K" + (g_html_blocks.push(text)-1) + "K\n\n";
+}
+
+var hashProtectedBlock = function(text) {
+	return "~P" + (g_html_protected_blocks.push(text)-1) + "P";
 }
 
 
@@ -1102,6 +1116,51 @@ var _DoItalicsAndBold = function(text) {
 
     text = text.replace(/(\.\.)(?=\S)([^\r]*?\S[.]*)\1/g,
 		"<span style='font-size:0.6em;'>$2</span>");
+
+	return text;
+}
+
+var _DoScriptBlock = function(text) {
+    
+    if ((/\{\{\{([\S\s]*?)\}\}\}/g).test(text)) {
+        text = text.replace(/\{\{\{([\S\s]*?)\}\}\}/g, function (wholeMatch, m1) {
+            var coderun = '';
+            
+            try {
+                coderun = "<script>" + Showdown.CoffeeScript.compile(m1, {bare: true}).replace(/[\r\n]/g, '') + "</script>";
+            }
+            catch (e) {
+                coderun = 'CoffeeScript error: ' + e.message + ': ' + m1;
+            }
+            
+            return hashProtectedBlock(coderun);
+        });
+    }
+    
+    text = text.replace(/\{\{([\S\s]*?)\}\}/g, function (wholeMatch, m1) {
+        return hashProtectedBlock("<script>" + m1 + "</script>");
+    });
+
+	return text;
+}
+
+var _DoMetaMarkupBlock = function(text) {
+    
+    if ((/\<\<\<([\S\s]*?)\>\>\>/g).test(text)) {
+        text = text.replace(/\<\<\<([\S\s]*?)\>\>\>/g, function (wholeMatch, m1) {
+            var coderun = '';
+            
+            try {
+                // ask Chocokup to provide all html tags in every block so we can reuse functions between blocks
+                coderun = new Showdown.Chocokup.Panel(m1).render({all_tags:true, format:Showdown.Chocokup.format, locals:{Chocokup:Showdown.Chocokup}});
+            }
+            catch (e) {
+                coderun = 'Chocokup error: ' + e.message + ': ' + m1;
+            }
+            
+            return hashProtectedBlock(coderun);
+        });
+    }
 
 	return text;
 }
@@ -1322,6 +1381,17 @@ var _EncodeEmailAddress = function(addr) {
 	return addr;
 }
 
+var _RestoreProtectedBlocks = function(text) {
+//
+// Unhashify HTML protected blocks
+//
+	text = text.replace(/~P(\d+)P/g,
+		function(wholeMatch,m1) {
+		    return g_html_protected_blocks[parseInt(m1)];
+		}
+	);
+	return text;
+}
 
 var _UnescapeSpecialChars = function(text) {
 //

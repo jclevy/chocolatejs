@@ -45,13 +45,12 @@ monitor_server = new class
     "start": ->
         process.chdir __dirname + '/..'
         this.appdir =  process.argv[2]
-        this.appdir =  Path.relative process.cwd(), this.appdir if this.appdir?
         this.port =  process.argv[3]
         
         self = this
         
         process.on 'uncaughtException', (err) ->
-            Fs.createWriteStream((this.appdir ? './www' ) + '/data/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
+            Fs.createWriteStream((this.appdir ? '.' ) + '/data/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
             
         process.on 'SIGTERM', -> self.exit()
 
@@ -99,8 +98,8 @@ monitor_server = new class
             
             
             if File.hasWriteAccess curdir
-                file = curdir + '/' + file if curdir is '.'
-                if (file.indexOf(curdir + '/client/') is 0 or file.indexOf(curdir + '/general/') is 0)
+            
+                build = (file, curdir) ->
                     static_lib_dirname = curdir + '/static/lib'
                     file_ext = Path.extname file
                     file_base = Path.basename file, file_ext
@@ -134,8 +133,12 @@ monitor_server = new class
                         bundle_known_files = {
                             'locco/intention.js'
                             'locco/data.js'
+                            'locco/action.js'
                             'locco/document.js'
+                            'locco/workflow.js'
                             'locco/interface.js'
+                            'locco/actor.js'
+                            'locco/reserve.js'
                             'locco/prototype.js'
                         }
 
@@ -150,7 +153,7 @@ monitor_server = new class
                                 
                                 
                                 """
-                        
+
                         sort = (a,b) ->
                             name = (path) ->
                                 if (i = path.lastIndexOf '.') >= 0 then path[0...i] else path
@@ -159,7 +162,10 @@ monitor_server = new class
                         for own filename of bundle_known_files then put filename
                         for filename in files.sort(sort) when bundle_known_files[filename] is undefined and filename.indexOf('locco') is 0 and filename.indexOf('.spec') is -1 and filename isnt bundle_filename then put filename
                             
-                        Fs.writeFileSync static_lib_dirname + '/' + bundle_filename, bundle_file
+                        Fs.writeFileSync static_lib_dirname + '/' + bundle_filename, bundle_file                    
+            
+                file = curdir + '/' + file if curdir is '.'
+                if (file.indexOf(curdir + '/client/') is 0 or file.indexOf(curdir + '/general/') is 0) then build file, curdir
 
             self.log 'CHOCOLATEJS: Restarting because of ' + event + ' file at ' + file
             

@@ -10,31 +10,31 @@ class Chocokup
         text "#{@__.body()}"
     body_template: ->
         text "#{@__.content()}"
-    @helpers: class
-        verify : (args...) ->
-            attributes = content = null
-            id_class = ''
-            for a in args
-                switch typeof a
-                    when 'function'
+    @verify : (args...) ->
+        attributes = content = null
+        id_class = ''
+        for a in args
+            switch typeof a
+                when 'function'
+                    content = a
+                when 'object'
+                    attributes = a
+                when 'number', 'boolean'
+                    content = a
+                when 'string'
+                    if args.length is 1
                         content = a
-                    when 'object'
-                        attributes = a
-                    when 'number', 'boolean'
-                        content = a
-                    when 'string'
-                        if args.length is 1
-                            content = a
+                    else
+                        if a is args[0]
+                            id_class = a
                         else
-                            if a is args[0]
-                                id_class = a
-                            else
-                                content = a 
+                            content = a 
 
+        
+        # return verified arguments
+        {id_class, attributes, content}
             
-            # return verified arguments
-            id_class:id_class, attributes:attributes, content:content
-
+    @helpers: class
         css : (param) ->
             compile = (rules, helpers) ->
                 result = ''
@@ -87,7 +87,7 @@ class Chocokup
                 else param.toString()
 
         panel : ->
-            { id_class, attributes, content } = verify arguments...
+            { id_class, attributes, content } = Chocokup.verify arguments...
             
             new_id_class = 'panel.space'
             
@@ -135,7 +135,7 @@ class Chocokup
             panel_index_keep = @__.panel_index()
             proportion_keep = @__.proportion()
             orientation_keep = @__.orientation()
-            
+
             @__.panel_index 1
             @__.panel_infos ?= []
             @__.panel_infos.push {} 
@@ -168,13 +168,13 @@ class Chocokup
             @__.panel_infos.pop()
             
         box : ->
-            { id_class, attributes, content } = verify arguments...
+            { id_class, attributes, content } = Chocokup.verify arguments...
             
             id_class = 'frame' + (if id_class isnt '' then '.' else '') + id_class
             panel id_class, attributes, -> panel 'sizer', content
 
         header : ->
-            { id_class, attributes, content } = verify arguments...
+            { id_class, attributes, content } = Chocokup.verify arguments...
             
             if not @__.panel_infos? or @__.panel_infos.length is 0 or attributes?.html5? then tag 'header', arguments...
             else
@@ -187,7 +187,7 @@ class Chocokup
                 panel id_class, attributes, content
 
         footer : ->
-            { id_class, attributes, content } = verify arguments...
+            { id_class, attributes, content } = Chocokup.verify arguments...
             
             if not @__.panel_infos? or @__.panel_infos.length is 0 or attributes?.html5? then tag 'footer', arguments...
             else
@@ -200,7 +200,7 @@ class Chocokup
                 panel_info.footer_kept = {id_class, attributes, content}
 
         body : ->
-            { id_class, attributes, content } = verify arguments...
+            { id_class, attributes, content } = Chocokup.verify arguments...
             
             if @__.panel_infos?.length > 0
                 new_id_class = 'body'
@@ -214,6 +214,13 @@ class Chocokup
                 panel id_class, attributes, content
             else
                 tag 'body', arguments...
+                
+    @register: (name, func) ->
+        Chocokup.registered_kups ?= {}
+        Chocokup.registered_kups[name] = func
+        
+    @unregister: (name) ->
+        delete Chocokup.registered_kups[name] if Chocokup.registered_kups?
 
     render: (options) ->
         locals = options?.locals ? {}
@@ -273,10 +280,21 @@ class Chocokup
         for helper_ext in ['helpers', 'kups', 'code']
             if @params?[helper_ext]?
                 helpers[k] = v for k,v of @params[helper_ext] 
-                delete @params[helper_ext] 
+                delete @params[helper_ext]
 
+        helpers[k] = v for k,v of Chocokup.registered_kups
+        
+        if @params?['interface']?
+            _interface = @params.interface
+            delete @params.interface
+
+        if @params?.document?
+            document = @params.document
+            delete @params.document
+
+        all_tags = options?.all_tags ? true
         format = options?.format ? false
-        data = { params:@params, format, hardcode:helpers, locals, bin, __ }
+        data = { params:@params, format, all_tags, hardcode:helpers, document, 'interface':_interface, actor:_interface?.actor, locals, bin, __ }
         __.title @title
         __.content Coffeekup.render @content, data
         __.body Coffeekup.render @body_template, data
@@ -303,7 +321,9 @@ class Chocokup.Document extends Chocokup
                     #{Chocokup.Css[@params?.theme ? "reset"]}
                     #{Chocokup.Css.core}
                     """
-                
+                ie 'lt IE 9', ->
+                    script src:"/static/lib/html5shiv.js", type:"text/javascript", charset:"utf-8"
+
             text "#{@__.body()}"
                 
     body_template: ->
@@ -319,12 +339,14 @@ class Chocokup.App extends Chocokup.Document
     @manifest = 
         cache : """
         /static/lib/coffee-script.js
+        /static/lib/chocodash.js
         /static/lib/litejq.js
         /static/lib/locco.js
         """
         
     body_template: ->
         script src:"/static/lib/coffee-script.js", type:"text/javascript", charset:"utf-8" if @params?.with_coffee
+        script src:"/static/lib/chocodash.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/lib/litejq.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/lib/locco.js", type:"text/javascript", charset:"utf-8"
        
@@ -479,29 +501,29 @@ class Chocokup.Css
     .padding-right{padding-right:1em;}
     .padding-top{padding-top:1em;}
     .padding-bottom{padding-bottom:1em;}
-    .header{bottom:auto;height:32px;line-height:32px;overflow:hidden;position:absolute;text-align:center;top:0px;width:100%;}
-    .body{bottom:32px;overflow:auto;position:absolute;top:32px;webkit-overflow-scrolling:touch;}
-    .footer{bottom:0px;height:32px;line-height:32px;overflow:hidden;position:absolute;text-align:center;top:auto;width:100%;}
+    .header{bottom:auto;height:2.4em;line-height:2.4em;overflow:hidden;position:absolute;text-align:center;top:0px;width:100%;}
+    .body{bottom:2.4em;overflow:auto;position:absolute;top:2.4em;webkit-overflow-scrolling:touch;}
+    .footer{bottom:0px;height:2.4em;line-height:2.4em;overflow:hidden;position:absolute;text-align:center;top:auto;width:100%;}
     .no-header{top:0px;}
     .no-footer{bottom:0px;}
     .header.by-bootstrap, .footer.by-bootstrap{height:40px;line-height:inherit;margin:0;padding:0;}
-    .header.by-2, .footer.by-2{height:64px;}
-    .header.by-3, .footer.by-3{height:96px;}
-    .header.by-4, .footer.by-4{height:128px;}
-    .header.by-5, .footer.by-5{height:160px;}
-    .header.by-10, .footer.by-10{height:320px;}
+    .header.by-2, .footer.by-2{height:4.8em;}
+    .header.by-3, .footer.by-3{height:7.2em;}
+    .header.by-4, .footer.by-4{height:9.6em;}
+    .header.by-5, .footer.by-5{height:12em;}
+    .header.by-10, .footer.by-10{height:24em;}
     .with-bootstrap-headers{top:40px;}
-    .with-2-headers{top:64px;}
-    .with-3-headers{top:96px;}
-    .with-4-headers{top:128px;}
-    .with-5-headers{top:160px;}
-    .with-10-headers{top:320px;}
+    .with-2-headers{top:4.8em;}
+    .with-3-headers{top:7.2em;}
+    .with-4-headers{top:9.6em;}
+    .with-5-headers{top:12em;}
+    .with-10-headers{top:24em;}
     .with-bootstrap-footers{bottom:40px;}
-    .with-2-footers{bottom:64px;}
-    .with-3-footers{bottom:96px;}
-    .with-4-footers{bottom:128px;}
-    .with-5-footers{bottom:160px;}
-    .with-10-footers{bottom:320px;}
+    .with-2-footers{bottom:4.8em;}
+    .with-3-footers{bottom:7.2em;}
+    .with-4-footers{bottom:9.6emx;}
+    .with-5-footers{bottom:12em;}
+    .with-10-footers{bottom:24em;}
     .inline{position:relative;}
     .scroll *{overflow:auto;webkit-overflow-scrolling:touch;}
     .no-scroll *{overflow:hidden;}

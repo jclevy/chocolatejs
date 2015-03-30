@@ -91,6 +91,9 @@ coffeekup.tags = merge_elements 'regular', 'obsolete', 'void', 'obsolete_void'
 # Public/customizable list of elements that should be rendered self-closed.
 coffeekup.self_closing = merge_elements 'void', 'obsolete_void'
 
+# Internal global id generator
+coffeekup.id = 0
+
 # This is the basic material from which compiled templates will be formed.
 # It will be manipulated in its string form at the `coffeekup.compile` function
 # to generate the final template function. 
@@ -112,8 +115,6 @@ skeleton = (__data = {}) ->
 
     tabs: 0
     
-    id: 0
-
     repeat: (string, count) -> Array(count + 1).join string
 
     indent: -> text @repeat('  ', @tabs) if __data.format
@@ -215,8 +216,13 @@ skeleton = (__data = {}) ->
     __ck.render_tag(name, idclass, attrs, contents)
 
   id = (value) -> 
-    __ck.id = parseInt value if value? and typeof value is "number"
-    '_' + __ck.id++
+    if typeof value is "string"
+      ids = {}
+      for key in arguments then ids[key] = id()
+      return ids
+    
+    __data.id(parseInt value) if value? and typeof value is "number"
+    '_' + __data.id()
   
   totext = (f) ->
     temp_buffer = []
@@ -320,7 +326,10 @@ coffeekup.compile = (template, options = {}) ->
   
   if options.hardcode
     for k, v of options.hardcode
-      hardcoded_locals += "var #{k} = #{stringify v};"
+      unless options.document and typeof v is 'function'
+        hardcoded_locals += "var #{k} = #{stringify v};"
+      else
+        hardcoded_locals += "var #{k} = function() { return (#{stringify v}).apply(this.bin ? this : __data.document, arguments) };"
 
   # Add a function for each tag this template references. We don't want to have
   # all hundred-odd tags wasting space in the compiled function.
@@ -328,7 +337,7 @@ coffeekup.compile = (template, options = {}) ->
   tags_used = []
   
   for t in coffeekup.tags
-    if template.indexOf(t) > -1 or hardcoded_locals.indexOf(t) > -1
+    if options.all_tags or template.indexOf(t) > -1 or hardcoded_locals.indexOf(t) > -1
       tags_used.push t
       
   tag_functions += "var #{tags_used.join ','};"
@@ -365,6 +374,7 @@ cache = {}
 coffeekup.render = (template, data = {}, options = {}) ->
   data[k] = v for k, v of options
   data.cache ?= off
+  data.id = (value) -> if value? then coffeekup.id = value else coffeekup.id++
 
   if data.cache and cache[template]? then tpl = cache[template]
   else if data.cache then tpl = cache[template] = coffeekup.compile(template, data)

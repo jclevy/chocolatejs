@@ -165,6 +165,8 @@ exports.writeToFile = (path, data, __) ->
     
     normalized_path = normalize path
     file_pathname = exports.ensurePathExists normalized_path, __
+    
+    repo = resolve_repo normalized_path, __
 
     # Create the file if non existent
     unless Fs.existsSync file_pathname
@@ -172,7 +174,7 @@ exports.writeToFile = (path, data, __) ->
             unless err?
                 Fs.close fd, (err) ->
                     # Add the file in Git index
-                    new Git(cwd:__?.appdir ? '.').add(normalized_path).on 'close', () ->
+                    new Git(cwd:repo.cwd).add(repo.path).on 'close', () ->
                         # Write the file content
                         Fs.writeFile file_pathname, data ? '', (err) ->
                             event.emit 'end', err
@@ -197,6 +199,9 @@ exports.moveFile = (from, to, __) ->
     curdir = (if __?.appdir then __.appdir + '/' else '')
     from = curdir + normalize from
     to =  curdir + normalize to if to isnt ''
+    
+    repo = resolve_repo from, __
+    
     # If file to move exists
     if Fs.existsSync from
         # Read its content
@@ -206,8 +211,8 @@ exports.moveFile = (from, to, __) ->
                 Fs.unlink from, (err) ->
                     unless err?
                         # Remove it from the Git index
-                        git = new Git cwd:__?.appdir ? '.'
-                        handler = git.add u:null, from
+                        git = new Git cwd:repo.cwd
+                        handler = git.add u:null, repo.path
                         handler.on 'close', () ->
                             # Move is a Remove if to is ''
                             return event.emit 'end', err if to is ''
@@ -230,6 +235,9 @@ exports.moveFile = (from, to, __) ->
 exports.removeFile = (path, __) ->
     event = new Events.EventEmitter
     path = (if __?.appdir then __.appdir + '/' else '') + normalize path
+    
+    repo = resolve_repo path, __
+    
     # If file to move exists
     if Fs.existsSync path
         unless err?
@@ -237,8 +245,8 @@ exports.removeFile = (path, __) ->
             Fs.unlink path, (err) ->
                 unless err?
                     # Remove it from the Git index
-                    git = new Git cwd:__?.appdir ? '.'
-                    handler = git.add u:null, path
+                    git = new Git cwd:repo.cwd
+                    handler = git.add u:null, repo.path
                     handler.on 'close', () ->
                         event.emit 'end', err
                 else
@@ -285,9 +293,10 @@ exports.grep = (pattern, with_case, show_details, __) ->
 #### commitToHistory
 
 # `commitToHistory` commits current system files changes in Git repository 
-exports.commitToHistory = (message, __) ->
+exports.commitToHistory = (message, repository, __) ->
     event = new Events.EventEmitter
-    git = new Git cwd:__?.appdir ? '.'
+    repo = resolve_repo repository, __
+    git = new Git cwd:repo.cwd
     handler = git.commit a:null, m:message
     handler.on 'close', () ->
         event.emit 'end', 'Done'
@@ -298,9 +307,10 @@ exports.commitToHistory = (message, __) ->
 # `loadFromHistory` load one system file from existing commit in Git repository 
 exports.loadFromHistory = (commit_sha, path, __) ->
     event = new Events.EventEmitter
-    git = new Git cwd:__.appdir
+    repo = resolve_repo path, __
+    git = new Git cwd:repo.cwd
     answer = ''
-    handler = git.show '--raw', commit_sha + ':' + path
+    handler = git.show '--raw', commit_sha + ':' + repo.path
     handler.on 'item', (item) ->
         answer += '' + item + '\n'
     handler.on 'close', () ->
@@ -315,7 +325,8 @@ exports.loadFromHistory = (commit_sha, path, __) ->
 exports.getAvailableCommits = (path, __) ->
     commits = null
     event = new Events.EventEmitter
-    handler = new Git(cwd:__?.appdir ? '.').commits(follow:null,'name-status':null, path)
+    repo = resolve_repo path, __
+    handler = new Git(cwd:repo.cwd).commits(follow:null,'name-status':null, repo.path)
     handler.on 'item', (commit) ->
         (commits ?= []).push sha:commit.sha, date:commit.author.date, message:commit.message, name:commit.name
     handler.on 'close', ->
@@ -330,6 +341,8 @@ exports.getAvailableCommits = (path, __) ->
 
 # `normalize` adds .coffee extension to the provided `path` if it does not have one
 normalize = (path) -> if Path.extname(path) isnt '' then path else path + '.coffee'
+
+#### resolve
 
 # `resolve`  tries to resolve the `where` parameter to a local path 
 resolve = (where, __) ->
@@ -348,7 +361,20 @@ resolve = (where, __) ->
         error = "File '#{where} does not exists'"
     
     {where, path, error}
+
+#### resolve_repo
+
+# `resolve_repo` adapts given path if in sysdir repository.
+resolve_repo = (path, __) ->
+    cwd = __?.appdir ? '.'
+    appdir_abs = Path.resolve(__?.appdir ? '.')
+    sysdir_abs = Path.resolve(__?.sysdir ? '.')
+    if path.charAt(0) isnt '/' then path = '/' + path
+    if (appdir_abs + path).indexOf(sysdir_abs) is 0 then path = (appdir_abs + path).substr sysdir_abs.length + 1 ; cwd = '.'
     
+    {cwd, path}
+    
+
 #### with_error
 
 # `with_error` emits an `end` message containing the error message
