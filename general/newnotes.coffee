@@ -129,7 +129,7 @@ Newnotes = class
 
         #newnotes-#{id}-note-panel .paper {
             background-color: rgb(245, 242, 209);
-            color: rgb(85, 78, 76);
+            color: rgb(85, 78, 75);
             text-shadow: none;
             border-right: 6px double rgb(202, 195, 181);
             border-top-right-radius: 10px;
@@ -156,7 +156,7 @@ Newnotes = class
             background-color: rgb(247, 246, 232);
             border-radius: 14px;
             padding: 10px;
-            color: rgb(85, 78, 76);
+            color: rgb(85, 78, 75);
             text-shadow: none;
             font-size: 12pt;
             background: -webkit-linear-gradient(top, rgb(228, 228, 228) 0%, rgb(247, 246, 232) 8%) 0 57px;
@@ -338,7 +338,7 @@ Newnotes = class
         Share:
             values: ['No share', 'Communication', 'Partnership', 'Work', 'Finance', 'Insurance']
             node: 'free'
-    
+
     @HtmlPanel: class
         constructor: (@newnotes, @id, @url, @in_list, @has_keyboard, @use_ace, @standalone) ->
             @editor = new class

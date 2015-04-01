@@ -25,7 +25,7 @@ Actor = _.prototype
         
         is_ready = new _.Publisher
         
-        @ready = (func) -> is_ready.subscribe (=> func.call @)
+        @ready = (callback) -> is_ready.subscribe (=> callback.call @)
         @stage = options?.workflow ? Workflow.main
         
         is_ready.subscribe (=> @stage.enter @)
@@ -95,6 +95,6 @@ Actor.Web = _.prototype inherit:Actor, use: ->
             when 'view' then
             when 'modal' then
             when 'popup' then
-    
+
 _module = window ? module
 if _module.exports? then _module.exports = Actor else window.Locco ?= {} ; window.Locco.Actor = Actor

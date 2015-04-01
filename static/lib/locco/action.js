@@ -20,7 +20,8 @@
       this.actions.push({
         so: 'move',
         what: what,
-        way: way
+        where: where,
+        how: how
       });
       return this;
     },

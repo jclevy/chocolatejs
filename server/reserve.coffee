@@ -805,7 +805,7 @@ class Space
                                         
                 else
                     callback? error
-    
+
     # `query` To Be Defined
     query: (where, callback) ->
         process.nextTick ->

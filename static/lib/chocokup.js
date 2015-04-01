@@ -622,7 +622,7 @@
 
   Chocokup.Kups = {
     Tablet: function() {
-      style(".chocoblack {background-color: #241A15;border: 1px solid #080401;-webkit-box-shadow: inset 0 0 15px #080401;-moz-box-shadow: inset 0 0 15px #080401;-o-box-shadow: inset 0 0 15px #080401;box-shadow: inset 0 0 15px #080401;}\n.chocomilk {background-color:rgb(245, 242, 232);border: 2px solid rgba(255, 204, 0, 0.3);color: rgb(92, 75, 68);}\n.frame.chocomilk.round {-webkit-box-shadow: inset 0 0 20px #080401;-moz-box-shadow: inset 0 0 20px #080401;-o-box-shadow: inset 0 0 20px #080401;box-shadow: inset 0 0 20px #080401;} ");
+      style(".chocoblack {background-color: #241A15;border: 1px solid #080401;-webkit-box-shadow: inset 0 0 15px #080401;-moz-box-shadow: inset 0 0 15px #080401;-o-box-shadow: inset 0 0 15px #080401;box-shadow: inset 0 0 15px #080401;}\n.chocomilk {background-color:rgb(245, 242, 232);border: 2px solid rgba(255, 204, 0, 0.3);color: rgb(92, 75, 66);}\n.frame.chocomilk.round {-webkit-box-shadow: inset 0 0 20px #080401;-moz-box-shadow: inset 0 0 20px #080401;-o-box-shadow: inset 0 0 20px #080401;box-shadow: inset 0 0 20px #080401;} ");
       return panel("#.chocoblack", {
         proportion: 'third'
       }, function() {

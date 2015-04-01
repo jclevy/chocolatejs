@@ -361,11 +361,11 @@
 
   _.extend = function(object, values, overwrite) {
     var set;
-    set = function(o, d) {
+    set = function(o, val) {
       var k, v;
-      for (k in d) {
-        if (!__hasProp.call(d, k)) continue;
-        v = d[k];
+      for (k in val) {
+        if (!__hasProp.call(val, k)) continue;
+        v = val[k];
         if (o == null) {
           o = {};
         }

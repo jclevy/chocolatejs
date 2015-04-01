@@ -6,7 +6,7 @@ Workflow = require '../locco/workflow'
 TransientReserve = _.prototype
     use: ->
         all = {}
-        
+
         @Space = 
             read: (uuid) -> all[uuid]
             write: (io) -> all[io.uuid] = io

@@ -39,7 +39,7 @@ class Sessions
             setTimeout cleanup, if next is Infinity then 60000 else next - (+new Date) + 1000
         
         setTimeout cleanup, 5000
-        
+
     # The `Get` method returns the session associated with the provided `request`
     # or creates a new one if none exists.
     get: (request) ->

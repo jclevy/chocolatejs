@@ -112,6 +112,7 @@ exports.ensurePathExists = (path, __) ->
     file_pathname = ''
     # Check the existence of every directory in the path
     for path in file_path
+        if file_pathname is '' and path is '' then path = '/'
         file_pathname += (if file_pathname != '' then '/' else '') + path
         # Create the directory if non existent
         if file_pathname isnt '' and not Fs.existsSync file_pathname
@@ -305,9 +306,10 @@ exports.commitToHistory = (message, repository, __) ->
 #### loadFromHistory
 
 # `loadFromHistory` load one system file from existing commit in Git repository 
-exports.loadFromHistory = (commit_sha, path, __) ->
+exports.loadFromHistory = (commit_sha, path, repo_cwd, __) ->
     event = new Events.EventEmitter
     repo = resolve_repo path, __
+    if repo_cwd isnt '' then repo.cwd = repo_cwd 
     git = new Git cwd:repo.cwd
     answer = ''
     handler = git.show '--raw', commit_sha + ':' + repo.path
@@ -328,7 +330,7 @@ exports.getAvailableCommits = (path, __) ->
     repo = resolve_repo path, __
     handler = new Git(cwd:repo.cwd).commits(follow:null,'name-status':null, repo.path)
     handler.on 'item', (commit) ->
-        (commits ?= []).push sha:commit.sha, date:commit.author.date, message:commit.message, name:commit.name
+        (commits ?= []).push sha:commit.sha, date:commit.author.date, message:commit.message, name:commit.name, repo:repo.cwd
     handler.on 'close', ->
         event.emit 'end', commits ? '{}'
             
@@ -370,7 +372,7 @@ resolve_repo = (path, __) ->
     appdir_abs = Path.resolve(__?.appdir ? '.')
     sysdir_abs = Path.resolve(__?.sysdir ? '.')
     if path.charAt(0) isnt '/' then path = '/' + path
-    if (appdir_abs + path).indexOf(sysdir_abs) is 0 then path = (appdir_abs + path).substr sysdir_abs.length + 1 ; cwd = '.'
+    if (appdir_abs + path).indexOf(sysdir_abs) is 0 then path = (appdir_abs + path).substr sysdir_abs.length + 1 ; cwd = '.' else path = path.substr 1
     
     {cwd, path}
     

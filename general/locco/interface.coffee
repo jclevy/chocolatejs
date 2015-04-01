@@ -212,13 +212,13 @@ Interface.Web = _.prototype inherit:Interface, use: ->
         if callback? then result.subscribe (reaction) -> callback reaction.bin.render()
         
         result
-        
+
 
 Interface.Web.App = Interface.Web
 
 Interface.Web.Document = _.prototype inherit:Interface.Web, use: -> @type = 'Document'
 
 Interface.Web.Panel = _.prototype inherit:Interface.Web, use: -> @type = 'Panel'
-    
+
 _module = window ? module
 if _module.exports? then _module.exports = Interface else window.Locco ?= {} ; window.Locco.Interface = Interface

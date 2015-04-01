@@ -140,7 +140,8 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
       this.actions.push({
         so: 'move',
         what: what,
-        way: way
+        where: where,
+        how: how
       });
       return this;
     },
@@ -906,10 +907,10 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
     constructor: function(options) {
       var doc, is_ready, k, v, _bind, _ref;
       is_ready = new _.Publisher;
-      this.ready = function(func) {
+      this.ready = function(callback) {
         return is_ready.subscribe(((function(_this) {
           return function() {
-            return func.call(_this);
+            return callback.call(_this);
           };
         })(this)));
       };

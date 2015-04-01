@@ -48,7 +48,6 @@
 // and line endings.
 //
 
-
 //
 // Showdown usage:
 //
@@ -893,7 +892,7 @@ var _DoCodeBlocks = function(text) {
 	text = text.replace(/(?:\n\n|^)((?:(?:[ ]{4}|\t).*\n+)+)(\n*[ ]{0,3}[^ \t\n]|(?=~0))/g,
 		function(wholeMatch,m1,m2) {
     		var codeblock = m1;
-    		var coderun = '';
+    		var codehtml = '';
 			var nextChar = m2;
 		
             codeblock =  _Outdent(codeblock);
@@ -931,10 +930,10 @@ var _DoCodeBlocks = function(text) {
                             case '#! chocokup':
                             case '! chocokup':
                                 try {
-                                      coderun = new Showdown.Chocokup.Panel(codeblock).render({format:Showdown.Chocokup.format, locals:{Chocokup:Showdown.Chocokup}});
+                                      codehtml = new Showdown.Chocokup.Panel(codeblock).render({format:Showdown.Chocokup.format, locals:{Chocokup:Showdown.Chocokup}});
                                 }
                                 catch (e) {
-                                    coderun = 'Chocokup error: ' + e.message + ': ' + codeblock;
+                                    codehtml = 'Chocokup error: ' + e.message + ': ' + codeblock;
                                 }
                                 break;
                                 
@@ -945,10 +944,10 @@ var _DoCodeBlocks = function(text) {
                             case '#! coffee': 
                             case '! coffee': 
                                 try {
-                                    coderun = "<script>" + Showdown.CoffeeScript.compile(codeblock, {bare: true}) + "</script>";
+                                    codehtml = "<script>" + Showdown.CoffeeScript.compile(codeblock, {bare: true}) + "</script>";
                                 }
                                 catch (e) {
-                                    coderun = 'CoffeeScript error: ' + e.message + ': ' + codeblock;
+                                    codehtml = 'CoffeeScript error: ' + e.message + ': ' + codeblock;
                                 }
                                 break;
                                                                 
@@ -956,15 +955,15 @@ var _DoCodeBlocks = function(text) {
                             case '! javascript': 
                             case '#! js': 
                             case '! js':
-                                coderun = "<script>" + codeblock + "</script>";
+                                codehtml = "<script>" + codeblock + "</script>";
                                 break;
 
                             case '#! css': 
                             case '! css': 
-                                coderun = "<style type='text/css'>" + codeblock + "</style>";
+                                codehtml = "<style type='text/css'>" + codeblock + "</style>";
                                 break;
 
-                            default: coderun = codeblock;
+                            default: codehtml = codeblock;
                         }
 
                         if (language[0] !== '#') {
@@ -1000,7 +999,7 @@ var _DoCodeBlocks = function(text) {
             if (!done)
                 codeblock = "<pre class='source_code'><code>" + _EncodeCode(codeblock) + "\n</code></pre>";
 
-            codeblock += coderun
+            codeblock += codehtml
             
 			return hashBlock(codeblock) + nextChar;
 		}
@@ -1124,16 +1123,16 @@ var _DoScriptBlock = function(text) {
     
     if ((/\{\{\{([\S\s]*?)\}\}\}/g).test(text)) {
         text = text.replace(/\{\{\{([\S\s]*?)\}\}\}/g, function (wholeMatch, m1) {
-            var coderun = '';
+            var codehtml = '';
             
             try {
-                coderun = "<script>" + Showdown.CoffeeScript.compile(m1, {bare: true}).replace(/[\r\n]/g, '') + "</script>";
+                codehtml = "<script>" + Showdown.CoffeeScript.compile(m1, {bare: true}).replace(/[\r\n]/g, '') + "</script>";
             }
             catch (e) {
-                coderun = 'CoffeeScript error: ' + e.message + ': ' + m1;
+                codehtml = 'CoffeeScript error: ' + e.message + ': ' + m1;
             }
             
-            return hashProtectedBlock(coderun);
+            return hashProtectedBlock(codehtml);
         });
     }
     
@@ -1148,17 +1147,17 @@ var _DoMetaMarkupBlock = function(text) {
     
     if ((/\<\<\<([\S\s]*?)\>\>\>/g).test(text)) {
         text = text.replace(/\<\<\<([\S\s]*?)\>\>\>/g, function (wholeMatch, m1) {
-            var coderun = '';
+            var codehtml = '';
             
             try {
                 // ask Chocokup to provide all html tags in every block so we can reuse functions between blocks
-                coderun = new Showdown.Chocokup.Panel(m1).render({all_tags:true, format:Showdown.Chocokup.format, locals:{Chocokup:Showdown.Chocokup}});
+                codehtml = new Showdown.Chocokup.Panel(m1).render({all_tags:true, format:Showdown.Chocokup.format, locals:{Chocokup:Showdown.Chocokup}});
             }
             catch (e) {
-                coderun = 'Chocokup error: ' + e.message + ': ' + m1;
+                codehtml = 'Chocokup error: ' + e.message + ': ' + m1;
             }
             
-            return hashProtectedBlock(coderun);
+            return hashProtectedBlock(codehtml);
         });
     }
 

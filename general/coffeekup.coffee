@@ -6,8 +6,7 @@
 # and options and return generated HTML on any JS runtime.
 # 
 # The concept is directly stolen from the amazing
-# [Markaby](http://markaby.rubyforge.org/) by Tim Fletcher and why the lucky
-# stiff.
+# [Markaby](http://markaby.rubyforge.org/) by Tim Fletcher and why the lucky stiff.
 
 if window?
   coffeekup = window[if window.exports? then "exports" else "Coffeekup"] = {}
@@ -224,11 +223,11 @@ skeleton = (__data = {}) ->
     __data.id(parseInt value) if value? and typeof value is "number"
     '_' + __data.id()
   
-  totext = (f) ->
+  totext = (func) ->
     temp_buffer = []
     old_buffer = __ck.buffer
     __ck.buffer = temp_buffer
-    f()
+    func()
     __ck.buffer = old_buffer
     temp_buffer.join ''
 

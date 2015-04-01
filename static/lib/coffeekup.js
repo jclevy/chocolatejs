@@ -248,12 +248,12 @@
       }
       return '_' + __data.id();
     };
-    totext = function(f) {
+    totext = function(func) {
       var old_buffer, temp_buffer;
       temp_buffer = [];
       old_buffer = __ck.buffer;
       __ck.buffer = temp_buffer;
-      f();
+      func();
       __ck.buffer = old_buffer;
       return temp_buffer.join('');
     };

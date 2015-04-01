@@ -51,7 +51,7 @@ Workflow = _.prototype
 
     enter: (actor) ->
         @actors[actor.id()] = actor
-    
+
     broadcast: (object, service, params..., callback) ->
         if window?
             location = null

@@ -75,9 +75,11 @@ exports.enter = (__) ->
             .padded {
                 padding: 8px;
             }
-            
-            .ace-coffee.dimmed .ace_scroller {
+            .darkTheme .ace_editor.dimmed .ace_scroller {
                 background-color: dimgrey;
+            }
+            .lightTheme .ace_editor.dimmed .ace_scroller {
+                background-color: lightgrey;
             }
             .bite_style {
                 height: 7px;
@@ -997,11 +999,11 @@ exports.enter = (__) ->
                 code_git_history = document.id('code-git-history').set 'html', ''
                 spec_git_history = document.id('spec-git-history').set 'html', ''
                 if path is '' then return
-
+                
                 add_element = (item, history) ->
-                    new Element('div').adopt([new Element('div', html:item.source + ' - ' + item.date.toString('dd/MM/yyyy HH:mm:ss')) , new Element('div', style:'margin-left:16px;margin-bottom:8px;', html:"""<a href="#" onclick="_ide.load_file_from_git_history('#{item.sha}', #{item.is_spec}, '#{item.name.renamed ? item.name.original}')">#{item.message}</a>""")]).inject history, 'bottom'
+                    new Element('div').adopt([new Element('div', html:item.source + ' - ' + item.date.toString('dd/MM/yyyy HH:mm:ss')) , new Element('div', style:'margin-left:16px;margin-bottom:8px;', html:"""<a href="#" onclick="_ide.load_file_from_git_history('#{item.sha}', #{item.is_spec}, '#{item.name.renamed ? item.name.original}', '#{item.repo}')">#{item.message}</a>""")]).inject history, 'bottom'
 
-                add_element {source:translate('local'), is_spec:no, date:new Date(sources.codes[sources.current].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:path} }, code_git_history
+                add_element {source:translate('local'), is_spec:no, date:new Date(sources.codes[sources.current].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:path}, repo:'' }, code_git_history
                 
                 new Request.JSON
                     url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getAvailableCommits&' + path + '&how=raw'
@@ -1011,7 +1013,7 @@ exports.enter = (__) ->
                         if not _ide.has_spec_file sources.current then return
                         
                         spec_filename = _ide.get_spec_filename path
-                        add_element {source:translate('local'), is_spec:yes, date:new Date(sources.specs[spec_filename].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:spec_filename} }, spec_git_history
+                        add_element {source:translate('local'), is_spec:yes, date:new Date(sources.specs[spec_filename].modifiedDate), sha:'', message:translate('Last saved version'), name:{original:spec_filename}, repo:'' }, spec_git_history
                         
                         new Request.JSON
                             url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getAvailableCommits&' + spec_filename + '&how=raw'
@@ -1026,7 +1028,7 @@ exports.enter = (__) ->
                         _ide.display_message "Error with _ide.get_file_git_history(#{path}) : #{xhr.status}"
                 .get()
                 
-            _ide.load_file_from_git_history = (sha, is_spec, path) ->
+            _ide.load_file_from_git_history = (sha, is_spec, path, repo) ->
                 if sources.isOpening then return
                 if not _ide.will_close_file sources.current then return
 
@@ -1037,7 +1039,7 @@ exports.enter = (__) ->
                 if sha is ''
                     url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?load&' + path + '&how=raw'
                 else
-                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?loadFromHistory&' + sha + '&' + path + '&how=raw'
+                    url = (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?loadFromHistory&' + sha + '&' + path + '&' + repo + '&how=raw'
                 new Request
                     url: url
                     onSuccess: () ->
@@ -1683,7 +1685,7 @@ exports.enter = (__) ->
                     e.setOptions
                         enableBasicAutocompletion: yes
                         enableSnippets: yes
-    
+
                     e
                     
                 editor = set_editor 'editor'

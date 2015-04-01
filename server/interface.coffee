@@ -433,7 +433,7 @@ exports.forget_keys = (__) ->
     else
         __.session.keys = []
         new Chocokup.Document 'Key unregistration', kups:{key:forgeted_kup}, Chocokup.Kups.Tablet
-            
+
 #### Create Hash
 # `create_hash` returns the corresponding sha256 hash from a given key
 exports.create_hash = (key) ->

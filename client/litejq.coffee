@@ -1,3 +1,5 @@
+# liteJq - lite jQuery
+
 # adapted from
 #https://github.com/soyjavi/QuoJS
 #https://github.com/jquery/jquery
@@ -6,7 +8,7 @@
 
 return unless window? and not (window.$? and window.$.fn? and window.$.fn.jquery?)
 
-core_version = "0.1.0"
+core_version = "0.1.1"
 core_object = {}
 core_array = []
 

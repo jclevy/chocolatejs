@@ -253,7 +253,7 @@ _.param = (parameters) ->
         serialize.push "#{encodeURIComponent parameter}=#{encodeURIComponent parameters[parameter]}"
     serialize.join '&'
         
-# `serialize` helps manage asynchronous calls serialization.  
+# `_.serialize` helps manage asynchronous calls serialization.  
     #
     # - use **self** to pass an object to which **this** will be binded when deferred functions will be called
     # - use **local** to share variables between the deferred functions
@@ -299,7 +299,7 @@ _.parallelize = (self, fn) ->
     
     count = pushed.length ; for dfn in pushed then dfn.call self
 
-# `extend` copies values from an object to another object
+# `_.extend` copies values from an object to another object
 #
 # Copy values unless `overwrite` is false:
 #
@@ -319,8 +319,8 @@ _.parallelize = (self, fn) ->
 #          expect(o.first).toBe(2)
 #          expect(o.second.sub1).toBe('sub1')
 _.extend = (object, values, overwrite) ->
-    set = (o, d) ->
-        for own k,v of d
+    set = (o, val) ->
+        for own k,v of val
             o ?= {}
             if _.type(o[k]) is _.Type.Object and _.type(v) is _.Type.Object then set o[k], v
             else o[k] = v unless overwrite is false and o[k]?
@@ -328,7 +328,7 @@ _.extend = (object, values, overwrite) ->
        
     set object, values
 
-# `defaults` ensure default values are set on an object
+# `_.defaults` ensure default values are set on an object
 #
 # Set default values if not set:
 #

@@ -6,10 +6,10 @@ Action = _.prototype
     
     do: (what, value, type) ->
         @actions.push {so: 'do', what, value} ; @
-        
+
     move: (what, where, how) ->
-        @actions.push {so: 'move', what, way} ; @
-    
+        @actions.push {so: 'move', what, where, how} ; @
+
     eval: (what, value) ->
         @actions.push {so: 'eval', what, value} ; @
 

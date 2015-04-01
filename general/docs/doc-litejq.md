@@ -4,7 +4,7 @@
 
 **litejQ** is an API-compatible subset of jQuery intended to be Chocolate.js client-side scripts foundation. 
 
-It helps to manipulate the DOM in a cross-browser compatible way and implements only the most commonly needed functionality with the goal of having a small footprint.
+It helps you manipulate the DOM in a cross-browser compatible way and implements only the most commonly needed functionality with the goal of having a small footprint.
 
 ## <a name="litejQ-Summary"></a> Summary
 

@@ -2,12 +2,51 @@
 
 --------------
 
-UPDATES
-
-FIXED BUGS
-
 NEW FEATURES
 
+Studio
+
+ - introduced Light theme (now by default) white-grey/blue, that you can switch back (use the up right □ symbol) to Dark original chocolate theme
+ - added a dropdown selector to help you switch between opened files
+ - added a up right `close` button to give another place to close the currently opened file
+ - added a up right `show invisible` button to show or hide the `space`, `tab` and `return` chars
+ - added a CTRL-U/CMD-U shortcut to insert a UUID in the code
+
+liteJq, server/Interface and server/Workflow
+
+- Websocket is now supported (with with poling fallback) to allow message exchange between client and server in both size  
+
+chocodown.js
+
+- Turn {{ javascript }} and {{{ coffeescript }}} blocks into `script` blocks
+- Turn <<< Chocokup >>> blocks into html blocks
+ 
+locco/Document, locco/Workflow, locco/Interface, locco/Actor
+
+- lot of work done but not yet ready
+
+UPDATES
+
+Locco
+
+- Interface options don't need the `rules` keyword anymore. Just put `defaults`, `values`, `locks` before the `action` section. `rules` is not recognize now.
+
+liteJq 
+
+- taking care of javascript when inserting html block - eg: $('.myClass').html()
+- added json-late format: json Chocolate format which allows to save functions, date... in json-like notation
+- added `after` function that allows inserting after a DOM node
+
+chocodash
+
+ - added `_.isObject`: returns true if value is not a primitive
+ - added `_.isBasicObject`: returns true if value constructor is {}.constructor
+ - added `_.param`: transforms a javascript value to an url query parameter
+ - added `_.extend`: copies values from an object to another object
+
+Studio
+
+- the opened files panel now keeps a link to the last 10 opened files (instead of 5)
 
 
 ## v0.0.11 - (2014-04-11)

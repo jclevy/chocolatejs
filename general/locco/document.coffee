@@ -7,14 +7,14 @@ Document = _.prototype
             set: (key, value) ->
                 _.do.set @definition, key, value
                 @value(@definition)
-        
+
         for methodName in ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"]
             helpers[methodName] = do (methodName) -> ->
                 Array.prototype.unshift.call arguments, @definition
                 result = _.do[methodName].apply null, arguments
                 @value(@definition)
                 result
-                
+
         @signal = new _.Signal definition, helpers
     
     use: ->

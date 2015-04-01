@@ -35,7 +35,7 @@ monitor_server = new class
                 
         check()
         setInterval check, 100
-        
+
 
     "restart": ->
         this.restarting = true
@@ -80,7 +80,8 @@ monitor_server = new class
     "watchFiles": ->
         self = this
         
-        curdir = if this.appdir? then this.appdir else '.'
+        appdir = if this.appdir? then this.appdir else '.'
+        sysdir = Path.resolve __dirname, '..'
         
         filter = (path) ->
             if path.search(/^\.[^\.\/]+/) isnt -1 then return yes
@@ -97,7 +98,7 @@ monitor_server = new class
         on_event = (event, file) ->
             
             
-            if File.hasWriteAccess curdir
+            if File.hasWriteAccess appdir
             
                 build = (file, curdir) ->
                     static_lib_dirname = curdir + '/static/lib'
@@ -119,9 +120,9 @@ monitor_server = new class
                             command = param = undefined
                         
                     if command? then do (file, file_base, file_js_name, add_js_file_to_git) ->
-                        self.compile_process[file] = child_process.spawn command, params
+                        self.compile_process[file] = child_process.spawn command, params, cwd:curdir
                         self.compile_process[file].addListener 'exit', (code) ->
-                            child_process.exec 'git add ' + file_js_name if add_js_file_to_git
+                            child_process.exec 'git add ' + file_js_name, cwd:curdir if add_js_file_to_git
                             if file_rel_path.indexOf('locco') is 0 and file_base.indexOf('.spec') is -1 then build_lib_package()
                             delete self.compile_process[file]
                         
@@ -164,14 +165,15 @@ monitor_server = new class
                             
                         Fs.writeFileSync static_lib_dirname + '/' + bundle_filename, bundle_file                    
             
-                file = curdir + '/' + file if curdir is '.'
-                if (file.indexOf(curdir + '/client/') is 0 or file.indexOf(curdir + '/general/') is 0) then build file, curdir
+                file = appdir + '/' + file if appdir is '.'
+                if (file.indexOf(appdir + '/client/') is 0 or file.indexOf(appdir + '/general/') is 0) then build file, appdir
+                if (file.indexOf(sysdir + '/client/') is 0 or file.indexOf(sysdir + '/general/') is 0) then build file, sysdir
 
             self.log 'CHOCOLATEJS: Restarting because of ' + event + ' file at ' + file
             
             setTimeout (-> self.restart()), 1000
 
-        this.watcher = Chokidar.watch curdir, ignored: filter, persistent: yes, ignoreInitial:yes
+        this.watcher = Chokidar.watch appdir, ignored: filter, persistent: yes, ignoreInitial:yes
         this.watcher.on 'add', on_add
         this.watcher.on 'change', on_change
         

@@ -6,7 +6,7 @@
     return;
   }
 
-  core_version = "0.1.0";
+  core_version = "0.1.1";
 
   core_object = {};
 

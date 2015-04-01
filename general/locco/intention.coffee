@@ -26,17 +26,17 @@ if window? and not window.modules?.locco?
         if arguments.length is 2 and Object.prototype.toString.apply filename isnt '[object String]'
             options = filename
             filename = null
-            
+        
         filename = modulename unless filename? 
         filename = resolve filename
-        
+
         if options?.use_cache?
             _previous_use_cache = use_cache
             use_cache = options.use_cache
     
         result = previousRequire? filename
         return result if result?
-    
+
         if use_cache
             cachedModule = window.modules[filename]
             return cachedModule if cachedModule?
@@ -45,7 +45,7 @@ if window? and not window.modules?.locco?
         window.exports = {}
         
         url = '/static/lib/' + filename + '.js'
-    
+
         $.ajax
             url: url
             async: false
@@ -55,7 +55,7 @@ if window? and not window.modules?.locco?
         
         result = window.modules[filename] = window.exports
         window.exports = _previousExports
-    
+
         if options?.use_cache?
             use_cache = _previous_use_cache
         
