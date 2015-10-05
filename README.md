@@ -526,7 +526,7 @@ immediately translated to html and javascript!
 
 But more... when you display the **Dom** panel you can see immmediately the result!
 
-Basicaly, this panel is a Markdown editor, but you can insert code blocks by using
+Basically, this panel is a Markdown editor, but you can insert code blocks by using
 the **#** and the **!** signs followed by the language you want to use:
 html, css, javascript, coffeescript, chocokup.
 
