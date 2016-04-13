@@ -57,54 +57,37 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.12 - (2015-03-30)**
+**Chocolate v0.0.13-1 - (2016-04-13)**
 
 NEW FEATURES
 
-Studio
-
- - introduced Light theme (now by default) white-grey/blue, that you can switch back (use the up right □ symbol) to Dark original chocolate theme
- - added a dropdown selector to help you switch between opened files
- - added a up right `close` button to give another place to close the currently opened file
- - added a up right `show invisible` button to show or hide the `space`, `tab` and `return` chars
- - added a CTRL-U/CMD-U shortcut to insert a UUID in the code
-
-
-liteJq, server/Interface and server/Workflow
-
-- Websocket is now supported (with with poling fallback) to allow message exchange between client and server in both size  
-
-chocodown.js
-
-- Turn {{ javascript }} and {{{ coffeescript }}} blocks into `script` blocks
-- Turn <<< Chocokup >>> blocks into html blocks
- 
-locco/Document, locco/Workflow, locco/Interface, locco/Actor
-
-- lot of work done but not yet ready
+ - Studio
+  - added Login/Logoff indicator, switch and key input
+  - added switch to toggle wrap mode on or off in editor
+  - added Literate CoffeeScript support (use .litcoffee file type)
+  - added Json file support in editor
+  - added basic element creation support $('<tag/>') in liteJq
+ - monitor.coffee: 
+  - added memory param to define node.js --max-old-space-size param
+  - added named params --appdir, --port, --memory
 
 UPDATES
 
-Locco
+ - __ is a Chocolate context given to every remotely called exported module function 
+ - __.appdir is relative path from Chocolate system directory to application directory
+ - __.sysdir is relative path from application directory to Chocolate system directory
+ - updated coffee-script to 1.9.1
+ - server/Document.Cache: added async mode to access file and made it default mode
 
-- Interface options don't need the `rules` keyword anymore. Just put `defaults`, `values`, `locks` before the `action` section. `rules` is not recognize now.
+FIXED BUGS
 
-liteJq 
-
-- taking care of javascript when inserting html block - eg: $('.myClass').html()
-- added json-late format: json Chocolate format which allows to save functions, date... in json-like notation
-- added `after` function that allows inserting after a DOM node
-
-chocodash
-
- - added `_.isObject`: returns true if value is not a primitive
- - added `_.isBasicObject`: returns true if value constructor is {}.constructor
- - added `_.param`: transforms a javascript value to an url query parameter
- - added `_.extend`: copies values from an object to another object
-
-Studio
-
-- the opened files panel now keeps a link to the last 10 opened files (instead of 5)
+ - corrected -webkit-overflow-scrolling:touch in Chocokup body CSS
+ - static file now seen as 'app' if `how` query parameter isnt 'web' ; otherwise seen as 'static' even if with other params (can pass parameters to static files.)
+ - correctly load CoffeeScript in chocodown.js if run server side on node.js
+ - remove 'chocolate' from `require`d url if used to load Chocolate libs from static folder
+ - File::moveFile was not working correctly anymore
+ - Upload service was not working anymore - name attribute was missing on iframe
+ - _.super can be called in _.prototype declared constructor
 
 
 See history in **CHANGELOG.md** file
