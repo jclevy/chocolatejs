@@ -117,6 +117,7 @@ class Space
     @ensure : (path, name) -> Space.spaces[path + '/' + name] ? new Space(path, name)
     @get : (path) -> Space.spaces[path]
     
+    @request: (query, callback, __) -> __?.space?.request query, callback
     @read: (container_id, options, callback, __) -> __?.space?.read container_id, options, callback
     @write: (object, options, callback, __) -> __?.space?.write object, options, callback
     @forget: (object, name, parent, callback, __) -> __?.space?.forget object, name, parent, callback
@@ -268,7 +269,7 @@ class Space
                     when Space.Relation.Type.association then 'association' 
                     when Space.Relation.Type.matter then 'matter'
                             
-                _.serialize @, (defer, local) ->
+                _.serialize self:@, (defer, local) ->
                     # Convert `parent_id` to int if it's a uuid
                     unless parent.options?.id_isnt_uuid 
                         defer (next) -> @Intention.get_id parent_id, (error, data) -> parent_id = data ; next()
@@ -341,7 +342,7 @@ class Space
                     uuid = Uuid.parse uuid, new Buffer(16)
                 
                 if Buffer.isBuffer uuid
-                    _.serialize @, (defer) ->
+                    _.serialize self:@, (defer) ->
                         stmt = null
                         defer (next) -> @Intention.get_get_id_statement (o) -> stmt = o ; next()
                         defer -> stmt.get [uuid], (error, data) ->
@@ -403,7 +404,7 @@ class Space
         
                 if _.type(uuid) is _.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
                 
-                _.serialize @, (defer) ->
+                _.serialize self:@, (defer) ->
                     stmt = null
                     defer (next) -> @Container.get_create_statement matter, (o) -> stmt = o ; next()
                     defer -> stmt.run [uuid ? Uuid({}, new Buffer(16)), intention, matter, name, data, position], (error) -> callback? error, if not error then @lastID else null
@@ -415,7 +416,7 @@ class Space
 
                 if _.type(uuid) is _.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
 
-                _.serialize @, (defer) ->
+                _.serialize self:@, (defer) ->
                     stmt = null
                     defer (next) -> @Container.get_modify_statement intention, name, data, matter, position, (o) -> stmt = o ; next()
                     defer -> stmt.run [uuid, intention, name, data, matter, position], (error) -> callback? error
@@ -426,7 +427,7 @@ class Space
                 
                 if _.type(uuid) is _.Type.String then uuid = Uuid.parse uuid, new Buffer(16)
                 
-                _.serialize @, (defer) ->
+                _.serialize self:@, (defer) ->
                     stmt = null
                     defer (next) -> @Container.get_destroy_statement uuid, (o) -> stmt = o ; next()
                     defer -> stmt.run [id ? uuid], (error) -> callback? error
@@ -445,7 +446,7 @@ class Space
             insert: (options, callback) =>
                 {container, scope} = options
         
-                _.serialize @, (defer) ->
+                _.serialize self:@, (defer) ->
                     stmt = null
                     defer (next) -> @Document.get_insert_statement (o) -> stmt = o ; next()
                     defer -> stmt.run [container, scope], (error) -> callback? error, if not error then @lastID else null
@@ -476,7 +477,7 @@ class Space
         
         type ?= _.type data
         
-        _.serialize @, (defer) ->
+        _.serialize self:@, (defer) ->
             unless not parent? or parent.relation?.matter? then defer (next) -> @Relation.get Space.Relation.Type.matter, parent, (error, matter) ->
                 if error then callback? error; return
                 parent.relation ?= {}
@@ -510,7 +511,7 @@ class Space
     create_object: (item, callback) ->
         {uuid, name, type, parent, contained, position} = item
 
-        _.serialize @, (defer, local) ->
+        _.serialize self:@, (defer, local) ->
             relation_type = if contained then Space.Relation.Type.scope else Space.Relation.Type.matter
             relation_name = if contained then 'scope' else 'matter'
             
@@ -619,7 +620,7 @@ class Space
                         if err then error = err
                         callback err, relation
         
-        _.serialize @, (defer, local) ->
+        _.serialize self:@, (defer, local) ->
             stage_is_live = @stage().live()
             
             unless stage_is_live then defer (next) -> 
@@ -789,7 +790,7 @@ class Space
                                 # scan document structure
                                 matter_data = []
                                 
-                                _.serialize @, (defer) ->
+                                _.serialize self:@, (defer) ->
                                     for o in scope_data
                                         scan_options = {matter:yes}
                                         scan_options.depth = options.depth - (if scope_data.depth? then scope_data.depth - 1 else 0) if options?.depth?
@@ -806,9 +807,41 @@ class Space
                 else
                     callback? error
 
-    # `query` To Be Defined
-    query: (where, callback) ->
-        process.nextTick ->
-            callback null, {}
+    # `go`: select some objects by path
+    request: (query, callback) ->
+        for action, path of query
+            switch action
+                when 'go'
+                    steps = path.split '/'
+                    levels = steps.length
+                    params = []
+                    
+                    query = ["SELECT container_#{levels-1}.id FROM container AS container_#{levels-1}"]
+                    
+                    for step, i in steps
+                        if i is 0 then continue
+                        
+                        query.push "
+                            LEFT JOIN container_parent_scope AS container_parent_scope_#{i-1} ON container_parent_scope_#{i-1}.container = container_#{i}.id
+                            LEFT JOIN scope AS scope_#{i-1} ON container_parent_scope_#{i-1}.scope = scope_#{i-1}.id
+                            LEFT JOIN container AS container_#{i-1} ON scope_#{i-1}.container = container_#{i-1}.id
+                        "
+                    query.push "WHERE"
+                    
+                    for step, i in steps
+                        connector = if i > 0 then 'AND ' else ''
+                        if step[0] is "#"
+                            query.push "#{connector}container_#{i}.uuid = ?"
+                            params.push Uuid.parse step.slice(1), new Buffer(16)
+                        else
+                            query.push "#{connector}container_#{i}.name = ?"
+                            params.push step
+                    
+                    @db.all query.join(' '), params, (error, data) =>
+                        callback null, "Data received:" + (k for k of data).join(', ') + ' - '  + error + ' - ' + query.join ' '
+                when 'eval' then
+                
+        #process.nextTick ->
+        #    callback null, {}
 
 exports.Space = Space

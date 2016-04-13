@@ -1,3 +1,37 @@
+## v0.0.13 - (2016-04-13)
+
+--------------
+
+NEW FEATURES
+
+ - Studio
+  - added Login/Logoff indicator, switch and key input
+  - added switch to toggle wrap mode on or off in editor
+  - added Literate CoffeeScript support (use .litcoffee file type)
+  - added Json file support in editor
+  - added basic element creation support $('<tag/>') in liteJq
+ - monitor.coffee: 
+  - added memory param to define node.js --max-old-space-size param
+  - added named params --appdir, --port, --memory
+
+UPDATES
+
+ - __ is a Chocolate context given to every remotely called exported module function 
+ - __.appdir is relative path from Chocolate system directory to application directory
+ - __.sysdir is relative path from application directory to Chocolate system directory
+ - updated coffee-script to 1.9.1
+ - server/Document.Cache: added async mode to access file and made it default mode
+
+FIXED BUGS
+
+ - corrected -webkit-overflow-scrolling:touch in Chocokup body CSS
+ - static file now seen as 'app' if `how` query parameter isnt 'web' ; otherwise seen as 'static' even if with other params (can pass parameters to static files.)
+ - correctly load CoffeeScript in chocodown.js if run server side on node.js
+ - remove 'chocolate' from `require`d url if used to load Chocolate libs from static folder
+ - File::moveFile was not working correctly anymore
+ - Upload service was not working anymore - name attribute was missing on iframe
+ - _.super can be called in _.prototype declared constructor
+
 ## v0.0.12 - (2015-03-30)
 
 --------------

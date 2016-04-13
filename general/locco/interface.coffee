@@ -27,7 +27,7 @@ Interface = _.prototype
                 when _.Type.Function then @observe @update 
                 when _.Type.String then @observe (html) => $(@update).html html; return
     
-    review: (bin, scope, reaction, next) ->
+    review: (bin, scope, reaction, end) ->
         check =
             # `defaults` ensure default values are set on an object
             defaults: (object, defaults) =>
@@ -54,14 +54,13 @@ Interface = _.prototype
             values: (bin, controller) -> controller.call bin
             
         check_services = ->
-            was_synchronous = true
             
-            _.serialize (step) ->
+            _.flow (run) ->
                 check_service = (service_bin, local_scope) ->
-                    for name, service of service_bin
+                    for name, service of service_bin when name isnt '__'
                         if service instanceof Interface
                             do (_bin = service_bin, _name = name, _service = service, _local_scope = if local_scope? then local_scope.slice(0) else null) ->
-                                step (next_service) ->
+                                run (next_service) ->
                                     _bin[_name].bin ?= {__:_bin.__}
                                     if _local_scope? 
                                         scope.global.push item for item in _local_scope
@@ -70,9 +69,7 @@ Interface = _.prototype
                                         
                                     service_result = _service.review _bin[_name].bin, scope, reaction, next_service
                                     
-                                    if service_result is next_service 
-                                        was_synchronous = false
-                                    else
+                                    if service_result isnt next_service 
                                         if _local_scope? 
                                             scope.global.pop() for item in _local_scope
                                         next_service()
@@ -88,21 +85,25 @@ Interface = _.prototype
                 
                 check_service bin
                 
-                step off, -> next()
+                run -> end()
                 
-            return if was_synchronous then null else next
-            
+            end
+        
         reaction.certified ?= yes
 
         check.defaults bin, @defaults if @defaults?
         reaction.certified = check.locks bin.__?.session?.keys, @locks if @locks?
         reaction.certified = check.values bin, @values if @values?
         
-        review_result = @steps.call {bin, document:@document, 'interface':@, actor:@actor, reaction}, {bin, document:@document, 'interface':@, actor:@actor, reaction, next:check_services} if reaction.certified and @steps?
+        respond = (o) -> @reaction.bin = o ; check_services()
+        respond.later = ->
+        respond.done = ->
+        self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond , transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
+        review_result = @steps.call self, self if reaction.certified and @steps?
         
         return switch review_result
-            when check_services then next
-            when undefined then check_services()
+            when respond.later then end
+            when undefined or respond.done then check_services()
             else null
         
         
@@ -111,16 +112,19 @@ Interface = _.prototype
         
         reaction = new Interface.Reaction
         
-        _.serialize @, (step) ->
-            step (next) -> 
-                result = @review bin, global:[], local:[], reaction, next ; next() unless result is next
-                
-            step (next) -> 
-                result = @action.call {bin, document:@document, 'interface':@, actor:@actor, reaction}, {bin, document:@document, 'interface':@, actor:@actor, reaction, next} if reaction.certified and @action?
-                reaction.bin = result unless reaction.bin? or result is next
-                next() unless result is next
-                
-            step off, -> 
+        _.flow self:@, (run) ->
+            run (end) -> 
+                end.with @review bin, global:[], local:[], reaction, end
+
+            run (end) ->
+                respond = (o) -> @reaction.bin = o ; end()
+                respond.later = end
+                self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); end) }
+                result = @action.call self, self if reaction.certified and @action?
+                reaction.bin = result unless reaction.bin? or result is end.later
+                end.with result
+
+            run -> 
                 publisher.notify reaction
         
         publisher
@@ -131,16 +135,23 @@ Interface = _.prototype
 
 Interface.Reaction = _.prototype
     constructor: (@bin, @certified) ->
+        
+Interface.Remote = _.prototype inherit:Interface, use: ->
+    @submit = (bin = {}) ->
+        if '__' of bin then _.super @, bin
+        else @actor.submit @name, bin
 
 Interface.Web = _.prototype inherit:Interface, use: ->
     
     @type = 'App'
     
-    @review = (bin, scope, reaction, next) ->
+    @review = (bin, scope, reaction, end) ->
         
-        _.serialize @, (step) ->
-            step (next) -> result = _.super Interface.Web::review, @, bin, scope, reaction, next; next() unless result is next
-            step off, ->
+        _.flow self:@, (run) ->
+            run (end) -> 
+                end.with _.super Interface.Web::review, @, bin, scope, reaction, end
+
+            run ->
                 reaction.bin = ''
                 scope.local.length = 0
                 check_interfaces = (bin) ->
@@ -181,9 +192,9 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                     return
                         
                 check_interfaces bin
-                next()
+                end()
         
-        next
+        end
 
     @submit = (bin) ->
         unless @action?.overriden

@@ -3,14 +3,20 @@ Action = require '../locco/action'
 
 # `Workflow` is where Actors are interactng. 
 Workflow = _.prototype
+    adopt:
+        Status: Public:'public', Private: 'private'
+        
     constructor: (options = {}) ->
         
-        is_ready = new _.Publisher
+        when_ready = new _.Publisher
+        
+        is_ready = no
+        @is_ready = -> is_ready
         
         @actors = {}
         @ready = (func) ->
-            if @ws.readyState is 1 then setTimeout (=> func.call @), 0
-            else is_ready.subscribe (=> func.call @)
+            if @ws.readyState is 1 then setTimeout (=> is_ready = yes ; func.call @), 0
+            else when_ready.subscribe (=> is_ready = yes ; func.call @)
         
         sync = ->
             actions = _.do.flush()
@@ -22,12 +28,12 @@ Workflow = _.prototype
             if $ and $.websocket
                 do connect = =>
                     callbacks = {}
-                    id = 1
+                    _id = 1
                     
                     @message_id = (callback) -> 
-                        callbacks[id.toString()] = callback
-                        id++
-                    
+                        callbacks[_id.toString()] = callback
+                        _id++
+                
                     @ws = $.websocket "wss://#{window.location.host}/~"
 
                     @ws.onmessage =  (evt) ->
@@ -39,29 +45,36 @@ Workflow = _.prototype
                             callback data.result
                             delete callbacks[data.id]
                         
-                    @ws.onopen = ->
+                    @ws.onopen = =>
                         if options.debug then console.log "Connection opened"
-                        is_ready.notify()
+                        when_ready.notify()
+                        for id, actor of @actors then actor.status.notify(Workflow.Status.Public)
+                        return
                         
-                    @ws.onclose = ->
+                    @ws.onclose = =>
                         if options.debug then console.log "Connection closed. Reopening..." 
                         setTimeout connect, 300
+                        for id, actor of @actors then actor.status.notify(Workflow.Status.Private)
+                        return
                 
                 setInterval sync, 300
 
     enter: (actor) ->
         @actors[actor.id()] = actor
 
-    broadcast: (object, service, params..., callback) ->
+    call: (object, service, params..., callback) ->
         if window?
             location = null
             
             for name, module of window.modules
                 if module is object.constructor then location = 'general/' + name; break 
+            
+            unless location? then location = window.location.pathname.substr 1
                 
-            if location? and service? 
+            if service? 
                 params = (_.param param for param in params).join '&'
                 if params.length > 0 then params = '&' + params
+                if params.indexOf('&how=') is -1 then params += '&how=json-late'
                 @ws.send "{url:'/#{location}?#{service}#{params}', id:#{@message_id(callback)}}"
 
     execute: (action) ->

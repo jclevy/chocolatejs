@@ -17,7 +17,7 @@
 
 ## Chocolate - Full stack Node.js framework
 
-Chocolate is an experimental Node.js webapp framework built using Coffeescript. 
+Chocolate is an experimental and isomorphic Node.js webapp framework built using Coffeescript. 
 
 It includes :
 

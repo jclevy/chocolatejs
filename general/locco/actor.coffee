@@ -7,7 +7,8 @@ Document = require '../locco/document'
 # placed in a Flow and providing Interfaces
 Actor = _.prototype
     adopt:
-        go: (where, callback) -> _.go where, callback
+        go: (who, where, callback) ->
+            _.go who[where], -> callback.apply(who, arguments) ; if who.stage.is_ready() then who.status.notify(Workflow.Status.Public); 
                 
         awake: (uuid, __) ->
             unless window?
@@ -23,29 +24,30 @@ Actor = _.prototype
 
     constructor: (options) ->
         
-        is_ready = new _.Publisher
+        when_ready = new _.Publisher
         
-        @ready = (callback) -> is_ready.subscribe (=> callback.call @)
+        @ready = (callback) -> when_ready.subscribe (=> callback.call @)
         @stage = options?.workflow ? Workflow.main
         
-        is_ready.subscribe (=> @stage.enter @)
+        when_ready.subscribe (=> @stage.enter @)
         
         if window? then @stage.ready =>
-            @stage.broadcast @, 'awake', options?.uuid, how:'json', (frozen) =>
+            @stage.call @, 'awake', options?.uuid, how:'json', (frozen) =>
                 if frozen? then @[k] = v for k,v of frozen
-                is_ready.notify()
+                when_ready.notify()
         else
-            setTimeout (-> is_ready.notify()), 0
+            setTimeout (-> when_ready.notify()), 0
         
         (doc = v; break) for k, v of @ when v instanceof Document
-        doc = {} unless doc?
+        doc = new Document {} unless doc?
+        @document = doc
         
         _.do.internal v, 'parent', @ for k, v of @ when v instanceof Actor
         
         _bind = (o) =>
             for k, v of o
                 if v instanceof Interface then v.bind(@, doc, k)
-                else if v.constructor is {}.constructor then _bind v
+                else if v?.constructor is {}.constructor then _bind v
             
             return
             
@@ -57,11 +59,21 @@ Actor = _.prototype
         _.do.identify @, filter:[Document] unless @._?._?.uuid?
         @._._.uuid
         
+    status: new _.Publisher
+    
+    submit: (service, params...) ->
+        publisher = new _.Publisher
+        if window? and @stage.is_ready()
+            @stage.call @, service, params..., (data) -> publisher.notify data
+        else
+            setTimeout (-> publisher.notify()), 0
+        publisher        
+        
     show: ->
         
     area: (name, id) ->
         _.do.internal @, 'area', {}
-        
+    
         set = (k,v) =>
             unless v? 
                 return @_._.area[k] if @_._.area[k]?

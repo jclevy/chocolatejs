@@ -125,8 +125,11 @@ _.prototype = (options, more) ->
 
     constructor = if options?.hasOwnProperty 'constructor' then options.constructor else null
     
-    ctor = if constructor? then -> constructor.apply @, arguments; return 
-    else if options?.inherit? then -> Array.prototype.unshift.call(arguments, @); _.super.apply _, arguments; return else ->
+    ctor = switch
+        when constructor? and options?.inherit? then -> Array.prototype.unshift.call(arguments, @); _.super.apply _, arguments; Array.prototype.shift.call(arguments); constructor.apply @, arguments; return
+        when constructor? then -> constructor.apply @, arguments; return 
+        when options?.inherit? then -> Array.prototype.unshift.call(arguments, @); _.super.apply _, arguments; return 
+        else ->
 
     if options?
         for name, value of options
@@ -149,7 +152,9 @@ _.super = () ->
     
     _name = null
     constructor = self.constructor
-    while constructor and not super_func?
+    
+    if constructor is _func.caller then super_func = constructor.__super__.constructor
+    else while constructor and not super_func?
     
         for own k, v of constructor.prototype
             if _func is v then _name = k; break
@@ -258,34 +263,84 @@ _.param = (parameters) ->
     # - use **self** to pass an object to which **this** will be binded when deferred functions will be called
     # - use **local** to share variables between the deferred functions
     # - **fn** is a function in which you declare the asynchronous functions you want to defer and serialize
+    # - use **option** with value `async:off` to ask **_.serialize** not to enforce async call on the last `run`
     #
-    # >     _.serialize (defer) ->
-    # >         defer (next) ->
-    # >             my_first_async_func ->
-    # >                 # ...
-    # >                 next()
-    # >         defer (next) ->
-    # >             my_second_async_func ->
-    # >                 # ...
-    # >                 next()
-_.serialize = (self, local, fn) ->
-    if typeof local is 'function' then fn = local; local = {}
-    if typeof self is 'function' then fn = self; self = fn; local = {}
+    # Here is a simple example:
+    #
+    #      _.serialize (run) ->
+    #          run (end) ->
+    #              my_first_async_func ->
+    #                  # ...
+    #                  end()
+    #          run (end) ->
+    #              my_second_async_func ->
+    #                  # ...
+    #                  end()
+    #
+    # Each run can return one of the following values that will tell the _.serialize service that 
+    # one of its runs is async and that it is not forced to run its last run as async
+    #
+    # 
+    #     run (end) -> end  
+    #
+    # or
+    #
+    #     run (end) -> end.later
+    #
+    # Here is an example with async and sync runs mixed:
+    #
+    #     _.serialize (run) ->
+    #         run (end) ->
+    #             my_first_async_func ->
+    #                 # ...
+    #                 end()
+    #             end
+    #
+    #         run (end) ->
+    #             sync_func()
+    #             end()
+    #
+    #         run (end) ->
+    #             my_second_async_func ->
+    #                 # ...
+    #                 end()
+    #             end
     
+_.serialize = _.flow = (options, fn) ->
+    unless fn? then fn = options; options = {}
+    {self, local, async} = options
+    local ?= {}
+
     deferred = []
     async = off
-    defer = (has_more, fn) -> 
-        unless fn then fn = has_more; has_more = yes
-        if has_more
-            deferred.push fn
-        else 
-            deferred.push -> if async is off then setTimeout fn, 0 else fn()
+    defer = (fn) ->
+        if arguments.length is 2 then fn = arguments[1] # first argument now unused
 
-    fn.call self, defer, local
-    deferred.shift().call self, next = -> 
+        deferred.push fn
+        
+    undefer = ->
+        undefered = deferred.shift()
+    
+        if deferred.length is 0 and async is off and options?.async isnt off 
+            (next) -> self = this; setTimeout (-> undefered.call self, next), 0 
+        else 
+            undefered
+        
+    next = ->
         if deferred.length
-            result = deferred.shift().call self, next
-            async = on if result is next
+            result = undefer().call self, next
+            switch result
+                when next then async = on
+    
+    next.later = next
+    next.with = (result) -> if result isnt next.later then next() else next.later
+
+    fn_self = self
+    fn_self ?= fn
+    
+    fn.call fn_self, defer, local
+    undefer()?.call self, next
+    
 
 _.parallelize = (self, fn) ->
     if typeof self is 'function' then fn = self; self = fn
@@ -299,6 +354,51 @@ _.parallelize = (self, fn) ->
     
     count = pushed.length ; for dfn in pushed then dfn.call self
 
+# `_.throttle` Returns a new function that, when invoked, invokes `func` at most once per `wait` milliseconds
+#
+# `options`:
+#   `wait`: number of milliseconds that must elapse between `func` invocations (defaults to 1000).
+#   `reset`: boolean to reset wait period every time the throttled function is called
+#   `accumulate`: boolean to accumulate arguments before calling throttled function.
+# `func`: Function to wrap.
+# return A new function that wraps the `func` function passed in.
+# 
+# Thanks to: https://github.com/component/throttle
+
+_.throttle = (options, func) ->
+    
+    {wait, reset, accumulate} = options
+    wait ?= 1000; reset ?= off; accumulate ?= off
+
+    ctx = undefined
+    args = undefined
+    rtn = undefined
+    timeoutID = undefined
+
+    last = 0
+
+    call = ->
+        timeoutID = undefined
+        last = (new Date).getTime()
+        rtn = func.apply(ctx, args)
+        ctx = undefined
+        args = undefined
+        return
+
+    ->
+        ctx = this
+        unless accumulate then args = arguments 
+        else unless args? then args = [arguments] else args.push(arguments)
+        delta = (new Date).getTime() - last
+        if reset
+            clearTimeout timeoutID if timeoutID?
+            timeoutID = setTimeout(call, wait)
+        else unless timeoutID?
+            if delta >= wait then call()
+            else timeoutID = setTimeout(call, wait - delta)
+            
+        rtn
+    
 # `_.extend` copies values from an object to another object
 #
 # Copy values unless `overwrite` is false:
@@ -1015,6 +1115,266 @@ _.Uuid = do (_module) ->
     
     uuid
 
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  ###
+###  SHA-256 implementation in JavaScript                (c) Chris Veness 2002-2014 / MIT Licence  ###
+######
+###  - see http://csrc.nist.gov/groups/ST/toolkit/secure_hashing.html                              ###
+###        http://csrc.nist.gov/groups/ST/toolkit/examples.html                                    ###
+### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  ###
+_.Sha256 = do ->
+
+    ### global define, escape, unescape ###
+
+    Sha256 = undefined
+    Sha256 = {}
+    
+    ###*
+    # Generates SHA-256 hash of string.
+    #
+    # @param   {string} msg - String to be hashed
+    # @returns {string} Hash of msg as hex character string
+    ###
+    
+    Sha256.hash = (msg) ->
+      t = undefined
+      t = undefined
+      i = undefined
+      H = undefined
+      K = undefined
+      M = undefined
+      N = undefined
+      T1 = undefined
+      T2 = undefined
+      W = undefined
+      a = undefined
+      b = undefined
+      c = undefined
+      d = undefined
+      e = undefined
+      f = undefined
+      g = undefined
+      h = undefined
+      i = undefined
+      j = undefined
+      l = undefined
+      t = undefined
+      msg = msg.utf8Encode()
+      K = [
+        0x428a2f98
+        0x71374491
+        0xb5c0fbcf
+        0xe9b5dba5
+        0x3956c25b
+        0x59f111f1
+        0x923f82a4
+        0xab1c5ed5
+        0xd807aa98
+        0x12835b01
+        0x243185be
+        0x550c7dc3
+        0x72be5d74
+        0x80deb1fe
+        0x9bdc06a7
+        0xc19bf174
+        0xe49b69c1
+        0xefbe4786
+        0x0fc19dc6
+        0x240ca1cc
+        0x2de92c6f
+        0x4a7484aa
+        0x5cb0a9dc
+        0x76f988da
+        0x983e5152
+        0xa831c66d
+        0xb00327c8
+        0xbf597fc7
+        0xc6e00bf3
+        0xd5a79147
+        0x06ca6351
+        0x14292967
+        0x27b70a85
+        0x2e1b2138
+        0x4d2c6dfc
+        0x53380d13
+        0x650a7354
+        0x766a0abb
+        0x81c2c92e
+        0x92722c85
+        0xa2bfe8a1
+        0xa81a664b
+        0xc24b8b70
+        0xc76c51a3
+        0xd192e819
+        0xd6990624
+        0xf40e3585
+        0x106aa070
+        0x19a4c116
+        0x1e376c08
+        0x2748774c
+        0x34b0bcb5
+        0x391c0cb3
+        0x4ed8aa4a
+        0x5b9cca4f
+        0x682e6ff3
+        0x748f82ee
+        0x78a5636f
+        0x84c87814
+        0x8cc70208
+        0x90befffa
+        0xa4506ceb
+        0xbef9a3f7
+        0xc67178f2
+      ]
+      H = [
+        0x6a09e667
+        0xbb67ae85
+        0x3c6ef372
+        0xa54ff53a
+        0x510e527f
+        0x9b05688c
+        0x1f83d9ab
+        0x5be0cd19
+      ]
+      msg += String.fromCharCode(0x80)
+      l = msg.length / 4 + 2
+      N = Math.ceil(l / 16)
+      M = new Array(N)
+      i = 0
+      while i < N
+        M[i] = new Array(16)
+        j = 0
+        while j < 16
+          M[i][j] = msg.charCodeAt(i * 64 + j * 4) << 24 | msg.charCodeAt(i * 64 + j * 4 + 1) << 16 | msg.charCodeAt(i * 64 + j * 4 + 2) << 8 | msg.charCodeAt(i * 64 + j * 4 + 3)
+          j++
+        i++
+      M[N - 1][14] = (msg.length - 1) * 8 / Math.pow(2, 32)
+      M[N - 1][14] = Math.floor(M[N - 1][14])
+      M[N - 1][15] = (msg.length - 1) * 8 & 0xffffffff
+      W = new Array(64)
+      a = undefined
+      b = undefined
+      c = undefined
+      d = undefined
+      e = undefined
+      f = undefined
+      g = undefined
+      h = undefined
+      i = 0
+      while i < N
+        t = 0
+        while t < 16
+          W[t] = M[i][t]
+          t++
+        t = 16
+        while t < 64
+          W[t] = Sha256.σ1(W[t - 2]) + W[t - 7] + Sha256.σ0(W[t - 15]) + W[t - 16] & 0xffffffff
+          t++
+        a = H[0]
+        b = H[1]
+        c = H[2]
+        d = H[3]
+        e = H[4]
+        f = H[5]
+        g = H[6]
+        h = H[7]
+        t = 0
+        while t < 64
+          T1 = h + Sha256.Σ1(e) + Sha256.Ch(e, f, g) + K[t] + W[t]
+          T2 = Sha256.Σ0(a) + Sha256.Maj(a, b, c)
+          h = g
+          g = f
+          f = e
+          e = d + T1 & 0xffffffff
+          d = c
+          c = b
+          b = a
+          a = T1 + T2 & 0xffffffff
+          t++
+        H[0] = H[0] + a & 0xffffffff
+        H[1] = H[1] + b & 0xffffffff
+        H[2] = H[2] + c & 0xffffffff
+        H[3] = H[3] + d & 0xffffffff
+        H[4] = H[4] + e & 0xffffffff
+        H[5] = H[5] + f & 0xffffffff
+        H[6] = H[6] + g & 0xffffffff
+        H[7] = H[7] + h & 0xffffffff
+        i++
+      Sha256.toHexStr(H[0]) + Sha256.toHexStr(H[1]) + Sha256.toHexStr(H[2]) + Sha256.toHexStr(H[3]) + Sha256.toHexStr(H[4]) + Sha256.toHexStr(H[5]) + Sha256.toHexStr(H[6]) + Sha256.toHexStr(H[7])
+    
+    ###*
+    # Rotates right (circular right shift) value x by n positions [§3.2.4].
+    # @private
+    ###
+    
+    Sha256.ROTR = (n, x) ->
+      x >>> n | x << 32 - n
+    
+    ###*
+    # Logical functions [§4.1.2].
+    # @private
+    ###
+    
+    Sha256.Σ0 = (x) ->
+      Sha256.ROTR(2, x) ^ Sha256.ROTR(13, x) ^ Sha256.ROTR(22, x)
+    
+    Sha256.Σ1 = (x) ->
+      Sha256.ROTR(6, x) ^ Sha256.ROTR(11, x) ^ Sha256.ROTR(25, x)
+    
+    Sha256.σ0 = (x) ->
+      Sha256.ROTR(7, x) ^ Sha256.ROTR(18, x) ^ x >>> 3
+    
+    Sha256.σ1 = (x) ->
+      Sha256.ROTR(17, x) ^ Sha256.ROTR(19, x) ^ x >>> 10
+    
+    Sha256.Ch = (x, y, z) ->
+      x & y ^ ~x & z
+    
+    Sha256.Maj = (x, y, z) ->
+      x & y ^ x & z ^ y & z
+    
+    ###*
+    # Hexadecimal representation of a number.
+    # @private
+    ###
+    
+    Sha256.toHexStr = (n) ->
+      i = undefined
+      s = undefined
+      v = undefined
+      s = ''
+      v = undefined
+      i = 7
+      while i >= 0
+        v = n >>> i * 4 & 0xf
+        s += v.toString(16)
+        i--
+      s
+    
+    ### - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - ###
+    
+    ###* Extend String object with method to encode multi-byte string to utf8
+    #  - monsur.hossa.in/2012/07/20/utf-8-in-javascript.html
+    ###
+    
+    if `typeof String.prototype.utf8Encode == 'undefined'`
+    
+      String::utf8Encode = -> unescape encodeURIComponent(this)
+    
+    ###* Extend String object with method to decode utf8 string to multi-byte ###
+    
+    if `typeof String.prototype.utf8Decode == 'undefined'`
+    
+      String::utf8Decode = ->
+        e = undefined
+        try
+          return decodeURIComponent(escape(this))
+        catch _error
+          e = _error
+          return this
+        return
+    
+    Sha256
+
 #
 # Actors operations services
 #
@@ -1094,12 +1454,12 @@ do (_) ->
                 when _.Type.Object, _.Type.Array
                     switch type 
                         when _.Type.Object
-                            for name, value of item when name isnt '_' and (not filter? or value.constructor in filter) and identified[value._?._?.uuid] isnt true
+                            for name, value of item when name isnt '_' and (not filter? or value?.constructor in filter) and identified[value._?._?.uuid] isnt true
                                 identify {item:value, name:name, parent: object:item}
                                 if _.isObject value then identified[value._._.uuid] = true 
                                 
                         when _.Type.Array
-                            for name, value of item when name isnt '_' and (not filter? or value.constructor in filter) and identified[value._?._?.uuid] isnt true
+                            for name, value of item when name isnt '_' and (not filter? or value?.constructor in filter) and identified[value._?._?.uuid] isnt true
                                 pos = null unless (pos = parseInt name).toString() is name
                                 identify {item:value, name: (if pos? then undefined else name), parent:{object:item}, position:pos}
                                 if _.isObject value then identified[value._._.uuid] = true 

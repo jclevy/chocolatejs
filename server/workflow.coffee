@@ -98,22 +98,25 @@ class World
             Fs.createWriteStream(datadir + '/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
     
         cwd = process.cwd()
+        if cwd is appdir then process.chdir(__dirname + '/..') ; cwd = process.cwd()
         appdir =  Path.relative cwd, appdir if appdir isnt '.'
-        sysdir = Path.relative cwd, Path.resolve __dirname, '..'
+        app_pathname = Path.resolve appdir
+        
+        sysdir = Path.relative app_pathname, cwd
+        sys_pathname = cwd
+        
         datadir = appdir + '/data'
-        
-        appdir_abs = Path.resolve appdir
-        sysdir_abs = Path.resolve sysdir
-        
-        cache = new Document.Cache datadir
+
+        Document.datadir = datadir
+        cache = new Document.Cache async:off
         sessions = new Sessions cache
         
         space = new Reserve.Space datadir
         
-        workflow = Workflow.main 
+        workflow = Workflow.main
 
         # Get application Config for Http only server and base port, key and cert options
-        config = require('../' + datadir + '/config')
+        config = require '../' + datadir + '/config'
         port ?= config.port
         port ?= 8026
         key ?= config.key
@@ -139,7 +142,7 @@ class World
             query = QueryString.parse url.query, null, null, ordered:yes
             pathname = url.pathname
             extension = Path.extname pathname
-            if (appdir_abs + pathname).indexOf(sysdir_abs) is 0 then pathname = '/-' + (appdir_abs + pathname).substr sysdir_abs.length
+            if (app_pathname + pathname).indexOf(sys_pathname) is 0 then pathname = '/-' + (app_pathname + pathname).substr sys_pathname.length
             path = pathname.split '/'
             keywords = ['so', 'what', 'sodowhat', 'how']
 
@@ -179,7 +182,7 @@ class World
             backdoor_key = if path[1] is '!' then path[2] else ''
             where_index = 1 + if backdoor_key isnt '' then 2 else 0
             where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
-            region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' then 'static' else 'app'
+            region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' and how is 'web' then 'static' else 'app'
             where = where_path.join '/'
             
             session = sessions.get(request)

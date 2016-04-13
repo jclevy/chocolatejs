@@ -936,7 +936,7 @@ Dom = do ($) ->
             if type is "string"
                 _stripScripts.call @, value, (html) -> @insertAdjacentHTML "beforeend", html
                 
-            else if type is "array"
+            else if type is "array" or value?.length? and core_isArraylike value
                 $(@).append(v) for v in value
             else
                 @appendChild value
@@ -1030,7 +1030,11 @@ core =
     # a = selector, dom element, function, object or array    
     init: (a) ->
         core_array.push.apply @, if a and a.nodeType then [a] 
-        else (if "" + a is a then core_toArray(document.querySelectorAll(a)) 
+        else (if "" + a is a 
+            if a[0] is "<" and a[a.length-1] is ">" and a.length >= 3 
+                len = a.length - 1 - if (a[a.length-2] is '/') then 1 else 0
+                [document.createElement(a.slice 1, len)]
+            else core_toArray(document.querySelectorAll(a)) 
         else (if /^f/.test(typeof a) then [$(document).ready(a)] 
         else switch $.type(a) 
             when 'array' then a 

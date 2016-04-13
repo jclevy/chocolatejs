@@ -84,7 +84,7 @@ exports.exchange = (bin, send) ->
                     result = result.replace('<body', '<head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body')
                 else
                     result = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + result + '</body></html>'
-            
+        
         send status : 200, headers : response_headers, body : result
         
     # `has500` will send an HTTP 500 error
@@ -106,24 +106,30 @@ exports.exchange = (bin, send) ->
     # `getMethodInfo` retrieve a method and its parameters from a required module
     getMethodInfo = (required, action) ->
         try
-            method = module = require required
+            self = klass = property = undefined
+            method = node_module = require required
             
-            method = method[name] for name in action.split('.') when method? if method?
+            if node_module?.prototype?
+                method = method[name] for name in ('prototype.' + action).split('.') when method?
+                if method? then self = null ; klass = node_module ; property = name
             
-            self = null
+            if node_module? and method is node_module or not method?
+                method ?= node_module
+                method = method[name] for name in action.split('.') when method?
+            
             if method instanceof Function
                 infos = method.toString().match(/function\s+\w*\s*\((.*?)\)/)
                 args = infos[1].split(/\s*,\s*/) if infos?
             else if method instanceof Interface
-                    self = method
+                    self = method if self is undefined
                     method = method.submit
-                    args = ['{__}', module]
-            else method = undefined
+                    args = ['{__}']
+            else throw new Error("Can't find '#{action}' in #{required}") 
                 
-            {method, args, self}
+            {method, args, self, klass, property}
         catch error
             error.source = module:required, method:action
-            {method:undefined, action:undefined, self:undefined, error}
+            {method:undefined, args:undefined, self:undefined, klass:undefined, property:undefined, error}
         
     # `respondStatic` will send an HTTP response
     respondStatic = (status, headers, body) ->
@@ -215,7 +221,7 @@ exports.exchange = (bin, send) ->
         switch so
             # if so is 'do' and what is public then authorize access  
             when 'do'
-                {method, args, self, error} = getMethodInfo required, what
+                {method, args, self, klass, property, error} = getMethodInfo required, what
                 return if has500 error
                 if (method?) # TODO - should implement security checking
                     what_is_public = yes
@@ -223,7 +229,7 @@ exports.exchange = (bin, send) ->
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
                 if how is 'web' and where isnt 'ping'
-                    {method, args, self, error} = getMethodInfo required, 'interface'
+                    {method, args, self, klass, property, error} = getMethodInfo required, 'interface'
                     return if has500 error
                     if (method?) # TODO - should implement security checking
                         so = 'do'
@@ -328,10 +334,10 @@ exports.exchange = (bin, send) ->
                     args = [(if how is 'raw' then 'json' else 'html'), required, context]
                     required = '../general/specolate'
                     action = 'inspect'
-                    module = require required 
-                    method = module[action]
+                    node_module = require required 
+                    method = node_module[action]
                 else if so is 'do'
-                    {method, args:expected_args, self, error} = getMethodInfo required, what
+                    {method, args:expected_args, self, klass, property, error} = getMethodInfo required, what
                     return if has500 error
                     if '__' in expected_args then params['__'] = context
                     args = []
@@ -348,6 +354,11 @@ exports.exchange = (bin, send) ->
                            if params['__' + args_index] is undefined then args_index = -1
                            else args.push params[ '__' + args_index++ ]
 
+                if klass? and self is null
+                    self = new klass 
+                    if property? then self = self[property]
+                    self.hydrate? args
+                    
                 produced = method.apply self, args
                 
                 if produced instanceof _.Publisher

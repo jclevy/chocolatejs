@@ -37,15 +37,15 @@ coffeekup.doctypes =
 # consequently to any helpers it might need. So we need to reintroduce these
 # inside any "rewritten" function.
 coffeescript_helpers = """
-  var __slice = Array.prototype.slice;
-  var __hasProp = Object.prototype.hasOwnProperty;
-  var __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
-  var __extends = function(child, parent) {
+  var __slice = slice = Array.prototype.slice;
+  var __hasProp = hasProp = Object.prototype.hasOwnProperty;
+  var __bind = bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
+  var __extends = extend = function(child, parent) {
     for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; }
     function ctor() { this.constructor = child; }
     ctor.prototype = parent.prototype; child.prototype = new ctor; child.__super__ = parent.prototype;
     return child; };
-  var __indexOf = Array.prototype.indexOf || function(item) {
+  var __indexOf = indexOf = Array.prototype.indexOf || function(item) {
     for (var i = 0, l = this.length; i < l; i++) {
       if (this[i] === item) return i;
     } return -1; };
@@ -214,7 +214,10 @@ skeleton = (__data = {}) ->
 
     __ck.render_tag(name, idclass, attrs, contents)
 
-  id = (value) -> 
+  id = (db, value) ->
+    unless value? then value = db ; db = null
+    
+    
     if typeof value is "string"
       ids = {}
       for key in arguments then ids[key] = id()
@@ -222,6 +225,36 @@ skeleton = (__data = {}) ->
     
     __data.id(parseInt value) if value? and typeof value is "number"
     '_' + __data.id()
+        
+  id.ids = ->
+    _ids = {}
+    ids = (value) -> 
+        unless value? then return _ids
+        
+        _ids[value] ? _ids[value] = id()
+    ids.toJSONString = ->
+        """
+        (function (key) {
+            var _ids = #{JSON.stringify _ids};
+            return _ids[key];
+        })
+        """
+    ids
+
+  id.classes = -> 
+    _classes = {}
+    classes = (value) -> 
+        unless value? then return _classes
+        
+        _ids[value] ? _ids[value] = value.substr(0,id.classes.size ? 0) + '_' + id()
+    classes.toJSONString = ->
+        """
+        (function (key) {
+            var _classes = #{JSON.stringify _classes};
+            return _classes[key];
+        })
+        """
+    classes
   
   totext = (func) ->
     temp_buffer = []
@@ -240,7 +273,7 @@ skeleton = (__data = {}) ->
   doctype = (type = 'default') ->
     text __ck.doctypes[type]
     text '\n' if __data.format
-    
+  
   text = (txt) ->
     __ck.buffer.push String(txt)
     null
@@ -253,7 +286,7 @@ skeleton = (__data = {}) ->
     if (func)
       # `coffeescript {value:"sample"} -> alert value'` becomes:
       # `<script>var value="sample";(function () {return alert(value);})();</script>`
-      script "#{__ck.coffeescript_helpers}\nvar " + ("#{k}=" + JSON.stringify(v) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);"
+      script "#{__ck.coffeescript_helpers}\nvar " + ("#{k}=" + (if (typeof v is 'function' and v.toJSONString?) then (v.toJSONString()) else JSON.stringify(v)) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);"
       __ck.coffeescript_helpers = "" # needed only once in a `render`
     else switch typeof param
       # `coffeescript -> alert 'hi'` becomes:

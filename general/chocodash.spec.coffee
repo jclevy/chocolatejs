@@ -63,6 +63,15 @@ xdescribe 'prototype', ->
         idwc = new InheritedDocWithCons "MyDoc"
         expect(idwc.name).toBe "MyDoc"
         
+    it 'should create a Prototype with a constructor by inheriting from another prototype with a constructor', ->
+        InheritedDocWithCons = _.prototype inherit:DocWithCons, constructor: (name) -> @name += name
+        idwc = new InheritedDocWithCons "MyDoc"
+        expect(idwc.name).toBe "MyDocMyDoc"
+
+        InheritedDocWithCons = _.prototype inherit:DocWithCons, constructor: (name) -> _.super @, @name + ' is ' + name
+        idwc = new InheritedDocWithCons "MyDoc"
+        expect(idwc.name).toBe "MyDoc is MyDoc"
+        
     it 'should create a Prototype by inheriting from another prototype and acccess parent\'s instance function', ->
         InheritedDocWithInst = _.prototype inherit:DocWithInst,
             add: (a,b) -> a + " + " + b + " = " + _.super @, a,b
@@ -114,7 +123,7 @@ xdescribe 'Data', ->
             a = _.param {u:1, v:2}
             expect(a).toBe 'u=1&v=2'
 
-xdescribe 'Flow', ->
+describe 'Flow', ->
     f1 = (cb) -> setTimeout (-> cb new Date().getTime()), 250
     f2 = (cb) -> setTimeout (-> cb new Date().getTime()), 150
     f3 = (cb) -> setTimeout (-> cb new Date().getTime()), 350
@@ -140,7 +149,7 @@ xdescribe 'Flow', ->
         data = sum:0
         
         runs -> 
-            _.serialize null, data, (defer, local) ->
+            _.serialize local:data, (defer, local) ->
                 defer (next) -> f1 (time) -> time1 = time; local.sum += 1 ; next()
                 defer (next) -> f2 (time) -> time2 = time; local.sum += 1 ; next()
                 defer (next) -> f3 (time) -> time3 = time; local.sum += 1 ; next()
@@ -154,6 +163,81 @@ xdescribe 'Flow', ->
             expect(time3 - start).toBeGreaterThan 750 - 5
             expect(end - start).toBeLessThan 10
             expect(data.sum).toBe 3
+
+    it 'should serialize three async functions with _.flow', ->
+        start = new Date().getTime()
+        time1 = time2 = time3 = end = null
+        data = sum:0
+        
+        runs -> 
+            _.flow (run) ->
+                run (end) -> f1 (time) => time1 = time; data.sum += 1 ; end()           # use `this`
+                run (end) -> f2 (time) -> time2 = time; data.sum += 1 ; end()    # or use `task` argument
+                run (end) -> end()  # empty task
+                run (end) -> f3 (time) => time3 = time; data.sum += 1 ; end()
+            
+            end = new Date().getTime()
+              
+        waitsFor (-> time1? and time2? and time3?), '_.flow()', 1000
+        runs -> 
+            expect(time1 - start).toBeGreaterThan 250 - 5
+            expect(time2 - start).toBeGreaterThan 400 - 5
+            expect(time3 - start).toBeGreaterThan 750 - 5
+            expect(end - start).toBeLessThan 10
+            expect(data.sum).toBe 3
+
+    it 'should serialize synced tasks as asynced code', ->
+        i = 0; j = off
+
+        runs -> 
+            _.flow (run) ->
+                run (end) -> i++ ; end()
+                run (end) -> i++ ; end()
+                run -> i++ ; j = on
+        
+            expect(i).toBe 2
+
+        waitsFor (-> j is on), '_.flow()', 1000
+        
+        runs -> 
+            expect(i).toBe 3
+
+    it 'should serialize sync functions as sync code', ->
+        i = 0
+        _.flow async:off, (run) ->
+            run (end) -> i++ ; end()
+            run (end) -> i++ ; end()
+            run -> i++ 
+        
+        expect(i).toBe 3
+
+    it 'should serialize synced and asynced functions', ->
+        i = 0; j = off; k = off; l = off
+        runs -> 
+            _.flow (run) ->
+                run (end) -> i++ ; end()
+                run (end) -> 
+                    setTimeout (-> i++ ; j = on; end()), 150
+                    end.later  # will tell the task that 
+                                # one of its runs is async
+                                # and that task is not forced 
+                                # to run its last run as async
+                                # `end` or `end.later` can be returned
+                                # to achieve this
+                run (end) -> i++ ; end()
+                run (end) ->
+                    setTimeout (-> i++ ; k = on; end()), 150
+                run (end) -> i++ ; end()
+                run (end) -> i++ ; end()
+                run (end) -> 
+                    setTimeout (-> i++ ; l = on; task.done()), 150
+                
+            expect(i).toBe 1
+
+        waitsFor (-> j is on and k is on and l is on), '_.flow()', 1000
+        
+        runs -> 
+            expect(i).toBe 7
 
     it "_.parallelize and join after completion", ->
         nop_count = 1000000
@@ -178,8 +262,28 @@ xdescribe 'Flow', ->
             expect(time1M).toBeGreaterThan 2
             expect(end - start).toBeGreaterThan 3 * time1M - 1
             expect(next - start).toBeLessThan 4
+            
+    xit "_.throttle a function call once in 300ms", ->
+        max = 300
+        waited = 0
+        summed = 0
+        count = 0
+        start = new Date().getTime()
+        throttled = _.throttle wait:max, accumulate:on, reset:on, ->
+            end = new Date().getTime()
+            waited += end - start
+            start = end
+            for args in arguments then [value] = args ; summed += value
+            count += 1
+        runs -> 
+            throttled i for i in [1..10]
+            return
+        waitsFor (-> count is 1), '_.throttle()', 1000
+        runs ->
+            expect(waited).toBeGreaterThan 1 * max - 1
+            expect(summed).toBe 55
 
-describe 'extend', ->
+xdescribe 'extend', ->
     it 'should set values', ->
         o = _.extend {}, {first:1}
         expect(o.first).toBe(1)
@@ -199,7 +303,7 @@ describe 'extend', ->
         expect(o.second.suba).toBe('suba')
         expect(o.second.subb).toBe('subb')
 
-describe 'defaults', ->
+xdescribe 'defaults', ->
     it 'should set default values if not set', ->
         o = _.defaults {}, {first:1}
         expect(o.first).toBe(1)

@@ -198,18 +198,19 @@ exports.moveFile = (from, to, __) ->
     if from is '' then process.nextTick(-> with_error event, 'Warning: empty from in moveFile') ; return event
     
     curdir = (if __?.appdir then __.appdir + '/' else '')
-    from = curdir + normalize from
-    to =  curdir + normalize to if to isnt ''
+    from = normalize from
+    to =  normalize to if to isnt ''
+    _from = curdir + from
     
-    repo = resolve_repo from, __
+    repo = resolve_repo _from, __
     
     # If file to move exists
-    if Fs.existsSync from
+    if Fs.existsSync _from
         # Read its content
-        Fs.readFile from, (err, data) ->
+        Fs.readFile _from, (err, data) ->
             unless err?
                 # Destroy the original file
-                Fs.unlink from, (err) ->
+                Fs.unlink _from, (err) ->
                     unless err?
                         # Remove it from the Git index
                         git = new Git cwd:repo.cwd
@@ -336,7 +337,6 @@ exports.getAvailableCommits = (path, __) ->
             
     event
 
-    
 #### Internal functions
 
 #### normalize
@@ -370,7 +370,7 @@ resolve = (where, __) ->
 resolve_repo = (path, __) ->
     cwd = __?.appdir ? '.'
     appdir_abs = Path.resolve(__?.appdir ? '.')
-    sysdir_abs = Path.resolve(__?.sysdir ? '.')
+    sysdir_abs = Path.resolve('')
     if path.charAt(0) isnt '/' then path = '/' + path
     if (appdir_abs + path).indexOf(sysdir_abs) is 0 then path = (appdir_abs + path).substr sysdir_abs.length + 1 ; cwd = '.' else path = path.substr 1
     

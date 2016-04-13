@@ -12,31 +12,31 @@ class Chocokup
         text "#{@__.body()}"
     body_template: ->
         text "#{@__.content()}"
-    @verify : (args...) ->
-        attributes = content = null
-        id_class = ''
-        for a in args
-            switch typeof a
-                when 'function'
-                    content = a
-                when 'object'
-                    attributes = a
-                when 'number', 'boolean'
-                    content = a
-                when 'string'
-                    if args.length is 1
-                        content = a
-                    else
-                        if a is args[0]
-                            id_class = a
-                        else
-                            content = a 
-
         
-        # return verified arguments
-        {id_class, attributes, content}
-            
     @helpers: class
+        __verify : (args...) ->
+            attributes = content = null
+            id_class = ''
+            for a in args
+                switch typeof a
+                    when 'function'
+                        content = a
+                    when 'object'
+                        attributes = a
+                    when 'number', 'boolean'
+                        content = a
+                    when 'string'
+                        if args.length is 1
+                            content = a
+                        else
+                            if a is args[0]
+                                id_class = a
+                            else
+                                content = a 
+    
+            # return verified arguments
+            {id_class, attributes, content}
+                
         css : (param) ->
             compile = (rules, helpers) ->
                 result = ''
@@ -89,9 +89,9 @@ class Chocokup
                 else param.toString()
 
         panel : ->
-            { id_class, attributes, content } = Chocokup.verify arguments...
+            { id_class, attributes, content } = __verify arguments...
             
-            new_id_class = 'panel.space'
+            new_id_class = 'panel'
             
             switch @__.proportion()
                 when 'half', 'third', 'half-served'
@@ -170,13 +170,13 @@ class Chocokup
             @__.panel_infos.pop()
             
         box : ->
-            { id_class, attributes, content } = Chocokup.verify arguments...
+            { id_class, attributes, content } = __verify arguments...
             
             id_class = 'frame' + (if id_class isnt '' then '.' else '') + id_class
             panel id_class, attributes, -> panel 'sizer', content
 
         header : ->
-            { id_class, attributes, content } = Chocokup.verify arguments...
+            { id_class, attributes, content } = __verify arguments...
             
             if not @__.panel_infos? or @__.panel_infos.length is 0 or attributes?.html5? then tag 'header', arguments...
             else
@@ -189,7 +189,7 @@ class Chocokup
                 panel id_class, attributes, content
 
         footer : ->
-            { id_class, attributes, content } = Chocokup.verify arguments...
+            { id_class, attributes, content } = __verify arguments...
             
             if not @__.panel_infos? or @__.panel_infos.length is 0 or attributes?.html5? then tag 'footer', arguments...
             else
@@ -202,7 +202,7 @@ class Chocokup
                 panel_info.footer_kept = {id_class, attributes, content}
 
         body : ->
-            { id_class, attributes, content } = Chocokup.verify arguments...
+            { id_class, attributes, content } = __verify arguments...
             
             if @__.panel_infos?.length > 0
                 new_id_class = 'body'
@@ -432,7 +432,7 @@ class Chocokup.Css
     """
     
     @core: """
-    .space{bottom:0;height:auto;left:0;overflow:hidden;position:absolute;right:0;top:0;width:auto;}
+    .panel{bottom:0;height:auto;left:0;overflow:hidden;position:absolute;right:0;top:0;width:auto;}
     .hidden{display:none;}
     .screen-95{height:96%;left:5%;top:2%;width:90%;}
     .screen-90{height:92%;left:10%;top:4%;width:80%;}
@@ -504,7 +504,7 @@ class Chocokup.Css
     .padding-top{padding-top:1em;}
     .padding-bottom{padding-bottom:1em;}
     .header{bottom:auto;height:2.4em;line-height:2.4em;overflow:hidden;position:absolute;text-align:center;top:0px;width:100%;}
-    .body{bottom:2.4em;overflow:auto;position:absolute;top:2.4em;webkit-overflow-scrolling:touch;}
+    .body{bottom:2.4em;overflow:auto;position:absolute;top:2.4em;-webkit-overflow-scrolling:touch;}
     .footer{bottom:0px;height:2.4em;line-height:2.4em;overflow:hidden;position:absolute;text-align:center;top:auto;width:100%;}
     .no-header{top:0px;}
     .no-footer{bottom:0px;}
@@ -529,6 +529,7 @@ class Chocokup.Css
     .inline{position:relative;}
     .scroll *{overflow:auto;webkit-overflow-scrolling:touch;}
     .no-scroll *{overflow:hidden;}
+    .no-crop {overflow: visible;}
 
     .row{margin:0 auto;width:960px;overflow:hidden;display:block;}
     .row .row{margin:0 -16px 0 -16px;width:auto;display:inline-block}

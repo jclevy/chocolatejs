@@ -1,10 +1,12 @@
 # Adapted from the Spludo Framework.
 # Copyright (c) 2009-2010 DracoBlue, http://dracoblue.net/
+#
+# and from https://github.com/pkrumins/node-tree-kill
 # 
 # Licensed under the terms of MIT License. For the full copyright and license
 # information, please see the LICENSE file in the root folder.
 
-child_process = require('child_process')
+Child_process = require('child_process')
 Fs = require 'fs'
 Util = require 'util'
 Path = require 'path'
@@ -20,17 +22,16 @@ monitor_server = new class
     logging: no
 
     "log": (msg) ->
-        Debugate.log msg if this.logging
+        Debugate.log msg if @logging
 
     "exit": ->
-        self = this
-        self.log 'CHOCOLATEJS: terminate child process'
-        self.process?.kill()
-        check = ->
+        this.log 'CHOCOLATEJS: terminate child process'
+        this.kill(@process.pid) if @process?
+        check = =>
             # if child process exited we can also exit
             # otherwise we wait...
-            unless self.process? 
-                self.log 'CHOCOLATEJS: exit'
+            unless @process? 
+                this.log 'CHOCOLATEJS: exit'
                 setTimeout (-> process.exit()), 100
                 
         check()
@@ -38,19 +39,28 @@ monitor_server = new class
 
 
     "restart": ->
-        this.restarting = true
+        @restarting = true
         this.log 'CHOCOLATEJS: Stopping server for restart'
-        this.process.kill()
+        this.kill(@process.pid) if @process?
 
     "start": ->
         process.chdir __dirname + '/..'
-        this.appdir =  process.argv[2]
-        this.port =  process.argv[3]
+        args = []
+        for arg, i in process.argv when i>1
+            kv = arg.split '='
+            switch kv[0]
+                when "--appdir" then @appdir = kv[1]
+                when "--port" then @port = kv[1]
+                when "--memory" then @memory = kv[1]
+                else args.push kv[0] unless kv[1]?
+        @appdir ?=  args[0]
+        @port ?=  args[1]
+        @memory ?=  args[2]
         
         self = this
         
         process.on 'uncaughtException', (err) ->
-            Fs.createWriteStream((this.appdir ? '.' ) + '/data/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
+            Fs.createWriteStream((@appdir ? '.' ) + '/data/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
             
         process.on 'SIGTERM', -> self.exit()
 
@@ -58,17 +68,20 @@ monitor_server = new class
         this.watchFiles()
 
         args = []
-        args.push this.appdir if this.appdir?
-        args.push this.port if this.port?
-        this.process = child_process.spawn("coffee", ['server/server.coffee'].concat args)
+        args.push @appdir if @appdir?
+        args.push @port if @port?
+        cmds = []
+        if @memory? then cmds = ['--nodejs', "--max-old-space-size=#{@memory}"]
+        cmds.push 'server/server.coffee'
+        @process = Child_process.spawn("coffee", cmds.concat args)
 
-        this.process.stdout.addListener 'data', (data) ->
+        @process.stdout.addListener 'data', (data) ->
             process.stdout.write(data)
 
-        this.process.stderr.addListener 'data', (data) ->
+        @process.stderr.addListener 'data', (data) ->
             Util.log(data)
 
-        this.process.addListener 'exit', (code) ->
+        @process.addListener 'exit', (code) ->
             self.log 'CHOCOLATEJS: Child process exited: ' + code
             self.process = null
 
@@ -80,7 +93,7 @@ monitor_server = new class
     "watchFiles": ->
         self = this
         
-        appdir = if this.appdir? then this.appdir else '.'
+        appdir = if @appdir? then @appdir else '.'
         sysdir = Path.resolve __dirname, '..'
         
         filter = (path) ->
@@ -120,9 +133,9 @@ monitor_server = new class
                             command = param = undefined
                         
                     if command? then do (file, file_base, file_js_name, add_js_file_to_git) ->
-                        self.compile_process[file] = child_process.spawn command, params, cwd:curdir
+                        self.compile_process[file] = Child_process.spawn command, params, cwd:curdir
                         self.compile_process[file].addListener 'exit', (code) ->
-                            child_process.exec 'git add ' + file_js_name, cwd:curdir if add_js_file_to_git
+                            Child_process.exec 'git add ' + file_js_name, cwd:curdir if add_js_file_to_git
                             if file_rel_path.indexOf('locco') is 0 and file_base.indexOf('.spec') is -1 then build_lib_package()
                             delete self.compile_process[file]
                         
@@ -173,12 +186,103 @@ monitor_server = new class
             
             setTimeout (-> self.restart()), 1000
 
-        this.watcher = Chokidar.watch appdir, ignored: filter, persistent: yes, ignoreInitial:yes
-        this.watcher.on 'add', on_add
-        this.watcher.on 'change', on_change
+        @watcher = Chokidar.watch appdir, ignored: filter, persistent: yes, ignoreInitial:yes
+        @watcher.on 'add', on_add
+        @watcher.on 'change', on_change
         
 
     "unwatchFiles": ->
-        this.watcher.close()
+        @watcher.close()
+
+    "killAll": (tree, signal, callback) ->
+        killed = {}
+        try
+            for pid of tree
+                for pidpid in tree[pid]
+                    if !killed[pidpid]
+                        this.killPid pidpid, signal
+                        killed[pidpid] = 1
+                    return
+                if !killed[pid]
+                    this.killPid pid, signal
+                    killed[pid] = 1
+                return
+        catch err
+            if callback?
+                return callback(err)
+            else
+                throw err
+        if callback?
+            return callback()
+        return
+    
+    
+    "killPid": (pid, signal) ->
+        try
+            process.kill parseInt(pid, 10), signal
+        catch err
+            if err.code != 'ESRCH'
+                throw err
+        return
+    
+    
+    "buildProcessTree": (parentPid, tree, pidsToProcess, spawnChildProcessesList, cb) ->
+        ps = spawnChildProcessesList(parentPid)
+        allData = ''
+        ps.stdout.on 'data', (data) ->
+            data = data.toString('ascii')
+            allData += data
+            return
+    
+        ps.on 'close', (code) =>
+            delete pidsToProcess[parentPid]
+            if code != 0
+                # no more parent processes
+                if (o for o of pidsToProcess).length == 0
+                    cb()
+                return
+            for pid in allData.match(/\d+/g)
+                pid = parseInt(pid, 10)
+                tree[parentPid].push pid
+                tree[pid] = []
+                pidsToProcess[pid] = 1
+                this.buildProcessTree pid, tree, pidsToProcess, spawnChildProcessesList, cb
+                return
+            return
+    
+        return
+    
+    "kill": (pid, signal, callback) ->
+        tree = {}
+        pidsToProcess = {}
+        tree[pid] = []
+        pidsToProcess[pid] = 1
+        switch process.platform
+            when 'win32'
+                Child_process.exec 'taskkill /pid ' + pid + ' /T /F', callback
+            when 'darwin'
+                this.buildProcessTree pid, tree, pidsToProcess, ((parentPid) ->
+                    Child_process.spawn 'pgrep', [
+                        '-P'
+                        parentPid
+                    ]
+                ), =>
+                    this.killAll tree, signal, callback
+                    return
+            else
+                # Linux
+                this.buildProcessTree pid, tree, pidsToProcess, ((parentPid) ->
+                    Child_process.spawn 'ps', [
+                        '-o'
+                        'pid'
+                        '--no-headers'
+                        '--ppid'
+                        parentPid
+                    ]
+                ), =>
+                    this.killAll tree, signal, callback
+                    return
+                break
+        return
 
 monitor_server.start()

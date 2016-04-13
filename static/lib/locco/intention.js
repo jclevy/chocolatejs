@@ -74,7 +74,7 @@
     };
     window.require.resolve = resolve = function(filename) {
       var i;
-      filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/^general\//, '').replace(/^client\//, '').replace(/^server\//, '');
+      filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/chocolate\//g, '').replace(/^general\//, '').replace(/^client\//, '').replace(/^server\//, '');
       return filename = (i = filename.lastIndexOf('.')) >= 0 ? filename.slice(0, i) : filename;
     };
     window.require.cache = function(used) {

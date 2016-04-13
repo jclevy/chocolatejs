@@ -69,7 +69,7 @@ unless window?
                     runs -> expect(result.error).toBe null
                     runs -> 
                         expect(result.uuid).toBe todo.uuid
-                        expect(todo._._.id?).toBe true
+                        expect(todo._._.uuid?).toBe true
 
                 it 'should send an error when saving the same JS Object', ->
                     result = undefined

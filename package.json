@@ -1,6 +1,6 @@
 {
     "name": "chocolate",
-    "version": "0.0.12",
+    "version": "0.0.13",
     "description": "A full stack Node.js web framework built using Coffeescript",
     "preferGlobal": "true",
     "keywords": ["fullstack", "reactive", "coffeescript", "framework", "online", "ide", "web", "app", "markdown", "jasmine", "ace", "jquery", "coffeekup", "docco", "git", "impress"],
@@ -12,7 +12,7 @@
     "bin": { "chocomake": "./bin/chocomake" },
     "author": "Jean-Claude Levy",
     "dependencies": {
-        "coffee-script": "1.7.1",
+        "coffee-script": "1.9.1",
         "bufferstream": "0.6.2",
         "jasmine-node": "1.5.0",
         "chokidar": "0.8.2",

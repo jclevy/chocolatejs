@@ -62,7 +62,7 @@ if window? and not window.modules?.locco?
         result
     
     window.require.resolve = resolve = (filename) ->
-        filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/^general\//, '').replace(/^client\//, '').replace(/^server\//, '')
+        filename = filename.toLowerCase().replace(/^\.\//, '').replace(/\.\.\//g, '').replace(/chocolate\//g, '').replace(/^general\//, '').replace(/^client\//, '').replace(/^server\//, '')
         filename = if (i=filename.lastIndexOf '.') >= 0 then filename[0...i] else filename
     
     window.require.cache = (used) -> use_cache = used

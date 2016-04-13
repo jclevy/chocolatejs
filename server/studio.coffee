@@ -44,7 +44,7 @@ exports.enter = (__) ->
                 border-bottom-left-radius: 7px;
                 border-top-right-radius: 8px;
             }
-            .space.frame > .sizer {
+            .panel.frame > .sizer {
                 outline: inherit;
             }
             .white {
@@ -116,7 +116,7 @@ exports.enter = (__) ->
             #help-panel h3 {
                 font-size: 1.05em;
             }
-            #notes-panel .space .paper {
+            #notes-panel .panel .paper {
                 font-size: 11pt;
             }
             #source_select {
@@ -127,6 +127,18 @@ exports.enter = (__) ->
                 border: 1px solid;
                 padding: 0px 3px;
                 cursor:pointer;
+            }
+            
+            #toggle-login {
+                color: red;
+            }
+
+            #toggle-login.logged {
+                color: green;
+            }
+            
+            #input-login {
+                line-height: 2em;
             }
 
             /* darkTheme */
@@ -239,18 +251,20 @@ exports.enter = (__) ->
         script src:"/static/vendor/ace/ext-language_tools.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/snippets/coffee.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/snippets/javascript.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/snippets/json.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/snippets/css.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/snippets/text.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/snippets/html.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/snippets/markdown.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-coffee.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-json.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
-        script src:"/static/vendor/ace/theme-crimson_editor.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/theme-coffee_white.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/lib/doccolate.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/datejs/date.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/mootools/mootools-core-uncompressed.js", type:"text/javascript", charset:"utf-8"
@@ -265,9 +279,12 @@ exports.enter = (__) ->
                             select '#source_select.hidden', onchange:'_ide.open_file()', ''
                             span '.float-right', -> span '#source_close.hidden', onclick:'_ide.close_file()', 'x'
                         panel ->
-                            a '#toggle-fullscreen.float-margin-right', title:'Switch fullscreen', style:'font-size: 16pt;text-decoration: none;', href:"#", onclick:"_ide.toggleFullscreen();", -> '«»'
+                            a '#toggle-login.float-margin-right', title:'Login/Logoff', style:'font-size: 15pt;text-decoration: none;', href:"#", onclick:"_ide.toggleLogin();", -> '•'
+                            input '#input-login.float-margin-right.hidden', type:'password', onchange:'_ide.register_key()', ''
+                            a '#toggle-fullscreen.float-margin-right', title:'Switch fullscreen', style:'font-size: 15pt;text-decoration: none;', href:"#", onclick:"_ide.toggleFullscreen();", -> '«»'
                             a '#switch-panel.float-margin-right', title:'Switch side by side display', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchScreens();", -> '|||'
                             a '#switch-theme.float-margin-right', title:'Switch theme', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchTheme();", -> '□'
+                            a '#switch-wrap.float-margin-right', title:'Switch wrap mode', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchWrap();", -> '↩'
                             a '#switch-invisible.float-margin-right', title:'Switch invisible caracters display', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchInvisible();", -> '...'
                 body ->
                     panel '#main-panel', proportion:'served', ->
@@ -281,7 +298,7 @@ exports.enter = (__) ->
                                             text 'Upload'
                                         form "#form-file-upload", action:"", method:"post", enctype:"multipart/form-data", target:"frame-file-upload", ->
                                             input "#input-file-upload", name:"input-file-upload", type:'file', onchange:"_ide.upload_file('send');"
-                                        iframe "#frame-file-upload", ->
+                                        iframe "#frame-file-upload", name:"frame-file-upload", ->
                             body ->
                                 panel proportion:'third', orientation:'vertical', ->
                                     panel ->
@@ -440,7 +457,7 @@ exports.enter = (__) ->
         coffeescript ->
             sofkey = _sofkey
             editor = chocodown_editor = debug_editor = experiment_editor = specolate_editor = null
-            ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/crimson_editor' else 'ace/theme/coffee'
+            ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/coffee_white' else 'ace/theme/coffee'
             debug_experiment_sync = null
             sources =
                 opened : []
@@ -619,6 +636,40 @@ exports.enter = (__) ->
                 for path in [sources.codes, sources.specs]
                     for own k,v of path then if v.modified then return yes
                 no
+            
+            _ide.switch_login = (switched) ->
+                    document.id("toggle-login")["#{if switched is on then 'add' else 'remove'}Class"] 'logged'
+                    document.id("input-login")["#{if switched is on then 'add' else 'remove'}Class"]('hidden').set 'value', ''
+                    
+            _ide.check_connected = ->
+                new Request
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/studio?connected&how=raw'
+                    noCache: yes
+                    onSuccess: (data) ->
+                        _ide.switch_login if data is "connected" then on else off
+                    onFailure: (xhr) ->
+                        _ide.switch_login on
+                .get()
+
+
+            _ide.register_key = ->
+                new Request 
+                    data: key:document.id("input-login").value
+                    noCache: yes
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/interface?register_key&how=raw'
+                    onSuccess: (data) =>
+                        _ide.check_connected()
+                    onFailure: (xhr) ->
+                .post()
+
+            _ide.logoff = ->
+                new Request 
+                    noCache: yes
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/interface?forget_keys&how=raw'
+                    onSuccess: (data) =>
+                        _ide.check_connected()
+                    onFailure: (xhr) ->
+                .post()
 
             _ide.goto_dir = (new_dir, callback) ->
                 parent_dir = if (tmp_ = new_dir.split('/')[0...-1].join('/')) is '' then '.' else tmp_
@@ -629,7 +680,7 @@ exports.enter = (__) ->
                         rel_new_dir = if new_dir is '.' then '' else new_dir + '/'
                         sources.available = {}
                         content = ["""<div><a href="#" onclick="javascript:_ide.goto_dir('#{parent_dir}');">..</a></div>""" if new_dir isnt '.']
-                        for item in directory when item.name[0] isnt '.' # and (item.isDir or item.extension in ['.coffee', '.css', '.js', '.json', '.html', '.txt', '.markdown', '.md'])
+                        for item in directory when item.name[0] isnt '.' # and (item.isDir or item.extension in ['.coffee', '.litcoffee', '.css', '.js', '.json', '.html', '.txt', '.markdown', '.md'])
                             unless _ide.is_spec_file item.name
                                 content.push ('<div>' + """<a href="#" onclick="javascript:#{if item.isDir then '_ide.goto_dir' else '_ide.open_file'}('#{(if new_dir isnt '.' then (new_dir + '/') else '') + item.name}');">#{item.name}</a>""" + '</div>')
                             else sources.available[rel_new_dir + item.name.replace '.spec', ''].has_spec_file = true
@@ -701,11 +752,11 @@ exports.enter = (__) ->
                 mode = switch _ide.get_extension path ? ''
                     when '.coffee' then 'coffee'
                     when '.js' then 'javascript'
-                    when '.json' then 'javascript'
+                    when '.json' then 'json'
                     when '.css' then 'css'
                     when '.html' then 'html'
                     when '.txt' then 'text'
-                    when '.markdown', '.md', '.chocodown', '.cd' then 'markdown'
+                    when '.markdown', '.md', '.chocodown', '.cd', '.litcoffee' then 'markdown'
                     else 'text'
                 Mode = require("ace/mode/#{mode}").Mode                    
                 doc = new EditSession source
@@ -1071,6 +1122,9 @@ exports.enter = (__) ->
                 chocodown_editor.resize on
                 specolate_editor.resize on
 
+            _ide.toggleLogin = ->
+                if document.id("toggle-login").hasClass 'logged' then _ide.logoff() else document.id("input-login").removeClass 'hidden'
+                
             _ide.toggleFullscreen = ->
                 document.id('main-panel').toggleClass 'fullscreen'
                 document.id('toggle-fullscreen').set 'text', if document.id('main-panel').hasClass('fullscreen') then '»«' else '«»'
@@ -1097,7 +1151,7 @@ exports.enter = (__) ->
                 $(document.body)[(if lightTheme then 'remove' else 'add') + 'Class'] 'lightTheme'
                 $(document.body)[(if lightTheme then 'add' else 'remove') + 'Class'] 'darkTheme'
                 document.id('switch-theme').set 'text', if $(document.body).hasClass('lightTheme') then '□' else '■'
-                ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/crimson_editor' else 'ace/theme/coffee'
+                ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/coffee_white' else 'ace/theme/coffee'
                 editor.setTheme ace_theme
                 experiment_editor.setTheme ace_theme
                 debug_editor.setTheme ace_theme
@@ -1106,6 +1160,13 @@ exports.enter = (__) ->
 
             _ide.switchInvisible = ->
                 editor.setShowInvisibles not editor.getShowInvisibles()
+                
+            _ide.switchWrap = ->
+                wrapMode = editor.session.getUseWrapMode()
+                document.id('switch-wrap').set 'text', if wrapMode is true then '↩' else '⟶'
+                editor.session.setUseWrapMode not wrapMode
+                editor.session.setWrapLimitRange null, null
+                
 
             _ide.toggleMainDisplay = (what) ->
                 if what is 'main'
@@ -1344,7 +1405,7 @@ exports.enter = (__) ->
                     _ide.run_specolate.running = off
                 
                 try
-                    document.id('specolate-run-panel').contentWindow.Specolate.inspect 'json', sources.current, {}, (result) -> 
+                    document.id('specolate-run-panel').contentWindow.Specolate.inspect 'json', sources.current.replace(/node_modules\/chocolate\//g, ''), {}, (result) -> 
                         list = []
                         client_result = result
                         if client_result.count.total > 0 
@@ -1627,6 +1688,8 @@ exports.enter = (__) ->
                 .get()
                     
             _ide.keep_uptodate = ->
+                _ide.check_connected()
+                
                 for own k, v of sources.codes
                     do should_we_reload = ->
                         path = k ; item = v
@@ -1723,6 +1786,7 @@ exports.enter = (__) ->
 
                 editor.focus()
 
+                _ide.check_connected()
                 setTimeout _ide.keep_uptodate, _ide.refresh_rate
                 
                 for _ in [editor, experiment_editor, debug_editor, chocodown_editor, specolate_editor]
@@ -1789,6 +1853,8 @@ exports.enter = (__) ->
                     exec: -> _ide.save_spec_file()
 
                 _ide.goto_dir '.'
+
+exports.connected = -> 'connected'
 
 exports.iframe_body = ->
     panel = new Chocokup.App 'Specolate client runner', ->
