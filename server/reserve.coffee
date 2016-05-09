@@ -844,4 +844,103 @@ class Space
         #process.nextTick ->
         #    callback null, {}
 
+
+### Space.Library
+
+World = interacting teams
+
+Equipe / Team / Library / 120y
+Projets / Themes / Category / 2y
+Objectifs / Epics / Collection / 6m
+Etapes / User stories / Book / 3w
+Tâches / Tasks / Chapter / 2d
+Action / Action / Verse / 1h
+
+
+Volume
+----
+uuid -- uuid
+name -- string
+nodes -- map
+versions -- array
+    version -- number
+    time_stamp -- date
+
+Node
+----
+uuid -- uuid
+versions -- array
+    time_stamp -- date
+    node_next -- reference
+    node_child -- reference
+    data_type
+    data_length
+    data_blob
+
+Actor
+-----
+create_volume
+#upgrade_volume
+#open_volume
+#close_volume
+insert_nade
+update_nade
+link_nade
+merge_nade
+remove_nade
+read
+read_all
+read_at_time
+purge_version
+
+Action
+------
+insert
+change
+link
+merge
+remove
+
+###
+
+Library = do ->
+    
+    create_volume = (name) ->
+        uuid: Uuid()
+        name: name
+        nodes: {}
+        versions: []
+    
+    insert_node = (volume, uuid, data) ->
+        return if not volume? or not uuid? or not data? or volume.nodes[uuid]?
+        
+        node = 
+            uuid:uuid
+            versions:[
+                time_stamp: Date.now()
+                data:data
+                # next: undefined
+                # child: undefined
+                ]
+        
+        volume.nodes[uuid] = node
+        
+        if volume.versions.length is 0
+            volume.versions.push version:1, time_stamp: node.versions[0].time_stamp
+        
+        return node
+    
+    update_nade = (volume, uuid, data) ->
+        return if not volume? or not uuid? or not data? or not volume.nodes[uuid]?
+        
+        current_node = volume.nodes[uuid]
+        current_node.versions.push
+                time_stamp: Date.now()
+                data:data
+        
+        return current_node
+        
+    {create_volume, insert_node, update_nade}
+
 exports.Space = Space
+exports.Library = Library

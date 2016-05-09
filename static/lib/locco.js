@@ -489,13 +489,17 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
           }
         }
         if (service.locks != null) {
-          this.locks = _.defaults(this.locks, service.locks);
+          if (typeof service.locks === 'function') {
+            this.locks = service.locks;
+          } else {
+            this.locks = _.defaults(this.locks, service.locks);
+          }
         }
         if (service.values != null) {
-          this.values = _.defaults(this.values, service.values);
+          this.values = service.values;
         }
         if (service.steps != null) {
-          this.steps = _.defaults(this.steps, service.steps);
+          this.steps = service.steps;
         }
         for (name in service) {
           item = service[name];
@@ -523,7 +527,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
       }
     },
     review: function(bin, scope, reaction, end) {
-      var check, check_services, ref, ref1, respond, review_result, self;
+      var check, check_services, ref, ref1;
       check = {
         defaults: (function(_this) {
           return function(object, defaults) {
@@ -582,9 +586,9 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
                 if (service instanceof Interface) {
                   (function(_bin, _name, _service, _local_scope) {
                     return run(function(next_service) {
-                      var _next_service, base, i, item, j, len, len1, service_result;
-                      if ((base = _bin[_name]).bin == null) {
-                        base.bin = {
+                      var _next_service, i, item, j, len, len1, ref, ref1, service_result;
+                      if (ref = _bin[_name], indexOf.call(scope.reviewed, ref) < 0) {
+                        _bin[_name].bin = {
                           __: _bin.__
                         };
                       }
@@ -603,7 +607,10 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
                           return _next_service();
                         };
                       }
-                      service_result = _service.review(_bin[_name].bin, scope, reaction, next_service);
+                      if (ref1 = _bin[_name], indexOf.call(scope.reviewed, ref1) < 0) {
+                        scope.reviewed.push(_bin[_name]);
+                        service_result = _service.review(_bin[_name].bin, scope, reaction, next_service);
+                      }
                       if (service_result !== next_service) {
                         if (_local_scope != null) {
                           for (j = 0, len1 = _local_scope.length; j < len1; j++) {
@@ -645,39 +652,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
       if (this.values != null) {
         reaction.certified = check.values(bin, this.values);
       }
-      respond = function(o) {
-        this.reaction.bin = o;
-        return check_services();
-      };
-      respond.later = function() {};
-      respond.done = function() {};
-      self = {
-        bin: bin,
-        document: this.document,
-        'interface': this,
-        actor: this.actor,
-        reaction: reaction,
-        respond: respond,
-        transmit: (function(actor, service) {
-          actor[service].submit(this.bin).subscribe((function(_this) {
-            return function(reaction) {
-              return _this.respond(reaction.bin);
-            };
-          })(this));
-          return respond.later;
-        })
-      };
-      if (reaction.certified && (this.steps != null)) {
-        review_result = this.steps.call(self, self);
-      }
-      switch (review_result) {
-        case respond.later:
-          return end;
-        case void 0 || respond.done:
-          return check_services();
-        default:
-          return null;
-      }
+      return check_services();
     },
     submit: function(bin) {
       var publisher, reaction;
@@ -692,37 +667,66 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
         run(function(end) {
           return end["with"](this.review(bin, {
             global: [],
-            local: []
+            local: [],
+            reviewed: []
           }, reaction, end));
         });
         run(function(end) {
           var respond, result, self;
-          respond = function(o) {
-            this.reaction.bin = o;
-            return end();
-          };
-          respond.later = end;
-          self = {
-            bin: bin,
-            document: this.document,
-            'interface': this,
-            actor: this.actor,
-            reaction: reaction,
-            respond: respond,
-            transmit: (function(actor, service) {
-              actor[service].submit(this.bin).subscribe((function(_this) {
-                return function(reaction) {
-                  return _this.respond(reaction.bin);
-                };
-              })(this));
-              return end;
-            })
-          };
-          if (reaction.certified && (this.action != null)) {
-            result = this.action.call(self, self);
+          if (reaction.certified && (this.steps != null)) {
+            respond = function(o) {
+              this.reaction.bin = o;
+              return end();
+            };
+            respond.later = end;
+            self = {
+              bin: bin,
+              document: this.document,
+              'interface': this,
+              actor: this.actor,
+              reaction: reaction,
+              respond: respond,
+              transmit: (function(actor, service) {
+                actor[service].submit(this.bin).subscribe((function(_this) {
+                  return function(reaction) {
+                    return _this.respond(reaction.bin);
+                  };
+                })(this));
+                return respond.later;
+              })
+            };
+            result = this.steps.call(self, self);
           }
-          if (!((reaction.bin != null) || result === end.later)) {
-            reaction.bin = result;
+          return end["with"](result);
+        });
+        run(function(end) {
+          var respond, result, self;
+          if (reaction.certified && (this.action != null)) {
+            respond = function(o) {
+              this.reaction.bin = o;
+              return end();
+            };
+            respond.later = end;
+            self = {
+              bin: bin,
+              document: this.document,
+              'interface': this,
+              actor: this.actor,
+              reaction: reaction,
+              respond: respond,
+              transmit: (function(actor, service) {
+                actor[service].submit(this.bin).subscribe((function(_this) {
+                  return function(reaction) {
+                    return _this.respond(reaction.bin);
+                  };
+                })(this));
+                return respond.later;
+              })
+            };
+            result = this.action.call(self, self);
+            if (!((reaction.bin != null) || result === end.later)) {
+              reaction.bin = result;
+            }
           }
           return end["with"](result);
         });
@@ -786,9 +790,10 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
           return run(function() {
             var check_interfaces;
             reaction.bin = '';
+            scope.global.length = 0;
             scope.local.length = 0;
             check_interfaces = function(bin) {
-              var i, k, kups, len, local_kups, name, ref, ref1, ref2, ref3, service, step;
+              var i, kups, len, name, ref, ref1, ref2, ref3, ref4, service, step;
               for (name in bin) {
                 service = bin[name];
                 if (service instanceof Interface.Web) {
@@ -798,24 +803,14 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
                     step = ref[i];
                     kups = kups[step] != null ? kups[step] : kups[step] = {};
                   }
-                  local_kups = '';
-                  if (scope.global.length > 0) {
-                    local_kups = ((function() {
-                      var results;
-                      results = [];
-                      for (k in kups) {
-                        results.push(k + " = " + (scope.global.join('.')) + "." + k);
-                      }
-                      return results;
-                    })()).join(', ');
-                    if (local_kups !== "") {
-                      local_kups = "\nvar " + local_kups + ";";
-                    }
-                  }
                   if (kups[name] == null) {
-                    kups[name] = new Function('o', "var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;" + local_kups + "\nthis.interface = bin" + (scope.local.length > 0 ? '.' + scope.local.join('.') : '') + "." + name + ";\nthis.actor = this.interface != null ? this.interface.actor : null;\nthis.bin = this.interface != null ? (this.interface.bin != null ? this.interface.bin : {}) : {};\nif (o != null) {\n    for (k in o) {\n        if (hasOwnProperty.call(o, k)) {\n            this.bin[k] = o[k];\n        }\n    }\n}\n(" + (((ref1 = (ref2 = service.action) != null ? ref2.overriden : void 0) != null ? ref1 : service.action).toString()) + ").call(this);\nthis.bin = bin; this.interface = interface, this.actor = actor;");
+                    kups[name] = new Function('o', "var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;\ntry {this.interface = bin" + (scope.local.length > 0 ? '.' + scope.local.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? this.interface.actor : null;\nthis.bin = this.interface != null ? (this.interface.bin != null ? this.interface.bin : {}) : {};\nif (o != null) {\n    for (k in o) {\n        if (hasOwnProperty.call(o, k)) {\n            this.bin[k] = o[k];\n        }\n    }\n}\n(" + (((ref1 = (ref2 = service.action) != null ? ref2.overriden : void 0) != null ? ref1 : service.action).toString()) + ").call(this);\nthis.bin = bin; this.interface = interface, this.actor = actor;");
                   }
-                  if (((ref3 = bin[name]) != null ? ref3.bin : void 0) != null) {
+                  if (scope.web_reviewed == null) {
+                    scope.web_reviewed = [];
+                  }
+                  if (!((ref3 = bin[name], indexOf.call(scope.web_reviewed, ref3) >= 0) || (((ref4 = bin[name]) != null ? ref4.bin : void 0) == null))) {
+                    scope.web_reviewed.push(bin[name]);
                     check_interfaces(bin[name].bin);
                   }
                 } else {
@@ -901,7 +896,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
     }
   });
 
-  Interface.Web.Panel = _.prototype({
+  Interface.Web.Panel = Interface.Web.Html = _.prototype({
     inherit: Interface.Web,
     use: function() {
       return this.type = 'Panel';

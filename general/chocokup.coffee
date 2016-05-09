@@ -331,10 +331,13 @@ class Chocokup.Document extends Chocokup
     body_template: ->
             text "#{@__.content()}"
 
-class Chocokup.Panel extends Chocokup
+class Chocokup.Html extends Chocokup
     constructor: (@params, @content) ->
         super @params, @content
         @params = {} unless @params?
+
+
+Chocokup.Panel = Chocokup.Html
 
 class Chocokup.App extends Chocokup.Document
     

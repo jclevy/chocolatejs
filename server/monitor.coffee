@@ -27,6 +27,7 @@ monitor_server = new class
     "exit": ->
         this.log 'CHOCOLATEJS: terminate child process'
         this.kill(@process.pid) if @process?
+        this.kill(@debug_process.pid) if @debug_process?
         check = =>
             # if child process exited we can also exit
             # otherwise we wait...
@@ -42,6 +43,7 @@ monitor_server = new class
         @restarting = true
         this.log 'CHOCOLATEJS: Stopping server for restart'
         this.kill(@process.pid) if @process?
+        this.kill(@debug_process.pid) if @debug_process?
 
     "start": ->
         process.chdir __dirname + '/..'
@@ -58,20 +60,30 @@ monitor_server = new class
         @memory ?=  args[2]
         
         self = this
+
+        File.logConsoleAndErrors (@appdir ? '.' ) + '/data/chocolate.log'
+        
+        datadir = "#{(if @appdir is '.' then '.' else '../' + Path.relative process.cwd(), @appdir)}/data"
+        delete require.cache[require.resolve datadir + '/config']
+        config = require datadir + '/config'
         
         process.on 'uncaughtException', (err) ->
-            Fs.createWriteStream((@appdir ? '.' ) + '/data/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
+            console.error((err && err.stack) ? new Date() + '\n' + err.stack + '\n\n' : err);
             
         process.on 'SIGTERM', -> self.exit()
 
         this.log 'CHOCOLATEJS: Starting server'
         this.watchFiles()
 
+        if config.debug
+            @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', config.debug_port ? "8081"])
+
         args = []
         args.push @appdir if @appdir?
         args.push @port if @port?
         cmds = []
-        if @memory? then cmds = ['--nodejs', "--max-old-space-size=#{@memory}"]
+        cmds = ['--nodejs', "--max-old-space-size=#{@memory}"] if @memory?
+        cmds = ['--nodejs', '--debug-brk'] if config.debug
         cmds.push 'server/server.coffee'
         @process = Child_process.spawn("coffee", cmds.concat args)
 

@@ -144,7 +144,7 @@
           }
           if (typeof v === 'object' && !(v instanceof Array)) {
             results.push(this.render_attrs(v, prefix + k + '-'));
-          } else if (v) {
+          } else if (v != null) {
             results.push(text(" " + (prefix + k) + "=\"" + (this.esc(v)) + "\""));
           } else {
             results.push(void 0);
@@ -321,7 +321,7 @@
           results = [];
           for (k in param) {
             v = param[k];
-            results.push((k + "=") + (typeof v === 'function' && (v.toJSONString != null) ? v.toJSONString() : JSON.stringify(v)));
+            results.push((k + "=") + (typeof v === 'function' ? (v.toJSONString != null ? v.toJSONString() : "" + (v.toString())) : JSON.stringify(v)));
           }
           return results;
         })()).join(',') + ";\n" + ("(" + func + ").call(this);"));

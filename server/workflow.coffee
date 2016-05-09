@@ -11,6 +11,7 @@ WebSocket = require 'ws'
 Fs = require 'fs'
 Path = require 'path'
 Formidable = require 'formidable'
+File = require './file'
 Interface = require './interface'
 Document = require './document'
 Reserve = require './reserve'
@@ -93,10 +94,6 @@ class World
     # Here is what we do when we create a new World !
     constructor : (appdir = '.', port, key, cert) ->
         
-        # If Node.js crashes unexpectedly, we will receive an `uncaughtException` and log it in a file
-        process.on 'uncaughtException', (err) ->
-            Fs.createWriteStream(datadir + '/uncaught.err', {'flags': 'a'}).write new Date() + '\n' + err.stack + '\n\n'
-    
         cwd = process.cwd()
         if cwd is appdir then process.chdir(__dirname + '/..') ; cwd = process.cwd()
         appdir =  Path.relative cwd, appdir if appdir isnt '.'
@@ -106,6 +103,12 @@ class World
         sys_pathname = cwd
         
         datadir = appdir + '/data'
+
+        File.logConsoleAndErrors (appdir ? '.' ) + '/data/chocolate.log'
+        
+        # If Node.js crashes unexpectedly, we will receive an `uncaughtException` and log it in a file
+        process.on 'uncaughtException', (err) ->
+            console.error((err && err.stack) ? new Date() + '\n' + err.stack + '\n\n' : err);
 
         Document.datadir = datadir
         cache = new Document.Cache async:off
@@ -156,7 +159,13 @@ class World
             # `params` will contains the parameters extracted from the query part of the request
             params = {}
             for param, param_index in query.list when param.key not in keywords
-                params[if param.value != '' then param.key else '__' + param_index] = decodeURI(if param.value isnt '' then param.value else param.key)
+                param_key = if param.value != '' then param.key else '__' + param_index
+                param_value = decodeURI(if param.value isnt '' then param.value else param.key)
+                unless params[param_key]?
+                    params[param_key] = param_value
+                else
+                    if _.type(params[param_key]) is _.Type.Array then params[param_key].push param_value
+                    else params[param_key] = [params[param_key], param_value]
             
             # Feed workflow with action request infos
             #

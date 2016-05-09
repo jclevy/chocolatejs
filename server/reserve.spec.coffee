@@ -3,7 +3,7 @@ unless window?
     {Uuid} = _ = require '../general/chocodash'
 
     describe 'Reserve', ->
-        describe 'Space', ->
+        xdescribe 'Space', ->
             space = undefined
             
             it 'should create a Space', ->
@@ -160,7 +160,44 @@ unless window?
                     runs -> space.read todo.uuid, (error, data) -> result = {data}
                     waitsFor (-> result?), 'space.read(1)', 1000
                     runs -> expect(result.data).toBe null
-                
+
             describe 'end', ->
                 it 'should delete Space db file', ->
                     expect(-> require('fs').unlinkSync space.db_path).not.toThrow()
+
+        describe 'Library', ->
+            library = undefined
+            create_volume = undefined
+            volume = undefined
+            
+            it 'should create a Library', ->
+                expect(library = Reserve.Library).not.toBeUndefined()
+
+            it 'should retrieve the create_volume service from the Volume object', ->
+                {create_volume} = library
+                expect(create_volume).not.toBe undefined
+
+            it 'should create a volume with no name', ->
+                volume = create_volume()
+                expect(volume).not.toBe undefined
+                expect(volume.name).toBe undefined
+                expect(Uuid.isUuid volume.uuid).toBeTruthy()
+                expect(volume.versions instanceof Array).toBe true
+                expect(volume.versions.length).toBe 0
+
+            it 'should create a volume with a name', ->
+                name = 'BestVolume'
+                volume = create_volume name
+                expect(volume).not.toBe undefined
+                expect(volume.name).toBe name
+
+            it 'should add a node in a volume', ->
+                {insert_node} = library
+                item =
+                    uuid: Uuid()
+                    value: "It's ok"
+                node = insert_node volume, item.uuid, item
+                expect(volume.versions.length).toBe 1
+                expect(volume.versions[0].version).toBe 1
+
+                expect(volume.versions[0].time_stamp).toBe node.versions[0].time_stamp

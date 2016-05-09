@@ -155,7 +155,7 @@ skeleton = (__data = {}) ->
           # `data: {icon: 'foo'}` is rendered as `data-icon="foo"`.
           @render_attrs(v, prefix + k + '-')
         # `undefined`, `false` and `null` result in the attribute not being rendered.
-        else if v
+        else if v?
           # strings, numbers, arrays and functions are rendered "as is".
           text " #{prefix + k}=\"#{@esc(v)}\""
 
@@ -286,7 +286,7 @@ skeleton = (__data = {}) ->
     if (func)
       # `coffeescript {value:"sample"} -> alert value'` becomes:
       # `<script>var value="sample";(function () {return alert(value);})();</script>`
-      script "#{__ck.coffeescript_helpers}\nvar " + ("#{k}=" + (if (typeof v is 'function' and v.toJSONString?) then (v.toJSONString()) else JSON.stringify(v)) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);"
+      script "#{__ck.coffeescript_helpers}\nvar " + ("#{k}=" + (if typeof v is 'function' then (if v.toJSONString? then v.toJSONString() else "#{v.toString()}") else JSON.stringify(v)) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);"
       __ck.coffeescript_helpers = "" # needed only once in a `render`
     else switch typeof param
       # `coffeescript -> alert 'hi'` becomes:

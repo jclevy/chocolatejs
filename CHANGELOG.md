@@ -1,3 +1,42 @@
+## v0.0.14 - (2016-05-09)
+
+--------------
+
+NEW FEATURES
+
+ - added debug mode using node-inspector (add exports.debug = true in data/config.coffee then connect to http://myserver:8081/debug?ws=myserver:8081&port=5858
+ - monitor.coffee, workflow.coffe: replace uncaughtException handling with a more general logging system serialized to a ./data/chocolate.log
+
+ 
+UPDATES
+
+ - in chocokup.coffee
+   - added Chocockup.Html as an alias to Chocokup.Panel
+   - support functions in coffeescript markup attributes
+ - in locco/interface.coffee:
+   - an Interface submit now has its steps function moved out review. So we have: review, steps and then action. 
+     - 'review' is there to prepare the interface and check if we can use it
+     - 'steps' is there to execute internal actions before responding to the request
+     - 'action' is there to react to the submit
+   - added Interface.Web.Html as an alias to Interface.Web.Panel
+ - added 'exports.debug = false # http://myserver:8081/debug?ws=myserver:8081&port=5858' in chocomake to show debug option in new projects
+ - added params in server/interface.coffee 'context' so params are also available in @bin.__ in a locco/interface
+ - updated chokidar to v1.4.3
+ - updated microtime to v2.1.1
+ - updated sqlite3 to v3.1.3
+
+
+FIXED BUGS
+
+ - in locco/interface: values ans steps declaration were defaulted with _.defaults, but they are functions (so no more _.defaults on them)!
+ - in chocokup.coffee: render attributes when an empty string is specified
+ - in locco/interface.coffee: 
+   - defaults in sub interfaces not handled properly
+   - recursive interfaces not handled properly and reviewed infinitely
+   - cleaned bin in Interface object before review'ing' it's content
+ - in workflow.server: allow array arguments in request. Just have to repeat the &field=value
+
+
 ## v0.0.13-1 - (2016-04-13)
 
 --------------

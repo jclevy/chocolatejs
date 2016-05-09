@@ -1,6 +1,12 @@
 _ = require '../../general/chocodash'
 Chocokup = require '../../general/chocokup'
 
+# Interface
+#  defaults: {} or ->
+#  locks: {} or ->
+#  values: ->
+#  steps: ->
+#  action : ->
 Interface = _.prototype
 
     constructor: (service) ->
@@ -10,10 +16,11 @@ Interface = _.prototype
             if service.defaults?
                 if typeof service.defaults is 'function' then @defaults = service.defaults 
                 else @defaults = _.defaults @defaults, service.defaults
-            @locks = _.defaults @locks, service.locks if service.locks?
-            @values = _.defaults @values, service.values if service.values?
-            @steps = _.defaults @steps, service.steps if service.steps?
-            
+            if service.locks?
+                if typeof service.locks is 'function' then @locks = service.locks 
+                else @locks = _.defaults @locks, service.locks 
+            @values = service.values if service.values?
+            @steps = service.steps if service.steps?
             
             @[name] = item for name, item of service when name not in ['defaults', 'locks', 'values', 'steps'] # action, actor, document, update...
             
@@ -61,13 +68,15 @@ Interface = _.prototype
                         if service instanceof Interface
                             do (_bin = service_bin, _name = name, _service = service, _local_scope = if local_scope? then local_scope.slice(0) else null) ->
                                 run (next_service) ->
-                                    _bin[_name].bin ?= {__:_bin.__}
+                                    _bin[_name].bin = {__:_bin.__} unless _bin[_name] in scope.reviewed
                                     if _local_scope? 
                                         scope.global.push item for item in _local_scope
                                         _next_service = next_service
                                         next_service = -> scope.global.pop() for item in _local_scope ; _next_service()
-                                        
-                                    service_result = _service.review _bin[_name].bin, scope, reaction, next_service
+
+                                    unless _bin[_name] in scope.reviewed
+                                        scope.reviewed.push _bin[_name]
+                                        service_result = _service.review _bin[_name].bin, scope, reaction, next_service 
                                     
                                     if service_result isnt next_service 
                                         if _local_scope? 
@@ -95,16 +104,7 @@ Interface = _.prototype
         reaction.certified = check.locks bin.__?.session?.keys, @locks if @locks?
         reaction.certified = check.values bin, @values if @values?
         
-        respond = (o) -> @reaction.bin = o ; check_services()
-        respond.later = ->
-        respond.done = ->
-        self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond , transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
-        review_result = @steps.call self, self if reaction.certified and @steps?
-        
-        return switch review_result
-            when respond.later then end
-            when undefined or respond.done then check_services()
-            else null
+        check_services()
         
         
     submit: (bin = {}) ->
@@ -114,14 +114,23 @@ Interface = _.prototype
         
         _.flow self:@, (run) ->
             run (end) -> 
-                end.with @review bin, global:[], local:[], reaction, end
+                end.with @review bin, global:[], local:[], reviewed:[], reaction, end
 
             run (end) ->
-                respond = (o) -> @reaction.bin = o ; end()
-                respond.later = end
-                self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); end) }
-                result = @action.call self, self if reaction.certified and @action?
-                reaction.bin = result unless reaction.bin? or result is end.later
+                if reaction.certified and @steps?
+                    respond = (o) -> @reaction.bin = o ; end()
+                    respond.later = end
+                    self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
+                    result = @steps.call self, self
+                end.with result
+
+            run (end) ->
+                if reaction.certified and @action?
+                    respond = (o) -> @reaction.bin = o ; end()
+                    respond.later = end
+                    self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
+                    result = @action.call self, self 
+                    reaction.bin = result unless reaction.bin? or result is end.later
                 end.with result
 
             run -> 
@@ -153,20 +162,19 @@ Interface.Web = _.prototype inherit:Interface, use: ->
 
             run ->
                 reaction.bin = ''
+                scope.global.length = 0
                 scope.local.length = 0
                 check_interfaces = (bin) ->
+                
                     for name, service of bin 
                         if service instanceof Interface.Web
                             kups = reaction.kups ?= {}
                             for step in scope.global then kups = kups[step] ?= {}
-                            local_kups = ''
-                            if scope.global.length > 0
-                                local_kups = ("#{k} = #{scope.global.join('.')}.#{k}" for k of kups).join ', '
-                                local_kups = "\nvar #{local_kups};" if local_kups isnt ""
 
                             kups[name] ?= new Function 'o', """
-                                var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;#{local_kups}
-                                this.interface = bin#{if scope.local.length > 0 then '.' + scope.local.join('.') else ''}.#{name};
+                                var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;
+                                try {this.interface = bin#{if scope.local.length > 0 then '.' + scope.local.join('.') else ''}.#{name};} 
+                                catch (error) { try {this.interface = bin.#{name};} catch (error) {}; };
                                 this.actor = this.interface != null ? this.interface.actor : null;
                                 this.bin = this.interface != null ? (this.interface.bin != null ? this.interface.bin : {}) : {};
                                 if (o != null) {
@@ -179,8 +187,11 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                                 (#{(service.action?.overriden ? service.action).toString()}).call(this);
                                 this.bin = bin; this.interface = interface, this.actor = actor;
                                 """
-                                
-                            check_interfaces bin[name].bin if bin[name]?.bin?
+
+                            scope.web_reviewed ?= []
+                            unless bin[name] in scope.web_reviewed or not bin[name]?.bin?
+                                scope.web_reviewed.push bin[name]
+                                check_interfaces bin[name].bin
                         else
                             if _.isBasicObject service
                                 scope.global.push name
@@ -190,7 +201,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                                 scope.global.pop()
 
                     return
-                        
+ 
                 check_interfaces bin
                 end()
         
@@ -219,7 +230,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
         if typeof bin is 'function' then callback = bin ; bin = {}
             
         result = _.super @, bin
-        
+
         if callback? then result.subscribe (reaction) -> callback reaction.bin.render()
         
         result
@@ -229,7 +240,7 @@ Interface.Web.App = Interface.Web
 
 Interface.Web.Document = _.prototype inherit:Interface.Web, use: -> @type = 'Document'
 
-Interface.Web.Panel = _.prototype inherit:Interface.Web, use: -> @type = 'Panel'
+Interface.Web.Panel = Interface.Web.Html = _.prototype inherit:Interface.Web, use: -> @type = 'Panel'
 
 _module = window ? module
 if _module.exports? then _module.exports = Interface else window.Locco ?= {} ; window.Locco.Interface = Interface

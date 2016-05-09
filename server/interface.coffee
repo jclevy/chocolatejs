@@ -32,7 +32,7 @@ exports.exchange = (bin, send) ->
     config = require('../' + datadir + '/config')
     where = where.replace(/\.\.[\/]*/g, '')
 
-    context = {space, workflow, request, websocket, session, sysdir, appdir, datadir}
+    context = {space, workflow, request, params, websocket, session, sysdir, appdir, datadir}
     
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
@@ -92,7 +92,7 @@ exports.exchange = (bin, send) ->
         if error?
             source = if (info = error.source)? then "Error in Module:" + info.module + ", with Function :" + info.method + '\n' else ''
             line = if (info = error.location)? then "Coffeescript error at line:" + info.first_line + ", column:" + info.first_column + '\n' else ''
-            send status : 500, headers : {"Content-Type": "text/plain"}, body : source + line + error.stack + "\n"
+            send status : 500, headers : {"Content-Type": "text/plain"}, body : source + line + (error.stack ? error.toString()) + "\n"
             true
         else
             false

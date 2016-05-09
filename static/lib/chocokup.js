@@ -562,21 +562,23 @@
 
   })(Chocokup);
 
-  Chocokup.Panel = (function(superClass) {
-    extend(Panel, superClass);
+  Chocokup.Html = (function(superClass) {
+    extend(Html, superClass);
 
-    function Panel(params, content1) {
+    function Html(params, content1) {
       this.params = params;
       this.content = content1;
-      Panel.__super__.constructor.call(this, this.params, this.content);
+      Html.__super__.constructor.call(this, this.params, this.content);
       if (this.params == null) {
         this.params = {};
       }
     }
 
-    return Panel;
+    return Html;
 
   })(Chocokup);
+
+  Chocokup.Panel = Chocokup.Html;
 
   Chocokup.App = (function(superClass) {
     extend(App, superClass);

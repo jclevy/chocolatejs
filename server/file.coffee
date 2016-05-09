@@ -337,6 +337,55 @@ exports.getAvailableCommits = (path, __) ->
             
     event
 
+#### logConsoleAndErrors
+
+# `logConsoleAndErrors` filters process.stdout.write and process.stderr.write to write their output in a file. This covers the following use cases:
+#   process.stdout.write
+#   process.stderr.write
+#   console.log
+#   console.dir
+#   console.error
+#   someStream.pipe(process.stdout);
+#   throw new Error('Crash');
+#   throw 'never do this';
+#   throw undefined;
+
+exports.logConsoleAndErrors = (path) ->
+    write_stream = Fs.createWriteStream(path, {'flags': 'a'})
+    is_writing = false
+    
+    stdout_write = process.stdout.write
+    stderr_write = process.stderr.write
+    
+    streamOut = new require('stream').Writable()
+    streamOut._write = (chunk, encoding, done) ->
+        write = ->
+            if is_writing then setTimeout write, 10
+            else
+                is_writing = true
+                encoding = null if encoding is 'buffer'
+                write_stream.write chunk, encoding, ->
+                    is_writing = false
+                    stdout_write.call process.stdout, chunk, encoding, done
+        write()
+        
+
+    streamErr = new require('stream').Writable()
+    streamErr._write = (chunk, encoding, done) ->
+        write = ->
+            if is_writing then setTimeout write, 10
+            else
+                is_writing = true
+                encoding = null if encoding is 'buffer'
+                write_stream.write chunk, encoding, ->
+                    is_writing = false
+                    stderr_write.call process.stderr, chunk, encoding, done
+        write()
+
+    process.stdout.write = streamOut.write.bind(streamOut)
+    process.stderr.write = streamErr.write.bind(streamErr)
+
+
 #### Internal functions
 
 #### normalize

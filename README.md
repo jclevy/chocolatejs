@@ -57,37 +57,41 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.13-1 - (2016-04-13)**
+**Chocolate v0.0.14 - (2016-05-09)**
 
 NEW FEATURES
 
- - Studio
-  - added Login/Logoff indicator, switch and key input
-  - added switch to toggle wrap mode on or off in editor
-  - added Literate CoffeeScript support (use .litcoffee file type)
-  - added Json file support in editor
-  - added basic element creation support $('<tag/>') in liteJq
- - monitor.coffee: 
-  - added memory param to define node.js --max-old-space-size param
-  - added named params --appdir, --port, --memory
+ - added debug mode using node-inspector (add exports.debug = true in data/config.coffee then connect to http://myserver:8081/debug?ws=myserver:8081&port=5858
+ - monitor.coffee, workflow.coffe: replace uncaughtException handling with a more general logging system serialized to a ./data/chocolate.log
 
+ 
 UPDATES
 
- - __ is a Chocolate context given to every remotely called exported module function 
- - __.appdir is relative path from Chocolate system directory to application directory
- - __.sysdir is relative path from application directory to Chocolate system directory
- - updated coffee-script to 1.9.1
- - server/Document.Cache: added async mode to access file and made it default mode
+ - in chocokup.coffee
+   - added Chocockup.Html as an alias to Chocokup.Panel
+   - support functions in coffeescript markup attributes
+ - in locco/interface.coffee:
+   - an Interface submit now has its steps function moved out review. So we have: review, steps and then action. 
+     - 'review' is there to prepare the interface and check if we can use it
+     - 'steps' is there to execute internal actions before responding to the request
+     - 'action' is there to react to the submit
+   - added Interface.Web.Html as an alias to Interface.Web.Panel
+ - added 'exports.debug = false # http://myserver:8081/debug?ws=myserver:8081&port=5858' in chocomake to show debug option in new projects
+ - added params in server/interface.coffee 'context' so params are also available in @bin.__ in a locco/interface
+ - updated chokidar to v1.4.3
+ - updated microtime to v2.1.1
+ - updated sqlite3 to v3.1.3
+
 
 FIXED BUGS
 
- - corrected -webkit-overflow-scrolling:touch in Chocokup body CSS
- - static file now seen as 'app' if `how` query parameter isnt 'web' ; otherwise seen as 'static' even if with other params (can pass parameters to static files.)
- - correctly load CoffeeScript in chocodown.js if run server side on node.js
- - remove 'chocolate' from `require`d url if used to load Chocolate libs from static folder
- - File::moveFile was not working correctly anymore
- - Upload service was not working anymore - name attribute was missing on iframe
- - _.super can be called in _.prototype declared constructor
+ - in locco/interface: values ans steps declaration were defaulted with _.defaults, but they are functions (so no more _.defaults on them)!
+ - in chocokup.coffee: render attributes when an empty string is specified
+ - in locco/interface.coffee: 
+   - defaults in sub interfaces not handled properly
+   - recursive interfaces not handled properly and reviewed infinitely
+   - cleaned bin in Interface object before review'ing' it's content
+ - in workflow.server: allow array arguments in request. Just have to repeat the &field=value
 
 
 See history in **CHANGELOG.md** file
