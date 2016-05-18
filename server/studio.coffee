@@ -7,7 +7,7 @@ exports.interface = (__) ->
     exports.enter(__)
     
 exports.enter = (__) ->
-    new Chocokup.App 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, ->
+    new Chocokup.App 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, snippets:__.config.snippets, ->
         style
             type:"text/css" 
             media:"screen"
@@ -244,8 +244,61 @@ exports.enter = (__) ->
             """
         style -> 
             text @params.doccolate_style
+        
+        snippets = coffee :  """
+            # Require Locco Interface
+            snippet locco_require_interface
+            \tInterface = require 'chocolate/general/locco/interface'\n
+            # Locco full Interface
+            snippet locco_interface_full
+            \tnew Interface${1:.Web.Html | .Web.App | .Web.Document | .Remote}
+            \t\tdefaults: -> ${2}
+            
+            \t\tlocks: -> ${3}
+            
+            \t\tcheck: (${4}) -> 
+            \t\t\t${5:# body...}
+            
+            \t\tsteps: (${6:$2}) -> 
+            \t\t\t${7:# body...}
+            
+            \t\trender: (${8:$2}) ->
+            \t\t\t${9:# body...}
+            # Locco full Interface.Web.Html
+            snippet locco_interface_html_full
+            \tnew Interface.Web.Html
+            \t\tdefaults: -> ${1}
+            
+            \t\tlocks: -> ${2}
+            
+            \t\tcheck: (${3}) -> 
+            \t\t\t${4:# body...}
+            
+            \t\tsteps: (${5}) -> 
+            \t\t\t${6:# body...}
+            
+            \t\trender: (${7}) ->
+            \t\t\t${8:# body...}
+            # Locco standard Interface.Web.Html
+            snippet locco_interface_html_standard
+            \tnew Interface.Web.Html (-> ${1}), ${2}->
+            \t\t${3:# body...}
+            # Locco minimal Interface.Web.Html
+            snippet locco_interface_html_minimal
+            \tnew Interface.Web.Html ->
+            \t\t${1:# body...}
+            # Chocodash require
+            snippet require_chocodash
+            \t_ = require 'chocolate/general/chocodash'\n
+            # Chocodash async
+            snippet chocodash_async_or_flow
+            \t_.flow (run) ->
+            \t\trun (end) ->
+            \t\t\t${1:end() | end.later}
+            """
 
         text "<script>_ide = {}; _sofkey = #{if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null'};</script>\n"
+        text "<script>_ide.snippets = {studio:{applied:{}, modes:#{JSON.stringify(snippets)}}, user:{applied:{}, modes:#{if @params.snippets then JSON.stringify @params.snippets else '{}'}}}</script>" 
         script src:"/static/vendor/ace/ace.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/ext-searchbox.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/ext-language_tools.js", type:"text/javascript", charset:"utf-8"
@@ -651,7 +704,6 @@ exports.enter = (__) ->
                         _ide.switch_login on
                 .get()
 
-
             _ide.register_key = ->
                 new Request 
                     data: key:document.id("input-login").value
@@ -764,6 +816,8 @@ exports.enter = (__) ->
                 doc.setMode new Mode()
                 snippetManager = require("ace/snippets").snippetManager
                 snippetMode = require("ace/snippets/#{mode}")
+                for type in ['studio', 'user']
+                    if _ide.snippets[type].modes[mode]? and _ide.snippets[type].applied[mode] isnt on then snippetMode.snippetText += "\n#{_ide.snippets[type].modes[mode]}"
                 snippetManager.unregister _ide.current_snippet
                 _ide.current_snippet = snippetManager.parseSnippetFile snippetMode.snippetText
                 snippetManager.register _ide.current_snippet
@@ -1167,7 +1221,6 @@ exports.enter = (__) ->
                 document.id('switch-wrap').set 'text', if wrapMode is true then '↩' else '⟶'
                 editor.session.setUseWrapMode not wrapMode
                 editor.session.setWrapLimitRange null, null
-                
 
             _ide.toggleMainDisplay = (what) ->
                 if what is 'main'

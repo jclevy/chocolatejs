@@ -473,12 +473,19 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
   Chocokup = require('../../general/chocokup');
 
   Interface = _.prototype({
-    constructor: function(service) {
+    constructor: function(defaults, service) {
       var item, name;
+      if (service == null) {
+        service = defaults;
+        defaults = void 0;
+      }
       if (typeof service === 'function') {
         service = {
-          action: service
+          render: service
         };
+      }
+      if ((service != null) && (defaults != null)) {
+        service.defaults = defaults;
       }
       if (service != null) {
         if (service.defaults != null) {
@@ -495,15 +502,18 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
             this.locks = _.defaults(this.locks, service.locks);
           }
         }
-        if (service.values != null) {
-          this.values = service.values;
+        if (service.check != null) {
+          this.check = service.check;
         }
         if (service.steps != null) {
           this.steps = service.steps;
         }
+        if (service.action != null) {
+          this.render = service.action;
+        }
         for (name in service) {
           item = service[name];
-          if (name !== 'defaults' && name !== 'locks' && name !== 'values' && name !== 'steps') {
+          if (name !== 'defaults' && name !== 'locks' && name !== 'check' && name !== 'steps') {
             this[name] = item;
           }
         }
@@ -526,8 +536,8 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
         }
       }
     },
-    review: function(bin, scope, reaction, end) {
-      var check, check_services, ref, ref1;
+    review: function(bin, reaction, end) {
+      var check, ref, ref1;
       check = {
         defaults: (function(_this) {
           return function(object, defaults) {
@@ -571,74 +581,11 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
             return true;
           };
         })(this),
-        values: function(bin, controller) {
-          return controller.call(bin);
-        }
-      };
-      check_services = function() {
-        _.flow(function(run) {
-          var check_service;
-          check_service = function(service_bin, local_scope) {
-            var _local_scope, name, service;
-            for (name in service_bin) {
-              service = service_bin[name];
-              if (name !== '__') {
-                if (service instanceof Interface) {
-                  (function(_bin, _name, _service, _local_scope) {
-                    return run(function(next_service) {
-                      var _next_service, i, item, j, len, len1, ref, ref1, service_result;
-                      if (ref = _bin[_name], indexOf.call(scope.reviewed, ref) < 0) {
-                        _bin[_name].bin = {
-                          __: _bin.__
-                        };
-                      }
-                      if (_local_scope != null) {
-                        for (i = 0, len = _local_scope.length; i < len; i++) {
-                          item = _local_scope[i];
-                          scope.global.push(item);
-                        }
-                        _next_service = next_service;
-                        next_service = function() {
-                          var j, len1;
-                          for (j = 0, len1 = _local_scope.length; j < len1; j++) {
-                            item = _local_scope[j];
-                            scope.global.pop();
-                          }
-                          return _next_service();
-                        };
-                      }
-                      if (ref1 = _bin[_name], indexOf.call(scope.reviewed, ref1) < 0) {
-                        scope.reviewed.push(_bin[_name]);
-                        service_result = _service.review(_bin[_name].bin, scope, reaction, next_service);
-                      }
-                      if (service_result !== next_service) {
-                        if (_local_scope != null) {
-                          for (j = 0, len1 = _local_scope.length; j < len1; j++) {
-                            item = _local_scope[j];
-                            scope.global.pop();
-                          }
-                        }
-                        next_service();
-                      }
-                      return service_result;
-                    });
-                  })(service_bin, name, service, local_scope != null ? local_scope.slice(0) : null);
-                } else {
-                  if (_.isBasicObject(service)) {
-                    _local_scope = local_scope != null ? local_scope.slice(0) : [];
-                    _local_scope.push(name);
-                    check_service(service, _local_scope);
-                  }
-                }
-              }
-            }
+        values: (function(_this) {
+          return function(bin, controller) {
+            return controller.call(_this, bin);
           };
-          check_service(bin);
-          return run(function() {
-            return end();
-          });
-        });
-        return end;
+        })(this)
       };
       if (reaction.certified == null) {
         reaction.certified = true;
@@ -649,10 +596,10 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
       if (this.locks != null) {
         reaction.certified = check.locks((ref = bin.__) != null ? (ref1 = ref.session) != null ? ref1.keys : void 0 : void 0, this.locks);
       }
-      if (this.values != null) {
-        reaction.certified = check.values(bin, this.values);
+      if (this.check != null) {
+        reaction.certified = check.values(bin, this.check);
       }
-      return check_services();
+      return end();
     },
     submit: function(bin) {
       var publisher, reaction;
@@ -665,11 +612,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
         self: this
       }, function(run) {
         run(function(end) {
-          return end["with"](this.review(bin, {
-            global: [],
-            local: [],
-            reviewed: []
-          }, reaction, end));
+          return end["with"](this.review(bin, reaction, end));
         });
         run(function(end) {
           var respond, result, self;
@@ -695,13 +638,13 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
                 return respond.later;
               })
             };
-            result = this.steps.call(self, self);
+            result = this.steps.call(self, bin);
           }
           return end["with"](result);
         });
         run(function(end) {
           var respond, result, self;
-          if (reaction.certified && (this.action != null)) {
+          if (reaction.certified && (this.render != null)) {
             respond = function(o) {
               this.reaction.bin = o;
               return end();
@@ -723,7 +666,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
                 return respond.later;
               })
             };
-            result = this.action.call(self, self);
+            result = this.render.call(self, bin);
             if (!((reaction.bin != null) || result === end.later)) {
               reaction.bin = result;
             }
@@ -736,7 +679,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
       });
       return publisher;
     },
-    observe: function(action) {
+    observe: function(render) {
       return new _.Observer((function(_this) {
         return function() {
           var ref;
@@ -746,7 +689,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
           return _this.submit().subscribe(function(arg) {
             var bin;
             bin = arg.bin;
-            return action(bin.render());
+            return render(typeof bin.render === 'function' ? bin.render() : bin);
           });
         };
       })(this));
@@ -779,98 +722,132 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
   Interface.Web = _.prototype({
     inherit: Interface,
     use: function() {
+      var get_declare_kups;
+      get_declare_kups = function(kups) {
+        var declare_kups, declare_path, i, j, kup, len, len1, path, ref, step;
+        declare_kups = [];
+        declare_path = {};
+        for (i = 0, len = kups.length; i < len; i++) {
+          kup = kups[i];
+          path = "this.locals";
+          ref = kup.scope;
+          for (j = 0, len1 = ref.length; j < len1; j++) {
+            step = ref[j];
+            path += "." + step;
+            if (declare_path[path] == null) {
+              declare_path[path] = path + " = " + path + " ? " + path + " : {}";
+              declare_kups.push(declare_path[path]);
+            }
+          }
+          declare_kups.push("this.locals" + (kup.scope.length > 0 ? '.' + kup.scope.join('.') : '') + "." + kup.name + " = _kup_" + kup.id);
+        }
+        return declare_kups;
+      };
       this.type = 'App';
-      this.review = function(bin, scope, reaction, end) {
+      this.review = function(bin, reaction, end) {
         _.flow({
           self: this
         }, function(run) {
           run(function(end) {
-            return end["with"](_["super"](Interface.Web.prototype.review, this, bin, scope, reaction, end));
+            return end["with"](_["super"](Interface.Web.prototype.review, this, bin, reaction, end));
           });
           return run(function() {
-            var check_interfaces;
+            var check_interfaces, scope;
             reaction.bin = '';
-            scope.global.length = 0;
-            scope.local.length = 0;
+            if (reaction.kups === false) {
+              return end();
+            }
+            scope = [];
             check_interfaces = function(bin) {
-              var i, kups, len, name, ref, ref1, ref2, ref3, ref4, service, step;
+              var base, declare_kups, defaults, kups, local_kups, name, name1, ref, ref1, scope_, service, service_id, service_kup;
+              local_kups = [];
               for (name in bin) {
                 service = bin[name];
                 if (service instanceof Interface.Web) {
-                  kups = reaction.kups != null ? reaction.kups : reaction.kups = {};
-                  ref = scope.global;
-                  for (i = 0, len = ref.length; i < len; i++) {
-                    step = ref[i];
-                    kups = kups[step] != null ? kups[step] : kups[step] = {};
+                  if (!((service != null ? service.defaults : void 0) == null)) {
+                    defaults = service.defaults;
+                    if (typeof defaults === 'function') {
+                      defaults = defaults();
+                    }
+                    scope_ = scope;
+                    scope = [];
+                    kups = check_interfaces(defaults);
+                    scope = scope_;
+                  } else {
+                    kups = [];
                   }
-                  if (kups[name] == null) {
-                    kups[name] = new Function('o', "var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;\ntry {this.interface = bin" + (scope.local.length > 0 ? '.' + scope.local.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? this.interface.actor : null;\nthis.bin = this.interface != null ? (this.interface.bin != null ? this.interface.bin : {}) : {};\nif (o != null) {\n    for (k in o) {\n        if (hasOwnProperty.call(o, k)) {\n            this.bin[k] = o[k];\n        }\n    }\n}\n(" + (((ref1 = (ref2 = service.action) != null ? ref2.overriden : void 0) != null ? ref1 : service.action).toString()) + ").call(this);\nthis.bin = bin; this.interface = interface, this.actor = actor;");
+                  declare_kups = get_declare_kups(kups);
+                  service_id = _.Uuid().replace(/\-/g, '_');
+                  service_kup = new Function('args', "var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? this.interface.actor : null;\nthis.bin = {};\nthis.keys = [];\nif (this.bin.__ == null) this.bin.__ = bin.__\nif (bin != null) {for (k in bin) {if (__hasProp.call(bin, k)) { this.bin[k] = bin[k]; }}}\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction, function(){});\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref = (ref1 = service.render) != null ? ref1.overriden : void 0) != null ? ref : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.interface = interface, this.actor = actor;");
+                  if (reaction.kups == null) {
+                    reaction.kups = {};
                   }
-                  if (scope.web_reviewed == null) {
-                    scope.web_reviewed = [];
+                  if ((base = reaction.kups)[name1 = "_kup_" + service_id] == null) {
+                    base[name1] = service_kup;
                   }
-                  if (!((ref3 = bin[name], indexOf.call(scope.web_reviewed, ref3) >= 0) || (((ref4 = bin[name]) != null ? ref4.bin : void 0) == null))) {
-                    scope.web_reviewed.push(bin[name]);
-                    check_interfaces(bin[name].bin);
-                  }
+                  local_kups.push({
+                    name: name,
+                    scope: [].concat(scope),
+                    id: service_id
+                  });
                 } else {
-                  if (_.isBasicObject(service)) {
-                    scope.global.push(name);
-                    scope.local.push(name);
-                    check_interfaces(service);
-                    scope.local.pop();
-                    scope.global.pop();
+                  if (service !== '__' && _.isBasicObject(service)) {
+                    scope.push(name);
+                    local_kups = local_kups.concat(check_interfaces(service));
+                    scope.pop();
                   }
                 }
               }
+              return local_kups;
             };
-            check_interfaces(bin);
+            reaction.local_kups = check_interfaces(bin);
             return end();
           });
         });
         return end;
       };
       return this.submit = function(bin) {
-        var callback, chocokup_code, ref, ref1, result;
-        if (!((ref = this.action) != null ? ref.overriden : void 0)) {
-          chocokup_code = (ref1 = this.action) != null ? ref1 : function() {};
-          this.action = (function(_this) {
-            return function(arg) {
-              var bin, kups, options, reaction;
-              bin = arg.bin, reaction = arg.reaction;
-              if (bin == null) {
-                bin = {};
-              }
-              kups = reaction.kups;
-              delete reaction.kups;
-              options = {
-                bin: bin,
-                document: _this.document,
-                'interface': _this,
-                actor: _this.actor,
-                kups: kups
-              };
-              if (bin.theme != null) {
-                options.theme = bin.theme;
-              }
-              if (bin.with_coffee != null) {
-                options.with_coffee = bin.with_coffee;
-              }
-              if (bin.manifest != null) {
-                options.manifest = bin.manifest;
-              }
-              return reaction.bin = (function() {
-                var ref2;
-                switch (this.type) {
-                  case 'Panel':
-                    return new Chocokup.Panel(options, chocokup_code);
-                  default:
-                    return new Chocokup[this.type]((ref2 = bin != null ? bin.name : void 0) != null ? ref2 : '', options, chocokup_code);
-                }
-              }).call(_this);
+        var callback, ref, ref1, render_code, result;
+        if (!((ref = this.render) != null ? ref.overriden : void 0)) {
+          render_code = (ref1 = this.render) != null ? ref1 : function() {};
+          this.render = function(bin) {
+            var chocokup_code, declare_kups, kups, local_kups, options;
+            if (bin == null) {
+              bin = {};
+            }
+            kups = this.reaction.kups;
+            delete this.reaction.kups;
+            local_kups = this.reaction.local_kups;
+            delete this.reaction.local_kups;
+            declare_kups = get_declare_kups(local_kups);
+            chocokup_code = declare_kups.length > 0 ? new Function('args', "this.keys = [];\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\n" + (declare_kups.join(';\n')) + ";\nwith (this.locals) {return (" + (render_code.toString()) + ").apply(this, arguments);}") : render_code;
+            options = {
+              bin: bin,
+              document: this.document,
+              'interface': this,
+              actor: this.actor,
+              kups: kups
             };
-          })(this);
-          this.action.overriden = chocokup_code;
+            if (bin.theme != null) {
+              options.theme = bin.theme;
+            }
+            if (bin.with_coffee != null) {
+              options.with_coffee = bin.with_coffee;
+            }
+            if (bin.manifest != null) {
+              options.manifest = bin.manifest;
+            }
+            return this.reaction.bin = (function() {
+              var ref2;
+              switch (this["interface"].type) {
+                case 'Panel':
+                  return new Chocokup.Panel(options, chocokup_code);
+                default:
+                  return new Chocokup[this["interface"].type]((ref2 = bin != null ? bin.name : void 0) != null ? ref2 : '', options, chocokup_code);
+              }
+            }).call(this);
+          };
+          this.render.overriden = true;
         }
         if (typeof bin === 'function') {
           callback = bin;

@@ -1,6 +1,6 @@
 {
     "name": "chocolate",
-    "version": "0.0.14",
+    "version": "0.0.15",
     "description": "A full stack Node.js web framework built using Coffeescript",
     "preferGlobal": "true",
     "keywords": ["fullstack", "reactive", "coffeescript", "framework", "online", "ide", "web", "app", "markdown", "jasmine", "ace", "jquery", "coffeekup", "docco", "git", "impress"],

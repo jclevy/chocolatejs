@@ -4,13 +4,15 @@ Chocokup = require '../../general/chocokup'
 # Interface
 #  defaults: {} or ->
 #  locks: {} or ->
-#  values: ->
+#  check: ->
 #  steps: ->
-#  action : ->
+#  render : ->
 Interface = _.prototype
 
-    constructor: (service) ->
-        service = action:service if typeof service is 'function'
+    constructor: (defaults, service) ->
+        if not service? then service = defaults ; defaults = undefined
+        service = render:service if typeof service is 'function'
+        service.defaults = defaults if service? and defaults?
         
         if service?
             if service.defaults?
@@ -19,10 +21,12 @@ Interface = _.prototype
             if service.locks?
                 if typeof service.locks is 'function' then @locks = service.locks 
                 else @locks = _.defaults @locks, service.locks 
-            @values = service.values if service.values?
+            @check = service.check if service.check?
             @steps = service.steps if service.steps?
             
-            @[name] = item for name, item of service when name not in ['defaults', 'locks', 'values', 'steps'] # action, actor, document, update...
+            @render = service.action if service.action? # 'action' is synonym to 'render'
+            
+            @[name] = item for name, item of service when name not in ['defaults', 'locks', 'check', 'steps'] # service, actor, document, update...
             
         return
     
@@ -34,7 +38,7 @@ Interface = _.prototype
                 when _.Type.Function then @observe @update 
                 when _.Type.String then @observe (html) => $(@update).html html; return
     
-    review: (bin, scope, reaction, end) ->
+    review: (bin, reaction, end) ->
         check =
             # `defaults` ensure default values are set on an object
             defaults: (object, defaults) =>
@@ -58,53 +62,16 @@ Interface = _.prototype
                 yes
                 
             # `values` ensure values at the right scale, in the right range...
-            values: (bin, controller) -> controller.call bin
-            
-        check_services = ->
-            
-            _.flow (run) ->
-                check_service = (service_bin, local_scope) ->
-                    for name, service of service_bin when name isnt '__'
-                        if service instanceof Interface
-                            do (_bin = service_bin, _name = name, _service = service, _local_scope = if local_scope? then local_scope.slice(0) else null) ->
-                                run (next_service) ->
-                                    _bin[_name].bin = {__:_bin.__} unless _bin[_name] in scope.reviewed
-                                    if _local_scope? 
-                                        scope.global.push item for item in _local_scope
-                                        _next_service = next_service
-                                        next_service = -> scope.global.pop() for item in _local_scope ; _next_service()
-
-                                    unless _bin[_name] in scope.reviewed
-                                        scope.reviewed.push _bin[_name]
-                                        service_result = _service.review _bin[_name].bin, scope, reaction, next_service 
-                                    
-                                    if service_result isnt next_service 
-                                        if _local_scope? 
-                                            scope.global.pop() for item in _local_scope
-                                        next_service()
-                                    
-                                    service_result
-                        else
-                            if _.isBasicObject service
-                                _local_scope = if local_scope? then local_scope.slice(0) else []
-                                _local_scope.push name
-                                check_service service, _local_scope
-                                    
-                    return
-                
-                check_service bin
-                
-                run -> end()
-                
-            end
+            values: (bin, controller) => controller.call @, bin
         
         reaction.certified ?= yes
 
         check.defaults bin, @defaults if @defaults?
         reaction.certified = check.locks bin.__?.session?.keys, @locks if @locks?
-        reaction.certified = check.values bin, @values if @values?
+        reaction.certified = check.values bin, @check if @check?
         
-        check_services()
+        # check_services()
+        end()
         
         
     submit: (bin = {}) ->
@@ -114,22 +81,22 @@ Interface = _.prototype
         
         _.flow self:@, (run) ->
             run (end) -> 
-                end.with @review bin, global:[], local:[], reviewed:[], reaction, end
-
+                end.with @review bin, reaction, end
+            
             run (end) ->
                 if reaction.certified and @steps?
                     respond = (o) -> @reaction.bin = o ; end()
                     respond.later = end
                     self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
-                    result = @steps.call self, self
+                    result = @steps.call self, bin
                 end.with result
 
             run (end) ->
-                if reaction.certified and @action?
+                if reaction.certified and @render?
                     respond = (o) -> @reaction.bin = o ; end()
                     respond.later = end
                     self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
-                    result = @action.call self, self 
+                    result = @render.call self, bin 
                     reaction.bin = result unless reaction.bin? or result is end.later
                 end.with result
 
@@ -138,9 +105,9 @@ Interface = _.prototype
         
         publisher
     
-    observe: (action) ->
+    observe: (render) ->
         new _.Observer => 
-            @document.signal?.value() ; @submit().subscribe ({bin}) -> action bin.render()
+            @document.signal?.value() ; @submit().subscribe ({bin}) -> render if typeof bin.render is 'function' then bin.render() else bin
 
 Interface.Reaction = _.prototype
     constructor: (@bin, @certified) ->
@@ -152,80 +119,119 @@ Interface.Remote = _.prototype inherit:Interface, use: ->
 
 Interface.Web = _.prototype inherit:Interface, use: ->
     
+    get_declare_kups = (kups) ->
+        declare_kups = []
+        declare_path = {}
+        for kup in kups
+            path = "this.locals"
+            for step in kup.scope
+                path += ".#{step}"
+                unless declare_path[path]?
+                    declare_path[path] = "#{path} = #{path} ? #{path} : {}"
+                    declare_kups.push declare_path[path]
+            declare_kups.push "this.locals#{if kup.scope.length > 0 then '.' + kup.scope.join('.') else ''}.#{kup.name} = _kup_#{kup.id}"
+        declare_kups
+    
     @type = 'App'
     
-    @review = (bin, scope, reaction, end) ->
+    @review = (bin, reaction, end) ->
         
         _.flow self:@, (run) ->
             run (end) -> 
-                end.with _.super Interface.Web::review, @, bin, scope, reaction, end
+                end.with _.super Interface.Web::review, @, bin, reaction, end
 
             run ->
                 reaction.bin = ''
-                scope.global.length = 0
-                scope.local.length = 0
-                check_interfaces = (bin) ->
+                return end() if reaction.kups is false
                 
+                scope = []
+                
+                check_interfaces = (bin) ->
+                    local_kups = []
                     for name, service of bin 
                         if service instanceof Interface.Web
-                            kups = reaction.kups ?= {}
-                            for step in scope.global then kups = kups[step] ?= {}
+                            unless not service?.defaults?
+                                defaults = service.defaults
+                                if typeof defaults is 'function' then defaults = defaults()
+                                scope_ = scope
+                                scope = []
+                                kups = check_interfaces defaults
+                                scope = scope_
+                            else 
+                                kups = []
 
-                            kups[name] ?= new Function 'o', """
+                            declare_kups = get_declare_kups kups
+
+                            service_id = _.Uuid().replace /\-/g, '_'
+                            service_kup = new Function 'args', """
                                 var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;
-                                try {this.interface = bin#{if scope.local.length > 0 then '.' + scope.local.join('.') else ''}.#{name};} 
+                                try {this.interface = bin#{if scope.length > 0 then '.' + scope.join('.') else ''}.#{name};} 
                                 catch (error) { try {this.interface = bin.#{name};} catch (error) {}; };
                                 this.actor = this.interface != null ? this.interface.actor : null;
-                                this.bin = this.interface != null ? (this.interface.bin != null ? this.interface.bin : {}) : {};
-                                if (o != null) {
-                                    for (k in o) {
-                                        if (hasOwnProperty.call(o, k)) {
-                                            this.bin[k] = o[k];
-                                        }
-                                    }
+                                this.bin = {};
+                                this.keys = [];
+                                if (this.bin.__ == null) this.bin.__ = bin.__
+                                if (bin != null) {for (k in bin) {if (__hasProp.call(bin, k)) { this.bin[k] = bin[k]; }}}
+                                if (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}
+                                reaction = {kups:false};
+                                if (this.interface != null)
+                                    this.interface.review(this.bin, reaction, function(){});
+                                if (reaction.certified) {
+                                    #{declare_kups.join ';\n'};
+                                    with (this.locals) {(#{(service.render?.overriden ? service.render).toString()}).call(this, this.bin);}
                                 }
-                                (#{(service.action?.overriden ? service.action).toString()}).call(this);
                                 this.bin = bin; this.interface = interface, this.actor = actor;
                                 """
 
-                            scope.web_reviewed ?= []
-                            unless bin[name] in scope.web_reviewed or not bin[name]?.bin?
-                                scope.web_reviewed.push bin[name]
-                                check_interfaces bin[name].bin
+                            reaction.kups ?= {}
+                            reaction.kups["_kup_#{service_id}"] ?= service_kup
+                                
+                            local_kups.push {name, scope:[].concat(scope), id:service_id}
                         else
-                            if _.isBasicObject service
-                                scope.global.push name
-                                scope.local.push name
-                                check_interfaces service
-                                scope.local.pop()
-                                scope.global.pop()
+                            if service isnt '__' and _.isBasicObject service
+                                scope.push name
+                                local_kups = local_kups.concat check_interfaces service
+                                scope.pop()
 
-                    return
+                    return local_kups
  
-                check_interfaces bin
+                reaction.local_kups = check_interfaces bin
                 end()
         
         end
 
     @submit = (bin) ->
-        unless @action?.overriden
-            chocokup_code = @action ? ->
-            @action = ({bin, reaction}) =>
+        unless @render?.overriden
+            render_code = @render ? ->
+            @render = (bin) ->
                 bin ?= {}
 
-                kups = reaction.kups
-                delete reaction.kups
+                kups = @reaction.kups
+                delete @reaction.kups
+
+                local_kups = @reaction.local_kups
+                delete @reaction.local_kups
+                
+                declare_kups = get_declare_kups local_kups
+
+                chocokup_code = if declare_kups.length > 0 then new Function 'args', """
+                        this.keys = [];
+                        if (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}
+                        #{declare_kups.join ';\n'};
+                        with (this.locals) {return (#{render_code.toString()}).apply(this, arguments);}
+                    """
+                else render_code
                 
                 options = {bin, document:@document, 'interface':@, actor:@actor, kups}
                 options.theme = bin.theme if bin.theme?
                 options.with_coffee = bin.with_coffee if bin.with_coffee?
                 options.manifest = bin.manifest if bin.manifest?
                 
-                reaction.bin = switch @type
+                @reaction.bin = switch @interface.type
                     when 'Panel'then new Chocokup.Panel options, chocokup_code
-                    else new Chocokup[@type] bin?.name ? '', options, chocokup_code
+                    else new Chocokup[@interface.type] bin?.name ? '', options, chocokup_code
                     
-            @action.overriden = chocokup_code
+            @render.overriden = on
         
         if typeof bin is 'function' then callback = bin ; bin = {}
             
@@ -234,7 +240,6 @@ Interface.Web = _.prototype inherit:Interface, use: ->
         if callback? then result.subscribe (reaction) -> callback reaction.bin.render()
         
         result
-
 
 Interface.Web.App = Interface.Web
 

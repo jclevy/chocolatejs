@@ -469,6 +469,40 @@
     return set(object, values);
   };
 
+  _.clone = function() {
+    var clone, copy, copyIsArray, i, length, name, options, src, target;
+    target = arguments[0] || {};
+    i = 1;
+    length = arguments.length;
+    if (typeof target !== "object" && !_.type(target) === _.Type.Function) {
+      target = {};
+    }
+    while (i < length) {
+      if ((options = arguments[i]) != null) {
+        for (name in options) {
+          src = target[name];
+          copy = options[name];
+          if (target === copy) {
+            continue;
+          }
+          if (copy && (_.isBasicObject(copy) || (copyIsArray = _.type(copy) === _.Type.Array))) {
+            if (copyIsArray) {
+              copyIsArray = false;
+              clone = src && _.type(src) === _.Type.Array ? src : [];
+            } else {
+              clone = src && _.isBasicObject(src) ? src : {};
+            }
+            target[name] = _.clone(clone, copy);
+          } else if (copy !== void 0) {
+            target[name] = copy;
+          }
+        }
+      }
+      i += 1;
+    }
+    return target;
+  };
+
   _.defaults = function(object, defaults) {
     return _.extend(object, defaults, false);
   };

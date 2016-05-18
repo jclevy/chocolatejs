@@ -21,7 +21,7 @@ Chocolate is an experimental and isomorphic Node.js webapp framework built using
 
 It includes :
 
- - **Chocolate Studio** -- an **online IDE** (with Coffeescript, Javascript, Css and Markdown support)
+ - **Chocolate Studio** -- an **online IDE** (with Coffeescript, Javascript, Css, Json, and Markdown support)
 
  - **Locco** -- the Chocolate protocol : so, what, where, how...
 
@@ -57,42 +57,117 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.14 - (2016-05-09)**
+**Chocolate v0.0.15 - (2016-05-18)**
 
 NEW FEATURES
 
- - added debug mode using node-inspector (add exports.debug = true in data/config.coffee then connect to http://myserver:8081/debug?ws=myserver:8081&port=5858
- - monitor.coffee, workflow.coffe: replace uncaughtException handling with a more general logging system serialized to a ./data/chocolate.log
+ - in server/studio:
+  - new snippets availble for Locco and Chocodash:
 
- 
+            # Require Locco Interface
+            snippet locco_require_interface
+            
+            # Locco full Interface
+            snippet locco_interface_full
+            
+            # Locco full Interface.Web.Html
+            snippet locco_interface_html_full
+            
+            # Locco standard Interface.Web.Html
+            snippet locco_interface_html_standard
+            
+            # Locco minimal Interface.Web.Html
+            snippet locco_interface_html_minimal
+            
+            # Chocodash require
+            snippet require_chocodash
+            
+            # Chocodash async or flow
+            snippet chocodash_async_or_flow
+
+  - you can add user defined snippets in data/config.coffee
+
+            exports.snippets:
+                coffee:"""
+                # New Service Page
+                snippet service_page
+                \tInterface = require 'chocolate/general/locco/interface'
+                \tmodule.exports = new Interface.Web.Html
+                \t\tdefaults: ->
+                \t\trender: ->
+                """
+ - in data/config, you can add a default page handler to which redirect unkonwn pages
+
+            exports.defaultExchange = where:'demo', what:'showme', params: name: -> 0
+            
+    - `where`: module name you want to call for every unknown page
+    - `what`: function name in the module do call (if omitted the module itself will be called)
+    - `params`: params to pass to the function. If the param value is a function, then the returned value will be used as a key index to the original params. 0 is the page path and 1...N are the querystring parameters' value
+                
+
 UPDATES
 
- - in chocokup.coffee
-   - added Chocockup.Html as an alias to Chocokup.Panel
-   - support functions in coffeescript markup attributes
- - in locco/interface.coffee:
-   - an Interface submit now has its steps function moved out review. So we have: review, steps and then action. 
-     - 'review' is there to prepare the interface and check if we can use it
-     - 'steps' is there to execute internal actions before responding to the request
-     - 'action' is there to react to the submit
-   - added Interface.Web.Html as an alias to Interface.Web.Panel
- - added 'exports.debug = false # http://myserver:8081/debug?ws=myserver:8081&port=5858' in chocomake to show debug option in new projects
- - added params in server/interface.coffee 'context' so params are also available in @bin.__ in a locco/interface
- - updated chokidar to v1.4.3
- - updated microtime to v2.1.1
- - updated sqlite3 to v3.1.3
+ - in server/interface:
+  - you can now directly export an Interface.Web object in a file module without the 'interface' attribute
+            
+            Interface = require 'chocolate/general/locco/interface'
+            module.exports = 
+                new Interface.Web -> div 'Hello'
+            
+        instead of 
+                        
+            Interface = require 'chocolate/general/locco/interface'
+            exports.interface = 
+                new Interface.Web -> div 'Hello'
+  - config module available in __ params of locco/interface service
 
+ - in locco/interface:
+  - 'render' replaces 'action' in interface definition. 'action' stays available as a 'render' synonym
+    
+            html = new Interface.Web.Html
+                action: ->
+                    div 'Hello World'
+        
+        is equivalent to the new preferred syntax:
+                
+            html = new Interface.Web.Html
+                render: ->
+                    div 'Hello World'
+
+  - 'check' replaces 'values' in interface definition. 'values' is not supported anymore
+
+  - bin content becomes available in 'render' function arguments:
+            
+            demo = new Interface
+                render: ->
+                    {who, where} = @bin
+            
+            demo = new Interface
+                render: (bin) ->
+                    {who, where} = bin
+            
+            demo = new Interface
+                render: ({who, where}) ->
+            
+            demo = new Interface ({who, where}) ->
+    
+  - 'defaults' can be passed as a param to an interface definition
+ 
+            html = new Interface.Web.Html {menu}, -> menu()
+
+  - Interface.Web code rewritten to manage naming collision in different module
+ 
+  - in Interface.Web render function, this.keys is an array with the names of the values copied in this.bin
+
+ - in locco/chocodash:
+   - added _.clone function to enable object deep copy
 
 FIXED BUGS
 
- - in locco/interface: values ans steps declaration were defaulted with _.defaults, but they are functions (so no more _.defaults on them)!
- - in chocokup.coffee: render attributes when an empty string is specified
- - in locco/interface.coffee: 
-   - defaults in sub interfaces not handled properly
-   - recursive interfaces not handled properly and reviewed infinitely
-   - cleaned bin in Interface object before review'ing' it's content
- - in workflow.server: allow array arguments in request. Just have to repeat the &field=value
-
+  - in locco/interface
+    - review is done properly on Web interfaces just before de render function is called and not globally at begining
+    - make available __ context in bin arguments of sub interfaces
+    - make available locals (like _ and Chocokup) as local variable of sub interfaces
 
 See history in **CHANGELOG.md** file
 
@@ -513,7 +588,7 @@ immediately translated to html and javascript!
 
 But more... when you display the **Dom** panel you can see immmediately the result!
 
-Basicaly, this panel is a Markdown editor, but you can insert code blocks by using
+Basically, this panel is a Markdown editor, but you can insert code blocks by using
 the **#** and the **!** signs followed by the language you want to use:
 html, css, javascript, coffeescript, chocokup.
 
@@ -608,6 +683,12 @@ or
 
 Will display `Hello` when called with `https://myserver/mymodule`
 
+You can also directly export an [Interface.Web](#Choco-Interface-Web) object
+
+    Interface = require 'chocolate/general/locco/interface'
+    module.exports = 
+        new Interface.Web -> div 'Hello'
+
 You can write module that runs on server with functions that you can call directly from the browser like this:
 
     exports.say_hello = (who = 'you', where = 'Paris') ->
@@ -641,7 +722,7 @@ Instead of a javascript function you can call a Locco Interface:
         defaults:
             who: 'you'
             where: 'Paris'
-        action: ->
+        render: ->
             'hello ' + @bin.who + ' in ' + @bin.where
 
 
@@ -1330,7 +1411,7 @@ Usage:
 
         https://myserver/myworld/myfolder
            Go to /myworld/myfolder file, 
-             load it and execute **interface** function if exists,
+             load and renderit if it's an Interface or execute **interface** function if exists,
              otherwise open file in editor
            so = go (by default)
            what = undefined
@@ -1355,11 +1436,14 @@ Locco Interface is a javascript protoype that provides the following services:
  - default values : ensures that default values are set
  - security control : ensures current user has access rights
  - values validation control : ensures values are valid before proceeding
- - steps execution: execute asynchronous preparation steps before main action
 
-**Action** execution:
+**Steps** execution:
 
- - execute interface main action
+  - execute asynchronous preparation steps before 'render' function
+
+**Render** execution:
+
+ - execute interface's 'render' function ('action' is an available synonym for 'render')
  - returns synchronously or asynchronously an Interface.Reaction
  
 When Chocolate workflow service receives a request, it loads the corresponding module.
@@ -1371,7 +1455,7 @@ it submits the provided parameters and the system context (__) in a `bin` to the
             defaults:
                 who: 'you'
                 where: 'Paris'
-            action: ->
+            render: ->
                 'hello ' + @bin.who + ' in ' + @bin.where
 
 `Interface` service makes explicit what you have to deal with when you create an interface.
@@ -1380,28 +1464,27 @@ it submits the provided parameters and the system context (__) in a `bin` to the
 
 An `Interface.Web` service makes it easy to build a web interface component.
 
-You just declare an interface where the `action` is some Chocokup code that can access data stored in the provided `bin`.
+You just declare an interface where the `render` is some Chocokup code that can access data stored in the provided `bin`.
 That interface can embed other `Interface.Web` modules:
 
         welcome_user = new Interface.Web
-                defaults:
-                    welcome_message: -> 'Welcome'
-                    
-                    login_panel: new Interface.Web
-                        rules:
-                            defaults:
-                                login: -> 'Login'
-                                signin: -> 'Sign in'
-                        action: (bin = @bin) ->
-                            a href:'#', bin.login
-                            a href:'#', bin.signin
-        
-                action: (bin = @bin) ->
-                    if bin.__.session.user?.has_signed_in
-                        span bin.welcome_message
-                        span bin.__.session.user.name
-                    else
-                        login_panel bin.login_panel.bin
+            defaults:
+                welcome_message: -> 'Welcome'
+                
+                login_panel: new Interface.Web
+                    defaults:
+                        login: -> 'Login'
+                        signin: -> 'Sign in'
+                    render: ({login, signin}) ->
+                        a href:'#', login
+                        a href:'#', signin
+                
+            render: ({__, welcome_message})->
+                if __.session.user?.has_signed_in
+                    span welcome_message
+                    span __.session.user.name
+                else
+                    login_panel @bin.login_panel.bin
 
 
 &nbsp;

@@ -32,7 +32,7 @@ exports.exchange = (bin, send) ->
     config = require('../' + datadir + '/config')
     where = where.replace(/\.\.[\/]*/g, '')
 
-    context = {space, workflow, request, params, websocket, session, sysdir, appdir, datadir}
+    context = {space, workflow, request, where, params, websocket, session, sysdir, appdir, datadir, config}
     
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
@@ -109,15 +109,16 @@ exports.exchange = (bin, send) ->
             self = klass = property = undefined
             method = node_module = require required
             
-            if node_module?.prototype?
-                method = method[name] for name in ('prototype.' + action).split('.') when method?
-                if method? then self = null ; klass = node_module ; property = name
+            if action?
+                if node_module?.prototype?
+                    method = method[name] for name in ('prototype.' + action).split('.') when method?
+                    if method? then self = null ; klass = node_module ; property = name
+                
+                if node_module? and method is node_module or not method?
+                    method ?= node_module
+                    method = method[name] for name in action.split('.') when method?
             
-            if node_module? and method is node_module or not method?
-                method ?= node_module
-                method = method[name] for name in action.split('.') when method?
-            
-            if method instanceof Function
+            if action? and method instanceof Function
                 infos = method.toString().match(/function\s+\w*\s*\((.*?)\)/)
                 args = infos[1].split(/\s*,\s*/) if infos?
             else if method instanceof Interface
@@ -206,7 +207,6 @@ exports.exchange = (bin, send) ->
     # `canExchangeClassic` checks if a file can be required at the specified path
     # so that a classic exchange can occur
     canExchangeClassic = (path) ->
-        return yes if hasSofkey()
         try require.resolve '../' + (if appdir is '.' then '' else appdir + '/' ) + path 
         catch error then return no
         yes
@@ -229,12 +229,14 @@ exports.exchange = (bin, send) ->
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
                 if how is 'web' and where isnt 'ping'
-                    {method, args, self, klass, property, error} = getMethodInfo required, 'interface'
-                    return if has500 error
-                    if (method?) # TODO - should implement security checking
-                        so = 'do'
-                        what = 'interface'
-        
+                    {method, args, self, klass, property, error} = getMethodInfo required
+                    unless error
+                        if method? then so = 'do' ; what = undefined ; what_is_public = yes
+                    else
+                        {method, args, self, klass, property, error} = getMethodInfo required, 'interface'
+                        return if has500 error
+                        if method? # TODO - should implement security checking
+                            so = 'do' ; what = 'interface'
         
         unless (so is 'do' and (what is 'interface' or what_is_public)) or canExchange() then respond ''; return
 
@@ -378,6 +380,16 @@ exports.exchange = (bin, send) ->
         if canExchangeClassic path
             where = path
             try exchangeClassic() catch err then hasSofkey() and has500(err) or respond ''
+        else if config.defaultExchange?
+            old_params = params
+            params_ = __0:where, __1:what
+            index = 2 ; for k,v of params then params_['__' + index++] = v
+            {where, what, params} = _.clone {}, config.defaultExchange
+            so = 'do' if what?
+            what ?= ''
+            if params? then for k,v of params then params[k] = if typeof(v) is 'function' then params_["__#{v()}"] else v
+            params ?= old_params
+            exchangeClassic()
         else
             switch so
                 when 'do'

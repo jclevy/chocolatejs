@@ -399,7 +399,7 @@ _.throttle = (options, func) ->
             
         rtn
     
-# `_.extend` copies values from an object to another object
+# `_.extend` copies values from an object to another object (no deep copy)
 #
 # Copy values unless `overwrite` is false:
 #
@@ -427,6 +427,53 @@ _.extend = (object, values, overwrite) ->
         o
        
     set object, values
+
+# `_.clone` deeply copies values from an object to another object
+#
+# Copy values unless `overwrite` is false:
+#
+#     o = _.clone {first:1}, {second:2}
+#          expect(o.first).toBe(1)
+#          expect(o.second).toBe(2)
+#
+
+_.clone = ->
+    target = arguments[0] or {}
+    i = 1
+    length = arguments.length
+
+    # Handle case when target is a string or something (possible in deep copy)
+    target = {} if typeof target isnt "object" and not _.type(target) is _.Type.Function
+        
+    while i < length
+        # Only deal with non-null/undefined values
+        if (options = arguments[i])?
+            # Extend the base object
+            for name of options
+                src = target[name]
+                copy = options[name]
+
+                # Prevent never-ending loop
+                if target is copy then continue
+
+                # Recurse if we're merging plain objects or arrays
+                if copy and (_.isBasicObject(copy) or (copyIsArray = _.type(copy) is _.Type.Array))
+                    if copyIsArray
+                        copyIsArray = no
+                        clone = if src and _.type(src) is _.Type.Array then src else []
+                    else 
+                        clone = if src and _.isBasicObject(src) then src else {}
+
+                    # Never move original objects, clone them
+                    target[name] = _.clone clone, copy
+
+                    # Don't bring in undefined values
+                else if copy isnt undefined
+                    target[name] = copy
+        i += 1
+
+    # Return the modified object
+    target
 
 # `_.defaults` ensure default values are set on an object
 #

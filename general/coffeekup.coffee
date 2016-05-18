@@ -386,7 +386,7 @@ coffeekup.compile = (template, options = {}) ->
   # If `locals` is set, wrap the template inside a `with` block. This is the
   # most flexible but slower approach to specifying local variables.
   code += 'with(__data.locals){' if options.locals
-  code += "(#{template}).call(__data);"
+  code += "(#{template}).call(__data" + (if options.bin? then  ", __data.bin" else '') + ");"
   code += '}' if options.locals
   code += "return __ck.buffer.join('');"
   

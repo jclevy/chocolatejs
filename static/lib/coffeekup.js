@@ -457,7 +457,7 @@
     if (options.locals) {
       code += 'with(__data.locals){';
     }
-    code += "(" + template + ").call(__data);";
+    code += ("(" + template + ").call(__data") + (options.bin != null ? ", __data.bin" : '') + ");";
     if (options.locals) {
       code += '}';
     }

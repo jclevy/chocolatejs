@@ -1,3 +1,117 @@
+## v0.0.15 - (2016-05-18)
+
+--------------
+
+NEW FEATURES
+
+ - in server/studio:
+  - new snippets availble for Locco and Chocodash:
+
+            # Require Locco Interface
+            snippet locco_require_interface
+            
+            # Locco full Interface
+            snippet locco_interface_full
+            
+            # Locco full Interface.Web.Html
+            snippet locco_interface_html_full
+            
+            # Locco standard Interface.Web.Html
+            snippet locco_interface_html_standard
+            
+            # Locco minimal Interface.Web.Html
+            snippet locco_interface_html_minimal
+            
+            # Chocodash require
+            snippet require_chocodash
+            
+            # Chocodash async or flow
+            snippet chocodash_async_or_flow
+
+  - you can add user defined snippets in data/config.coffee
+
+            exports.snippets:
+                coffee:"""
+                # New Service Page
+                snippet service_page
+                \tInterface = require 'chocolate/general/locco/interface'
+                \tmodule.exports = new Interface.Web.Html
+                \t\tdefaults: ->
+                \t\trender: ->
+                """
+ - in data/config, you can add a default page handler to which redirect unkonwn pages
+
+            exports.defaultExchange = where:'demo', what:'showme', params: name: -> 0
+            
+    - `where`: module name you want to call for every unknown page
+    - `what`: function name in the module do call (if omitted the module itself will be called)
+    - `params`: params to pass to the function. If the param value is a function, then the returned value will be used as a key index to the original params. 0 is the page path and 1...N are the querystring parameters' value
+                
+
+UPDATES
+
+ - in server/interface:
+  - you can now directly export an Interface.Web object in a file module without the 'interface' attribute
+            
+            Interface = require 'chocolate/general/locco/interface'
+            module.exports = 
+                new Interface.Web -> div 'Hello'
+            
+        instead of 
+                        
+            Interface = require 'chocolate/general/locco/interface'
+            exports.interface = 
+                new Interface.Web -> div 'Hello'
+  - config module available in __ params of locco/interface service
+
+ - in locco/interface:
+  - 'render' replaces 'action' in interface definition. 'action' stays available as a 'render' synonym
+    
+            html = new Interface.Web.Html
+                action: ->
+                    div 'Hello World'
+        
+        is equivalent to the new preferred syntax:
+                
+            html = new Interface.Web.Html
+                render: ->
+                    div 'Hello World'
+
+  - 'check' replaces 'values' in interface definition. 'values' is not supported anymore
+
+  - bin content becomes available in 'render' function arguments:
+            
+            demo = new Interface
+                render: ->
+                    {who, where} = @bin
+            
+            demo = new Interface
+                render: (bin) ->
+                    {who, where} = bin
+            
+            demo = new Interface
+                render: ({who, where}) ->
+            
+            demo = new Interface ({who, where}) ->
+    
+  - 'defaults' can be passed as a param to an interface definition
+ 
+            html = new Interface.Web.Html {menu}, -> menu()
+
+  - Interface.Web code rewritten to manage naming collision in different module
+ 
+  - in Interface.Web render function, this.keys is an array with the names of the values copied in this.bin
+
+ - in locco/chocodash:
+   - added _.clone function to enable object deep copy
+
+FIXED BUGS
+
+  - in locco/interface
+    - review is done properly on Web interfaces just before de render function is called and not globally at begining
+    - make available __ context in bin arguments of sub interfaces
+    - make available locals (like _ and Chocokup) as local variable of sub interfaces
+
 ## v0.0.14 - (2016-05-09)
 
 --------------
