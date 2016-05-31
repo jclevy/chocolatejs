@@ -350,36 +350,36 @@ exports.getAvailableCommits = (path, __) ->
 #   throw 'never do this';
 #   throw undefined;
 
+stdout_write = stderr_write = undefined
+
 exports.logConsoleAndErrors = (path) ->
     write_stream = Fs.createWriteStream(path, {'flags': 'a'})
-    is_writing = false
     
+    process.stdout.write = stdout_write if stdout_write?
+    process.stderr.write = stderr_write if stderr_write?
+
     stdout_write = process.stdout.write
     stderr_write = process.stderr.write
     
     streamOut = new require('stream').Writable()
     streamOut._write = (chunk, encoding, done) ->
         write = ->
-            if is_writing then setTimeout write, 10
-            else
-                is_writing = true
-                encoding = null if encoding is 'buffer'
-                write_stream.write chunk, encoding, ->
-                    is_writing = false
-                    stdout_write.call process.stdout, chunk, encoding, done
+            encoding = null if encoding is 'buffer'
+            if write_stream.write chunk, encoding
+                stdout_write.call process.stdout, chunk, encoding
+                done?()
+            else write_stream.once 'drain', write
         write()
         
 
     streamErr = new require('stream').Writable()
     streamErr._write = (chunk, encoding, done) ->
         write = ->
-            if is_writing then setTimeout write, 10
-            else
-                is_writing = true
-                encoding = null if encoding is 'buffer'
-                write_stream.write chunk, encoding, ->
-                    is_writing = false
-                    stderr_write.call process.stderr, chunk, encoding, done
+            encoding = null if encoding is 'buffer'
+            if write_stream.write chunk, encoding
+                stderr_write.call process.stderr, chunk, encoding
+                done?()
+            else write_stream.once 'drain', write
         write()
 
     process.stdout.write = streamOut.write.bind(streamOut)

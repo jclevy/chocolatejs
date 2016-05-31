@@ -119,7 +119,7 @@ class World
         workflow = Workflow.main
 
         # Get application Config for Http only server and base port, key and cert options
-        config = require '../' + datadir + '/config'
+        config = require('./config')(datadir).clone()
         port ?= config.port
         port ?= 8026
         key ?= config.key
@@ -191,7 +191,7 @@ class World
             backdoor_key = if path[1] is '!' then path[2] else ''
             where_index = 1 + if backdoor_key isnt '' then 2 else 0
             where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
-            region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' and how is 'web' then 'static' else 'app'
+            region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' and how is 'web' then 'static' else if path[where_index] in ['client', 'general', 'server'] then 'secure' else 'app'
             where = where_path.join '/'
             
             session = sessions.get(request)

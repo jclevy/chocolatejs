@@ -59,8 +59,6 @@
 
   coffeekup.self_closing = merge_elements('void', 'obsolete_void');
 
-  coffeekup.id = 0;
-
   skeleton = function(__data) {
     var __ck, coffeescript, comment, doctype, h, id, ie, tag, text, totext;
     if (__data == null) {
@@ -142,9 +140,9 @@
           if (typeof v === 'function') {
             v = "(" + v + ").call(this);";
           }
-          if (typeof v === 'object' && !(v instanceof Array)) {
+          if ((v != null) && typeof v === 'object' && !(v instanceof Array)) {
             results.push(this.render_attrs(v, prefix + k + '-'));
-          } else if (v != null) {
+          } else if ((v != null) && v !== false) {
             results.push(text(" " + (prefix + k) + "=\"" + (this.esc(v)) + "\""));
           } else {
             results.push(void 0);
@@ -316,7 +314,7 @@
     coffeescript = function(param, func) {
       var k, v;
       if (func) {
-        script((__ck.coffeescript_helpers + "\nvar ") + ((function() {
+        script((__ck.coffeescript_helpers + "\n(function() {var ") + ((function() {
           var results;
           results = [];
           for (k in param) {
@@ -324,7 +322,7 @@
             results.push((k + "=") + (typeof v === 'function' ? (v.toJSONString != null ? v.toJSONString() : "" + (v.toString())) : JSON.stringify(v)));
           }
           return results;
-        })()).join(',') + ";\n" + ("(" + func + ").call(this);"));
+        })()).join(',') + ";\n" + ("(" + func + ").call(this);}).call(this);"));
         return __ck.coffeescript_helpers = "";
       } else {
         switch (typeof param) {
@@ -482,13 +480,75 @@
     if (data.cache == null) {
       data.cache = false;
     }
-    data.id = function(value) {
-      if (value != null) {
-        return coffeekup.id = value;
-      } else {
-        return coffeekup.id++;
-      }
-    };
+    data.id = (function() {
+      var api, base, blockSize, c, discreteValues, pad, randomBlock, safeCounter;
+      c = 0;
+      blockSize = 4;
+      base = 36;
+      discreteValues = Math.pow(base, blockSize);
+      pad = function(num, size) {
+        var s;
+        s = '000000000' + num;
+        return s.substr(s.length - size);
+      };
+      randomBlock = function() {
+        return pad((Math.random() * discreteValues << 0).toString(base), blockSize);
+      };
+      safeCounter = function() {
+        c = c < discreteValues ? c : 0;
+        c++;
+        return c - 1;
+      };
+      api = function() {
+        var counter, fingerprint, letter, random, timestamp;
+        letter = 'c';
+        timestamp = (new Date).getTime().toString(base);
+        counter = void 0;
+        fingerprint = api.fingerprint();
+        random = randomBlock() + randomBlock();
+        counter = pad(safeCounter().toString(base), blockSize);
+        return letter + timestamp + counter + fingerprint + random;
+      };
+      api.slug = function() {
+        var counter, date, print, random;
+        date = (new Date).getTime().toString(36);
+        counter = void 0;
+        print = api.fingerprint().slice(0, 1) + api.fingerprint().slice(-1);
+        random = randomBlock().slice(-2);
+        counter = safeCounter().toString(36).slice(-4);
+        return date.slice(-2) + counter + print + random;
+      };
+      api.globalCount = typeof window === "undefined" || window === null ? void 0 : function() {
+        cache = (function() {
+          var count, i;
+          i = void 0;
+          count = 0;
+          for (i in window) {
+            count++;
+          }
+          return count;
+        })();
+        api.globalCount = function() {
+          return cache;
+        };
+        return cache;
+      };
+      api.fingerprint = typeof window !== "undefined" && window !== null ? function() {
+        return pad((navigator.mimeTypes.length + navigator.userAgent.length).toString(36) + api.globalCount().toString(36), 4);
+      } : function() {
+        var hostId, hostname, length, os, padding, pid;
+        os = require('os');
+        padding = 2;
+        pid = pad(process.pid.toString(36), padding);
+        hostname = os.hostname();
+        length = hostname.length;
+        hostId = pad(hostname.split('').reduce((function(prev, char) {
+          return +prev + char.charCodeAt(0);
+        }), +length + 36).toString(36), padding);
+        return pid + hostId;
+      };
+      return api;
+    })();
     if (data.cache && (cache[template] != null)) {
       tpl = cache[template];
     } else if (data.cache) {

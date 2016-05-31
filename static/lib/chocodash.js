@@ -326,7 +326,7 @@
         return function(next) {
           self = this;
           return setTimeout((function() {
-            return undefered.call(self, next);
+            return undefered != null ? undefered.call(self, next) : void 0;
           }), 0);
         };
       } else {
@@ -397,6 +397,10 @@
 
   _.throttle = function(options, func) {
     var accumulate, args, call, ctx, last, reset, rtn, timeoutID, wait;
+    if (func == null) {
+      func = options;
+      options = {};
+    }
     wait = options.wait, reset = options.reset, accumulate = options.accumulate;
     if (wait == null) {
       wait = 1000;
@@ -924,6 +928,77 @@
     }
   });
 
+  _.Cuid = (function() {
+    var api, base, blockSize, c, discreteValues, pad, randomBlock, safeCounter;
+    c = 0;
+    blockSize = 4;
+    base = 36;
+    discreteValues = Math.pow(base, blockSize);
+    pad = function(num, size) {
+      var s;
+      s = '000000000' + num;
+      return s.substr(s.length - size);
+    };
+    randomBlock = function() {
+      return pad((Math.random() * discreteValues << 0).toString(base), blockSize);
+    };
+    safeCounter = function() {
+      c = c < discreteValues ? c : 0;
+      c++;
+      return c - 1;
+    };
+    api = function() {
+      var counter, fingerprint, letter, random, timestamp;
+      letter = 'c';
+      timestamp = (new Date).getTime().toString(base);
+      counter = void 0;
+      fingerprint = api.fingerprint();
+      random = randomBlock() + randomBlock();
+      counter = pad(safeCounter().toString(base), blockSize);
+      return letter + timestamp + counter + fingerprint + random;
+    };
+    api.slug = function() {
+      var counter, date, print, random;
+      date = (new Date).getTime().toString(36);
+      counter = void 0;
+      print = api.fingerprint().slice(0, 1) + api.fingerprint().slice(-1);
+      random = randomBlock().slice(-2);
+      counter = safeCounter().toString(36).slice(-4);
+      return date.slice(-2) + counter + print + random;
+    };
+    api.globalCount = typeof window === "undefined" || window === null ? void 0 : function() {
+      var cache;
+      cache = (function() {
+        var count, i;
+        i = void 0;
+        count = 0;
+        for (i in window) {
+          count++;
+        }
+        return count;
+      })();
+      api.globalCount = function() {
+        return cache;
+      };
+      return cache;
+    };
+    api.fingerprint = typeof window !== "undefined" && window !== null ? function() {
+      return pad((navigator.mimeTypes.length + navigator.userAgent.length).toString(36) + api.globalCount().toString(36), 4);
+    } : function() {
+      var hostId, hostname, length, os, padding, pid;
+      os = require('os');
+      padding = 2;
+      pid = pad(process.pid.toString(36), padding);
+      hostname = os.hostname();
+      length = hostname.length;
+      hostId = pad(hostname.split('').reduce((function(prev, char) {
+        return +prev + char.charCodeAt(0);
+      }), +length + 36).toString(36), padding);
+      return pid + hostId;
+    };
+    return api;
+  })();
+
   _.Uuid = (function(_module) {
     var BufferClass, _byteToHex, _clockseq, _hexToByte, _lastMSecs, _lastNSecs, _nodeId, _previousRoot, _rb, _rnds, _rnds8, _rng, _seedBytes, crypto, define, i, module, parse, require, unparse, uuid, v1, v4, whatwgRNG;
     require = _module.require, crypto = _module.crypto, define = _module.define, module = _module.module;
@@ -1401,17 +1476,17 @@
       return actions_;
     };
     _["do"].internal = function(object, name, value) {
-      var base, base1;
+      var base1, base2;
       if (_.isObject(object)) {
         if (object._ == null) {
           object._ = _.type(object) === _.Type.Array ? [] : {};
         }
-        if ((base = object._)._ == null) {
-          base._ = {};
+        if ((base1 = object._)._ == null) {
+          base1._ = {};
         }
         if (name != null) {
-          if ((base1 = object._._)[name] == null) {
-            base1[name] = value;
+          if ((base2 = object._._)[name] == null) {
+            base2[name] = value;
           }
         }
       }
@@ -1425,7 +1500,7 @@
       filter = options != null ? options.filter : void 0;
       identified = {};
       identify = function(current) {
-        var base, base1, base2, index, item, name, parent, pos, position, ref, ref1, ref2, ref3, ref4, ref5, ref6, type, uuid, value;
+        var base1, base2, base3, index, item, name, parent, pos, position, ref, ref1, ref2, ref3, ref4, ref5, ref6, type, uuid, value;
         item = current.item, name = current.name, parent = current.parent, position = current.position;
         ref = {
           uuid: _["do"].uuid({
@@ -1440,15 +1515,15 @@
         }
         _["do"].internal(item, 'uuid', uuid != null ? uuid : _.Uuid());
         if ((parent != null ? parent.object : void 0) != null) {
-          if ((base = parent.object)._ == null) {
-            base._ = _.type(parent.object) === _.Type.Array ? [] : {};
+          if ((base1 = parent.object)._ == null) {
+            base1._ = _.type(parent.object) === _.Type.Array ? [] : {};
           }
           index = name != null ? name : position;
-          if ((base1 = parent.object._)[index] == null) {
-            base1[index] = type === _.Type.Array ? [] : {};
+          if ((base2 = parent.object._)[index] == null) {
+            base2[index] = type === _.Type.Array ? [] : {};
           }
-          if ((base2 = parent.object._[index]).uuid == null) {
-            base2.uuid = uuid != null ? uuid : uuid = _.Uuid();
+          if ((base3 = parent.object._[index]).uuid == null) {
+            base3.uuid = uuid != null ? uuid : uuid = _.Uuid();
           }
         }
         switch (type) {
@@ -1507,7 +1582,7 @@
       return object;
     };
     _["do"].uuid = function(arg) {
-      var base, create, object, parent, property, ref, ref1, ref2, uuid;
+      var base1, create, object, parent, property, ref, ref1, ref2, uuid;
       object = arg.object, parent = arg.parent, property = arg.property, create = arg.create;
       if ((object == null) && (parent != null) && (property != null)) {
         object = parent[property];
@@ -1524,8 +1599,8 @@
         if (object._ == null) {
           object._ = _.type(object) === _.Type.Array ? [] : {};
         }
-        if ((base = object._)._ == null) {
-          base._ = {
+        if ((base1 = object._)._ == null) {
+          base1._ = {
             uuid: uuid
           };
         }

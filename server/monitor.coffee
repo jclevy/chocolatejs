@@ -58,14 +58,13 @@ monitor_server = new class
         @appdir ?=  args[0]
         @port ?=  args[1]
         @memory ?=  args[2]
+        @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}/data"
         
         self = this
 
-        File.logConsoleAndErrors (@appdir ? '.' ) + '/data/chocolate.log'
+        File.logConsoleAndErrors @datadir + '/chocolate.log'
         
-        datadir = "#{(if @appdir is '.' then '.' else '../' + Path.relative process.cwd(), @appdir)}/data"
-        delete require.cache[require.resolve datadir + '/config']
-        config = require datadir + '/config'
+        config = require('./config')(@datadir, reload:on).clone()
         
         process.on 'uncaughtException', (err) ->
             console.error((err && err.stack) ? new Date() + '\n' + err.stack + '\n\n' : err);
@@ -98,30 +97,30 @@ monitor_server = new class
             self.process = null
 
             if self.restarting
-                self.restarting = false
                 self.unwatchFiles()
                 self.start()
+                self.restarting = false
                 
     "watchFiles": ->
         self = this
         
         appdir = if @appdir? then @appdir else '.'
-        sysdir = Path.resolve __dirname, '..'
+        sysdir = Path.resolve __dirname, '..' 
         
         filter = (path) ->
             if path.search(/^\.[^\.\/]+/) isnt -1 then return yes
             for folder in ['static']
                 if path is folder then return yes
-            stats = Fs.statSync path
+            try stats = Fs.statSync path catch then return yes
             if stats.isDirectory() then return no
-            for suffix in ['.js', '.coffee']
+            for suffix in ['.js', '.coffee', '.config.json']
                 if path.substr(path.length - suffix.length, suffix.length) is suffix then return no
             return yes
 
         on_add = (file) -> on_event 'add', file
         on_change = (file) -> on_event 'change', file           
         on_event = (event, file) ->
-            
+            return if self.restarting
             
             if File.hasWriteAccess appdir
             

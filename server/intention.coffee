@@ -12,4 +12,11 @@ process.on 'SIGINT', -> on_exit()
 process.on 'SIGTERM', -> on_exit()
 
 # `callbackOnFinal` registers callbacks to call when Process exists
-exports.callbackOnFinal = (callback) -> on_exit_callbacks.push callback
+exports.callbackOnFinal = (callback) -> 
+    index = on_exit_callbacks.indexOf callback
+    on_exit_callbacks.push callback if index is -1
+
+# `unregisterCallbackOnFinal` unregisters callbacks that would have been called when Process exists
+exports.unregisterCallbackOnFinal = (callback) ->
+    index = on_exit_callbacks.indexOf callback
+    if index >= 0 then on_exit_callbacks.splice index, 1

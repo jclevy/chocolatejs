@@ -7,7 +7,7 @@ exports.interface = (__) ->
     exports.enter(__)
     
 exports.enter = (__) ->
-    new Chocokup.App 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, snippets:__.config.snippets, ->
+    new Chocokup.App 'Chocolate Studio', with_coffee:yes, doccolate_style:Doccolate.options.default_style, snippets:__.config.get('snippets'), ->
         style
             type:"text/css" 
             media:"screen"

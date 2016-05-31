@@ -322,7 +322,7 @@ _.serialize = _.flow = (options, fn) ->
         undefered = deferred.shift()
     
         if deferred.length is 0 and async is off and options?.async isnt off 
-            (next) -> self = this; setTimeout (-> undefered.call self, next), 0 
+            (next) -> self = this; setTimeout (-> undefered?.call self, next), 0 
         else 
             undefered
         
@@ -366,7 +366,7 @@ _.parallelize = (self, fn) ->
 # Thanks to: https://github.com/component/throttle
 
 _.throttle = (options, func) ->
-    
+    unless func? then func = options ; options = {}
     {wait, reset, accumulate} = options
     wait ?= 1000; reset ?= off; accumulate ?= off
 
@@ -429,8 +429,6 @@ _.extend = (object, values, overwrite) ->
     set object, values
 
 # `_.clone` deeply copies values from an object to another object
-#
-# Copy values unless `overwrite` is false:
 #
 #     o = _.clone {first:1}, {second:2}
 #          expect(o.first).toBe(1)
@@ -914,7 +912,57 @@ _.Publisher = Publisher = _.prototype
     notify: (value) -> for report in @subscribers then report value
     
     subscribe: (reporter) -> @subscribers.push reporter
-    
+
+# cuid.js
+# Collision-resistant UID generator for browsers and node.
+# Sequential for fast db lookups and recency sorting.
+# Safe for element IDs and server-side lookups.
+#
+# Extracted from CLCTR
+#
+# Copyright (c) Eric Elliott 2012
+# MIT License
+_.Cuid = do ->
+  c = 0 ; blockSize = 4 ; base = 36 ; discreteValues = Math.pow base, blockSize
+
+  pad = (num, size) -> s = '000000000' + num ; s.substr s.length - size
+  randomBlock = -> pad (Math.random() * discreteValues << 0).toString(base), blockSize
+  safeCounter = -> (c = if c < discreteValues then c else 0) ; c++ ; c - 1
+
+  api = ->
+    letter = 'c'
+    timestamp = (new Date).getTime().toString(base)
+    counter = undefined
+    fingerprint = api.fingerprint()
+    random = randomBlock() + randomBlock()
+    counter = pad(safeCounter().toString(base), blockSize)
+    letter + timestamp + counter + fingerprint + random
+
+  api.slug = ->
+    date = (new Date).getTime().toString(36)
+    counter = undefined
+    print = api.fingerprint().slice(0, 1) + api.fingerprint().slice(-1)
+    random = randomBlock().slice(-2)
+    counter = safeCounter().toString(36).slice(-4)
+    date.slice(-2) + counter + print + random
+
+  api.globalCount = unless window? then undefined else ->
+    cache = (-> i = undefined ; count = 0 ; (for i of window then count++) ; count)()
+    api.globalCount = -> cache
+    cache
+
+  api.fingerprint = if window? 
+        -> 
+            pad (navigator.mimeTypes.length + navigator.userAgent.length).toString(36) + api.globalCount().toString(36), 4
+    else 
+        ->
+            os = require('os') ; padding = 2
+            pid = pad(process.pid.toString(36), padding)
+            hostname = os.hostname() ; length = hostname.length
+            hostId = pad(hostname.split('').reduce(((prev, char) -> +prev + char.charCodeAt(0) ), +length + 36).toString(36), padding)
+            pid + hostId
+  api
+
 # uuid.js
 # Generate RFC4122(v4) UUIDs, and also non-RFC compact ids
 #

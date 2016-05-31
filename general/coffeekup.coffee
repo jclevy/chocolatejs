@@ -90,9 +90,6 @@ coffeekup.tags = merge_elements 'regular', 'obsolete', 'void', 'obsolete_void'
 # Public/customizable list of elements that should be rendered self-closed.
 coffeekup.self_closing = merge_elements 'void', 'obsolete_void'
 
-# Internal global id generator
-coffeekup.id = 0
-
 # This is the basic material from which compiled templates will be formed.
 # It will be manipulated in its string form at the `coffeekup.compile` function
 # to generate the final template function. 
@@ -151,11 +148,11 @@ skeleton = (__data = {}) ->
         v = "(#{v}).call(this);" if typeof v is 'function'
 
         # Prefixed attribute.
-        if typeof v is 'object' and v not instanceof Array
+        if v? and typeof v is 'object' and v not instanceof Array
           # `data: {icon: 'foo'}` is rendered as `data-icon="foo"`.
           @render_attrs(v, prefix + k + '-')
         # `undefined`, `false` and `null` result in the attribute not being rendered.
-        else if v?
+        else if v? and v isnt false
           # strings, numbers, arrays and functions are rendered "as is".
           text " #{prefix + k}=\"#{@esc(v)}\""
 
@@ -217,7 +214,6 @@ skeleton = (__data = {}) ->
   id = (db, value) ->
     unless value? then value = db ; db = null
     
-    
     if typeof value is "string"
       ids = {}
       for key in arguments then ids[key] = id()
@@ -230,8 +226,8 @@ skeleton = (__data = {}) ->
     _ids = {}
     ids = (value) -> 
         unless value? then return _ids
-        
         _ids[value] ? _ids[value] = id()
+
     ids.toJSONString = ->
         """
         (function (key) {
@@ -245,8 +241,8 @@ skeleton = (__data = {}) ->
     _classes = {}
     classes = (value) -> 
         unless value? then return _classes
-        
         _ids[value] ? _ids[value] = value.substr(0,id.classes.size ? 0) + '_' + id()
+
     classes.toJSONString = ->
         """
         (function (key) {
@@ -286,7 +282,7 @@ skeleton = (__data = {}) ->
     if (func)
       # `coffeescript {value:"sample"} -> alert value'` becomes:
       # `<script>var value="sample";(function () {return alert(value);})();</script>`
-      script "#{__ck.coffeescript_helpers}\nvar " + ("#{k}=" + (if typeof v is 'function' then (if v.toJSONString? then v.toJSONString() else "#{v.toString()}") else JSON.stringify(v)) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);"
+      script "#{__ck.coffeescript_helpers}\n(function() {var " + ("#{k}=" + (if typeof v is 'function' then (if v.toJSONString? then v.toJSONString() else "#{v.toString()}") else JSON.stringify(v)) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);}).call(this);"
       __ck.coffeescript_helpers = "" # needed only once in a `render`
     else switch typeof param
       # `coffeescript -> alert 'hi'` becomes:
@@ -406,7 +402,46 @@ cache = {}
 coffeekup.render = (template, data = {}, options = {}) ->
   data[k] = v for k, v of options
   data.cache ?= off
-  data.id = (value) -> if value? then coffeekup.id = value else coffeekup.id++
+  data.id = do ->
+      c = 0 ; blockSize = 4 ; base = 36 ; discreteValues = Math.pow base, blockSize
+    
+      pad = (num, size) -> s = '000000000' + num ; s.substr s.length - size
+      randomBlock = -> pad (Math.random() * discreteValues << 0).toString(base), blockSize
+      safeCounter = -> (c = if c < discreteValues then c else 0) ; c++ ; c - 1
+    
+      api = ->
+        letter = 'c'
+        timestamp = (new Date).getTime().toString(base)
+        counter = undefined
+        fingerprint = api.fingerprint()
+        random = randomBlock() + randomBlock()
+        counter = pad(safeCounter().toString(base), blockSize)
+        letter + timestamp + counter + fingerprint + random
+    
+      api.slug = ->
+        date = (new Date).getTime().toString(36)
+        counter = undefined
+        print = api.fingerprint().slice(0, 1) + api.fingerprint().slice(-1)
+        random = randomBlock().slice(-2)
+        counter = safeCounter().toString(36).slice(-4)
+        date.slice(-2) + counter + print + random
+    
+      api.globalCount = unless window? then undefined else ->
+        cache = (-> i = undefined ; count = 0 ; (for i of window then count++) ; count)()
+        api.globalCount = -> cache
+        cache
+    
+      api.fingerprint = if window? 
+            -> 
+                pad (navigator.mimeTypes.length + navigator.userAgent.length).toString(36) + api.globalCount().toString(36), 4
+        else 
+            ->
+                os = require('os') ; padding = 2
+                pid = pad(process.pid.toString(36), padding)
+                hostname = os.hostname() ; length = hostname.length
+                hostId = pad(hostname.split('').reduce(((prev, char) -> +prev + char.charCodeAt(0) ), +length + 36).toString(36), padding)
+                pid + hostId
+      api
 
   if data.cache and cache[template]? then tpl = cache[template]
   else if data.cache then tpl = cache[template] = coffeekup.compile(template, data)

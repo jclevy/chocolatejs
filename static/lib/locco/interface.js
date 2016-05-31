@@ -73,7 +73,12 @@
       }
     },
     review: function(bin, reaction, end) {
-      var check, ref, ref1;
+      var check, ref, ref1, self;
+      self = {
+        bin: bin,
+        document: this.document,
+        'interface': this
+      };
       check = {
         defaults: (function(_this) {
           return function(object, defaults) {
@@ -106,7 +111,7 @@
               return true;
             }
             if (typeof locks === 'function') {
-              locks = locks.call(_this);
+              locks = locks.call(self);
             }
             for (i = 0, len = locks.length; i < len; i++) {
               lock = locks[i];
@@ -119,7 +124,7 @@
         })(this),
         values: (function(_this) {
           return function(bin, controller) {
-            return controller.call(_this, bin);
+            return controller.call(self, bin);
           };
         })(this)
       };
@@ -343,11 +348,12 @@
         return end;
       };
       return this.submit = function(bin) {
-        var callback, ref, ref1, render_code, result;
+        var callback, chocokup_code, ref, ref1, render_code, result;
         if (!((ref = this.render) != null ? ref.overriden : void 0)) {
           render_code = (ref1 = this.render) != null ? ref1 : function() {};
+          chocokup_code = null;
           this.render = function(bin) {
-            var chocokup_code, declare_kups, kups, local_kups, options;
+            var declare_kups, kups, local_kups, options;
             if (bin == null) {
               bin = {};
             }
@@ -356,7 +362,7 @@
             local_kups = this.reaction.local_kups;
             delete this.reaction.local_kups;
             declare_kups = get_declare_kups(local_kups);
-            chocokup_code = declare_kups.length > 0 ? new Function('args', "this.keys = [];\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\n" + (declare_kups.join(';\n')) + ";\nwith (this.locals) {return (" + (render_code.toString()) + ").apply(this, arguments);}") : render_code;
+            chocokup_code = declare_kups.length > 0 ? new Function('args', "this.keys = [];\nif (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\n" + (declare_kups.join(';\n')) + ";\nwith (this.locals) {return (" + (render_code.toString()) + ").apply(this, arguments);}") : render_code;
             options = {
               bin: bin,
               document: this.document,
@@ -383,7 +389,7 @@
               }
             }).call(this);
           };
-          this.render.overriden = true;
+          this.render.overriden = chocokup_code != null ? chocokup_code : render_code;
         }
         if (typeof bin === 'function') {
           callback = bin;

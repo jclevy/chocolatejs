@@ -202,6 +202,13 @@ describe 'Flow', ->
         runs -> 
             expect(i).toBe 3
 
+    it 'should serialize sync function as asynced code even without run blocks', ->
+        i = 0
+        _.flow (run) ->
+            i += 3
+
+        expect(i).toBe 3
+
     it 'should serialize sync functions as sync code', ->
         i = 0
         _.flow async:off, (run) ->
@@ -209,7 +216,7 @@ describe 'Flow', ->
             run (end) -> i++ ; end()
             run -> i++ 
         
-        expect(i).toBe 3
+        expect(i).toBe 3 
 
     it 'should serialize synced and asynced functions', ->
         i = 0; j = off; k = off; l = off

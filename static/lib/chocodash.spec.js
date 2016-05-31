@@ -352,6 +352,14 @@
         return expect(i).toBe(3);
       });
     });
+    it('should serialize sync function as asynced code even without run blocks', function() {
+      var i;
+      i = 0;
+      _.flow(function(run) {
+        return i += 3;
+      });
+      return expect(i).toBe(3);
+    });
     it('should serialize sync functions as sync code', function() {
       var i;
       i = 0;

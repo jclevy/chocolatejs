@@ -29,10 +29,12 @@ exports.cook = (request) ->
 exports.exchange = (bin, send) ->
     {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket} = bin
 
-    config = require('../' + datadir + '/config')
+    config = require('./config')(datadir)
     where = where.replace(/\.\.[\/]*/g, '')
 
     context = {space, workflow, request, where, params, websocket, session, sysdir, appdir, datadir, config}
+
+    config = config.clone()
     
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
@@ -207,6 +209,7 @@ exports.exchange = (bin, send) ->
     # `canExchangeClassic` checks if a file can be required at the specified path
     # so that a classic exchange can occur
     canExchangeClassic = (path) ->
+        return yes if hasSofkey() and so is 'move'
         try require.resolve '../' + (if appdir is '.' then '' else appdir + '/' ) + path 
         catch error then return no
         yes
@@ -223,7 +226,7 @@ exports.exchange = (bin, send) ->
             when 'do'
                 {method, args, self, klass, property, error} = getMethodInfo required, what
                 return if has500 error
-                if (method?) # TODO - should implement security checking
+                if method? and region isnt 'secure'
                     what_is_public = yes
     
             # if so is 'go' and where has a public interface then do use interface
@@ -380,14 +383,14 @@ exports.exchange = (bin, send) ->
         if canExchangeClassic path
             where = path
             try exchangeClassic() catch err then hasSofkey() and has500(err) or respond ''
-        else if config.defaultExchange?
+        else if region is 'app' and config.defaultExchange?
             old_params = params
             params_ = __0:where, __1:what
             index = 2 ; for k,v of params then params_['__' + index++] = v
             {where, what, params} = _.clone {}, config.defaultExchange
             so = 'do' if what?
             what ?= ''
-            if params? then for k,v of params then params[k] = if typeof(v) is 'function' then params_["__#{v()}"] else v
+            if params? then for k,v of params then params[k] = (if _.type(v) is _.Type.Array then (if v.length is 1 then params_["__#{v[0]}"] else (params_["__#{i}"] for i in v)) else v)
             params ?= old_params
             exchangeClassic()
         else

@@ -1,3 +1,75 @@
+## v0.0.16 - (2016-05-31)
+
+--------------
+
+NEW FEATURES
+
+ - `server/config` module is added to manage config files, instead of being defined the `data/config.coffee` file. 
+  - Configuration will now be done inside `data/app.config.json` file
+  - When `Chocolate` finds a `data/config.coffee` file it copies it's content in `data/app.config.json` if the keys are not already existing ther.
+  - So after running once, you can safely remove the `data/config.coffee` file or only parts of it, if it's better for you.
+  - If you keep `data/config.coffee` alongside the new `data/app.config.json`, then configurations done in `data/app.config.json` will be overridden by those done in `data/config.coffee`
+  - as the `config` module is available in __ params of locco/interface service, you can not anymore directly access config key/values, but you will have to use the `get` method of the `config` object
+   
+                myservice = new Interface ({__}) -> 
+                    configValue = __.config.get 'configKey'
+
+
+UPDATES
+
+ - in `locco/interface`:
+  - `this` in `check` and `locks` function is now defined to `{bin, document:@document, 'interface':@}`
+ 
+ - in server/document:
+  - add `throttle` option in Cache and Structure class to define time to wait between successive `hibernate` calls
+  - add `reload` method in Cache class to reload the cache from file
+  - add `save` method in Cache class to put save the cache to file
+  - add `clone` method in Cache class to clone an object from the cache
+  - add `set` method in Cache class to put a new value to cache and immediately hibernate the cache
+  - add `update` method to allow the update of many keys at once syncing from an optional external store and saving updates on file immediately
+
+ - in `general/chocodash`:
+  - add `_.Cuid` generator from Eric Elliott
+  - allow `_.throttle` to receive no options parameter, `_.throttle -> #do something max once a second`
+
+ - in `general/coffeekup`:
+  - coffeekup id generator replaced by the Cuid generator from Eric Elliott
+
+ - in `server/interface`:
+   - access to the `client`, `general` and `server` folders is now restricted
+     - as a standard user you can only call functions called `interface` in modules of those folders
+     - other functions defined in modules of those folders are accessible only from other modules on the server
+     - a user with the `sofkey` can access every function in those modules
+ 
+ - in `server/monitor`:
+  - now also restarts the app when a file with suffix `.config.json` is modified
+
+ - in `data/config` or now in `data/app.config.json`, if you add a default page handler to which redirect unkonwn pages, you have to use an Array and not a Function to pass value as a key index:
+
+        before:
+            exports.defaultExchange = where:'demo', what:'showme', params: name: -> 0
+        
+        now:
+            exports.defaultExchange = where:'demo', what:'showme', params: name: [0]
+
+    - `where`: module name you want to call for every unknown page
+    - `what`: function name in the module do call (if omitted the module itself will be called)
+    - `params`: params to pass to the function. If the param value is an array, then the value(s) in the array will be used as key index(es) to the original params. 0 is the page path and 1...N are the querystring parameters' value
+
+FIXED BUGS
+
+ - in locco/interface:
+  - `TypeError: Object true has no method 'call'` in Interface.Web.submit 
+ 
+ - in server/document:
+  - bug in asynchronous hibernate (typo)
+
+ - in general/coffeekup:
+  - attributes with `undefined`, `null` and `false` values are not rendered anymore
+ 
+ - in server/file:
+  - `logConsoleAndErrors` now works better on consecutive calls to `console` functions like `console.log`
+
 ## v0.0.15 - (2016-05-18)
 
 --------------

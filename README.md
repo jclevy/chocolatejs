@@ -35,7 +35,7 @@ It includes :
 
  - **Doccolate** -- an online documentation editing tool (based on Docco)
 
- - **Chocodash** -- toobox for javascript object identity, types, serialization and asynchronous calls and signals management
+ - **Chocodash** -- toolbox with javascript object identity, types, serialization and asynchronous calls and signals management
 
  - **liteJq** -- a lite jQuery-compatible library
 
@@ -57,117 +57,75 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.15 - (2016-05-18)**
+**Chocolate v0.0.16 - (2016-05-31)**
 
 NEW FEATURES
 
- - in server/studio:
-  - new snippets availble for Locco and Chocodash:
+ - `server/config` module is added to manage config files, instead of being defined the `data/config.coffee` file. 
+  - Configuration will now be done inside `data/app.config.json` file
+  - When `Chocolate` finds a `data/config.coffee` file it copies it's content in `data/app.config.json` if the keys are not already existing ther.
+  - So after running once, you can safely remove the `data/config.coffee` file or only parts of it, if it's better for you.
+  - If you keep `data/config.coffee` alongside the new `data/app.config.json`, then configurations done in `data/app.config.json` will be overridden by those done in `data/config.coffee`
+  - as the `config` module is available in __ params of locco/interface service, you can not anymore directly access config key/values, but you will have to use the `get` method of the `config` object
+   
+                myservice = new Interface ({__}) -> 
+                    configValue = __.config.get 'configKey'
 
-            # Require Locco Interface
-            snippet locco_require_interface
-            
-            # Locco full Interface
-            snippet locco_interface_full
-            
-            # Locco full Interface.Web.Html
-            snippet locco_interface_html_full
-            
-            # Locco standard Interface.Web.Html
-            snippet locco_interface_html_standard
-            
-            # Locco minimal Interface.Web.Html
-            snippet locco_interface_html_minimal
-            
-            # Chocodash require
-            snippet require_chocodash
-            
-            # Chocodash async or flow
-            snippet chocodash_async_or_flow
-
-  - you can add user defined snippets in data/config.coffee
-
-            exports.snippets:
-                coffee:"""
-                # New Service Page
-                snippet service_page
-                \tInterface = require 'chocolate/general/locco/interface'
-                \tmodule.exports = new Interface.Web.Html
-                \t\tdefaults: ->
-                \t\trender: ->
-                """
- - in data/config, you can add a default page handler to which redirect unkonwn pages
-
-            exports.defaultExchange = where:'demo', what:'showme', params: name: -> 0
-            
-    - `where`: module name you want to call for every unknown page
-    - `what`: function name in the module do call (if omitted the module itself will be called)
-    - `params`: params to pass to the function. If the param value is a function, then the returned value will be used as a key index to the original params. 0 is the page path and 1...N are the querystring parameters' value
-                
 
 UPDATES
 
- - in server/interface:
-  - you can now directly export an Interface.Web object in a file module without the 'interface' attribute
-            
-            Interface = require 'chocolate/general/locco/interface'
-            module.exports = 
-                new Interface.Web -> div 'Hello'
-            
-        instead of 
-                        
-            Interface = require 'chocolate/general/locco/interface'
-            exports.interface = 
-                new Interface.Web -> div 'Hello'
-  - config module available in __ params of locco/interface service
+ - in `locco/interface`:
+  - `this` in `check` and `locks` function is now defined to `{bin, document:@document, 'interface':@}`
+ 
+ - in server/document:
+  - add `throttle` option in Cache and Structure class to define time to wait between successive `hibernate` calls
+  - add `reload` method in Cache class to reload the cache from file
+  - add `save` method in Cache class to put save the cache to file
+  - add `clone` method in Cache class to clone an object from the cache
+  - add `set` method in Cache class to put a new value to cache and immediately hibernate the cache
+  - add `update` method to allow the update of many keys at once syncing from an optional external store and saving updates on file immediately
 
- - in locco/interface:
-  - 'render' replaces 'action' in interface definition. 'action' stays available as a 'render' synonym
-    
-            html = new Interface.Web.Html
-                action: ->
-                    div 'Hello World'
+ - in `general/chocodash`:
+  - add `_.Cuid` generator from Eric Elliott
+  - allow `_.throttle` to receive no options parameter, `_.throttle -> #do something max once a second`
+
+ - in `general/coffeekup`:
+  - coffeekup id generator replaced by the Cuid generator from Eric Elliott
+
+ - in `server/interface`:
+   - access to the `client`, `general` and `server` folders is now restricted
+     - as a standard user you can only call functions called `interface` in modules of those folders
+     - other functions defined in modules of those folders are accessible only from other modules on the server
+     - a user with the `sofkey` can access every function in those modules
+ 
+ - in `server/monitor`:
+  - now also restarts the app when a file with suffix `.config.json` is modified
+
+ - in `data/config` or now in `data/app.config.json`, if you add a default page handler to which redirect unkonwn pages, you have to use an Array and not a Function to pass value as a key index:
+
+        before:
+            exports.defaultExchange = where:'demo', what:'showme', params: name: -> 0
         
-        is equivalent to the new preferred syntax:
-                
-            html = new Interface.Web.Html
-                render: ->
-                    div 'Hello World'
+        now:
+            exports.defaultExchange = where:'demo', what:'showme', params: name: [0]
 
-  - 'check' replaces 'values' in interface definition. 'values' is not supported anymore
-
-  - bin content becomes available in 'render' function arguments:
-            
-            demo = new Interface
-                render: ->
-                    {who, where} = @bin
-            
-            demo = new Interface
-                render: (bin) ->
-                    {who, where} = bin
-            
-            demo = new Interface
-                render: ({who, where}) ->
-            
-            demo = new Interface ({who, where}) ->
-    
-  - 'defaults' can be passed as a param to an interface definition
- 
-            html = new Interface.Web.Html {menu}, -> menu()
-
-  - Interface.Web code rewritten to manage naming collision in different module
- 
-  - in Interface.Web render function, this.keys is an array with the names of the values copied in this.bin
-
- - in locco/chocodash:
-   - added _.clone function to enable object deep copy
+    - `where`: module name you want to call for every unknown page
+    - `what`: function name in the module do call (if omitted the module itself will be called)
+    - `params`: params to pass to the function. If the param value is an array, then the value(s) in the array will be used as key index(es) to the original params. 0 is the page path and 1...N are the querystring parameters' value
 
 FIXED BUGS
 
-  - in locco/interface
-    - review is done properly on Web interfaces just before de render function is called and not globally at begining
-    - make available __ context in bin arguments of sub interfaces
-    - make available locals (like _ and Chocokup) as local variable of sub interfaces
+ - in locco/interface:
+  - `TypeError: Object true has no method 'call'` in Interface.Web.submit 
+ 
+ - in server/document:
+  - bug in asynchronous hibernate (typo)
+
+ - in general/coffeekup:
+  - attributes with `undefined`, `null` and `false` values are not rendered anymore
+ 
+ - in server/file:
+  - `logConsoleAndErrors` now works better on consecutive calls to `console` functions like `console.log`
 
 See history in **CHANGELOG.md** file
 
@@ -722,8 +680,8 @@ Instead of a javascript function you can call a Locco Interface:
         defaults:
             who: 'you'
             where: 'Paris'
-        render: ->
-            'hello ' + @bin.who + ' in ' + @bin.where
+        render: ({who, where}) ->
+            'hello ' + who + ' in ' + where
 
 
 &nbsp;
@@ -1638,13 +1596,11 @@ Read the complete Newnotes reference in Chocolate Studio Newnotes help panel.
 
 ## <a name="Choco-RoadMap"></a> Road Map [⌂](#Choco-Summary) 
 
-Chocolate is currently (2014/04) an experiment that needs to be completed and polished:
+Chocolate is still currently (2016/05) an experimental framework that needs to be completed and polished, so I'm working on:
 
- - user management
- - responsive user interface services
- - data management: offline and online synchronization
- - robust live coffeescript (and javascript) in lab tab
- - link source context to notes in Newnotes
+ - user interface generation using locco/interface and chocokup
+ - data storage using server/document and/or server/reserve
+ - putting this framework live on a real use case
  - ...
 
 &nbsp;
@@ -1656,7 +1612,7 @@ Chocolate is currently (2014/04) an experiment that needs to be completed and po
     MIT License
     
     Chocolate is a simple webapp framework built on Node.js using Coffeescript
-    Copyright (c) 2013, Jean-Claude Levy
+    Copyright (c) 2011-2016, Jean-Claude Levy
     
     Permission is hereby granted, free of charge, to any person
     obtaining a copy of this software and associated documentation

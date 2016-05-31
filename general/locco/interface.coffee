@@ -39,6 +39,7 @@ Interface = _.prototype
                 when _.Type.String then @observe (html) => $(@update).html html; return
     
     review: (bin, reaction, end) ->
+        self = {bin, document:@document, 'interface':@}
         check =
             # `defaults` ensure default values are set on an object
             defaults: (object, defaults) =>
@@ -55,14 +56,14 @@ Interface = _.prototype
             # `locks` ensure keys are provided for every present lock
             locks: (keys, locks) =>
                 return yes unless locks?
-                if typeof locks is 'function' then locks = locks.call @
+                if typeof locks is 'function' then locks = locks.call self
                 
                 for lock in locks then return no if lock not in keys
                 
                 yes
                 
             # `values` ensure values at the right scale, in the right range...
-            values: (bin, controller) => controller.call @, bin
+            values: (bin, controller) => controller.call self, bin
         
         reaction.certified ?= yes
 
@@ -72,7 +73,6 @@ Interface = _.prototype
         
         # check_services()
         end()
-        
         
     submit: (bin = {}) ->
         publisher = new _.Publisher
@@ -203,6 +203,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
     @submit = (bin) ->
         unless @render?.overriden
             render_code = @render ? ->
+            chocokup_code = null
             @render = (bin) ->
                 bin ?= {}
 
@@ -216,7 +217,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
 
                 chocokup_code = if declare_kups.length > 0 then new Function 'args', """
                         this.keys = [];
-                        if (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}
+                        if (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}
                         #{declare_kups.join ';\n'};
                         with (this.locals) {return (#{render_code.toString()}).apply(this, arguments);}
                     """
@@ -231,7 +232,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                     when 'Panel'then new Chocokup.Panel options, chocokup_code
                     else new Chocokup[@interface.type] bin?.name ? '', options, chocokup_code
                     
-            @render.overriden = on
+            @render.overriden = chocokup_code ? render_code
         
         if typeof bin is 'function' then callback = bin ; bin = {}
             
