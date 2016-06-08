@@ -1414,7 +1414,7 @@ exports.enter = (__) ->
                         while (end + 1 < editor.session.doc.getLength()) and not isCommentRow(end + 1) then end += 1
                         if end + 1 > start
                             toggleCode start, end + 1
-                            editor.selection.moveCursorTo start, 0
+                            editor.selection.setSelectionRange start, start
             
             _ide.run_doccolate = (init) ->
                 style = '<style>' + Chocokup.Css.core + '</style>'
@@ -1845,12 +1845,17 @@ exports.enter = (__) ->
                 
                 for _ in [editor, experiment_editor, debug_editor, chocodown_editor, specolate_editor]
                     do add_findnext_shortcut = (editor) ->
-                        editor = _
-                        editor.commands.addCommand
+                        _.commands.addCommand
                             name: "find next"
                             bindKey:
                                 win: "F3|Ctrl-G"
-                            exec: -> editor.findNext()
+                            exec: -> _.findNext()
+                            
+                        _.commands.addCommand
+                            name: "toggle_experiment_code"
+                            bindKey:
+                                win: "Alt-R", mac: "Alt-R"
+                            exec: -> _ide.toggleMainPanel('source') ; editor.focus()
         
                 commands = editor.commands
                 commands.addCommand
@@ -1876,7 +1881,7 @@ exports.enter = (__) ->
                 commands.addCommand
                     name: "toggle code mode"
                     bindKey:
-                        win: "Alt-R", mac: "Alt-R"
+                        win: "Alt-Shift-R", mac: "Alt-Shift-R"
                     exec: -> _ide.toggleCodeMode 'comment', 'one', 'block'
                 commands.addCommand
                     name: "toggle full one line code mode"

@@ -65,6 +65,9 @@ monitor_server = new class
         File.logConsoleAndErrors @datadir + '/chocolate.log'
         
         config = require('./config')(@datadir, reload:on).clone()
+        if config.letsencrypt?
+            hostname = config.letsencrypt.domains[0] if config.letsencrypt.domains?
+            @cert_suffix = '/letsencrypt/live/' + hostname + '/privkey.pem'
         
         process.on 'uncaughtException', (err) ->
             console.error((err && err.stack) ? new Date() + '\n' + err.stack + '\n\n' : err);
@@ -113,7 +116,9 @@ monitor_server = new class
                 if path is folder then return yes
             try stats = Fs.statSync path catch then return yes
             if stats.isDirectory() then return no
-            for suffix in ['.js', '.coffee', '.config.json']
+            suffixes = ['.js', '.coffee', '.config.json']
+            suffixes.push self.cert_suffix if self.cert_suffix
+            for suffix in suffixes
                 if path.substr(path.length - suffix.length, suffix.length) is suffix then return no
             return yes
 

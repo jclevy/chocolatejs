@@ -87,7 +87,233 @@ class Session
 
     # `newExpiration`, a Session class method, calculates a new expiration date
     @newExpiration: -> new Date((+new Date) + 3600 * 1000)
-        
+
+#### `Sni-callback` to manage SSL
+# based on https://github.com/Daplie/letsencrypt-express
+#
+sni_callback = do ->
+    crypto = require('crypto')
+    tls = require('tls')
+    
+    create: (opts) -> 
+        ipc = {}
+        # in-process cache
+        # function (/*err, hostname, certInfo*/) {}
+    
+        handleRenewFailure = (err, hostname, certInfo) ->
+            console.error 'ERROR: Failed to renew domain \'', hostname, '\':'
+            if err
+                console.error err.stack or err
+            if certInfo
+                console.error certInfo
+            return
+    
+        assignBestByDates = (now, certInfo) ->
+            certInfo = certInfo or
+                loadedAt: now
+                expiresAt: 0
+                issuedAt: 0
+                lifetime: 0
+            rnds = crypto.randomBytes(3)
+            rnd1 = (rnds[0] + 1) / 257
+            rnd2 = (rnds[1] + 1) / 257
+            rnd3 = (rnds[2] + 1) / 257
+            # Stagger randomly by plus 0% to 25% to prevent all caches expiring at once
+            memorizeFor = Math.floor(opts.memorizeFor + opts.memorizeFor / 4 * rnd1)
+            # Stagger randomly to renew between n and 2n days before renewal is due
+            # this *greatly* reduces the risk of multiple cluster processes renewing the same domain at once
+            bestIfUsedBy = certInfo.expiresAt - (opts.renewWithin + Math.floor(opts.renewWithin * rnd2))
+            # Stagger randomly by plus 0 to 5 min to reduce risk of multiple cluster processes
+            # renewing at once on boot when the certs have expired
+            renewTimeout = Math.floor(5 * 60 * 1000 * rnd3)
+            certInfo.loadedAt = now
+            certInfo.memorizeFor = memorizeFor
+            certInfo.bestIfUsedBy = bestIfUsedBy
+            certInfo.renewTimeout = renewTimeout
+            certInfo
+    
+        renewInBackground = (now, hostname, certInfo) ->
+            if now - (certInfo.loadedAt) < opts.failedWait
+                # wait a few minutes
+                return
+            if now > certInfo.bestIfUsedBy and !certInfo.timeout
+                # EXPIRING
+                if now > certInfo.expiresAt
+                    # EXPIRED
+                    certInfo.renewTimeout = Math.floor(certInfo.renewTimeout / 2)
+                if opts.debug
+                    console.log '[ChocoLetsEncrypt] skipping stagger \'' + certInfo.renewTimeout + '\' and renewing \'' + hostname + '\' now'
+                    certInfo.renewTimeout = 500
+                certInfo.timeout = setTimeout((->
+                    # use all domains in `letsencrypt.domains` instead of [ hostname ]
+                    args = 
+                        domains: if opts.domains? then [].concat(opts.domains) else [ hostname ]
+                        duplicate: false
+                    opts.letsencrypt.renew args, (err, certInfo) ->
+                        if err or !certInfo
+                            opts.handleRenewFailure err, hostname, certInfo
+                        ipc[hostname] = assignBestByDates(now, certInfo)
+                        return
+                    return
+                ), certInfo.renewTimeout)
+            return
+    
+        cacheResult = (err, hostname, certInfo, sniCb) ->
+            if certInfo and certInfo.fullchain and certInfo.privkey
+                if opts.debug
+                    console.log 'cert is looking good'
+                try
+                    certInfo.tlsContext = (tls.createSecureContext ? crypto.createCredentials)(
+                        key: certInfo.privkey or certInfo.key
+                        cert: certInfo.fullchain or certInfo.cert
+                        ca: if opts.httpsOptions.ca then opts.httpsOptions.ca + '\n' + certInfo.ca else certInfo.ca
+                        crl: opts.httpsOptions.crl
+                        requestCert: opts.httpsOptions.requestCert
+                        rejectUnauthorized: opts.httpsOptions.rejectUnauthorized)
+                catch e
+                    console.warn '[Sanity Check Fail]: a weird object was passed back through le.fetch to ChocoLetsEncrypt.fetch'
+                    console.warn '(either missing or malformed certInfo.key and / or certInfo.fullchain)'
+                    err = e
+                if sniCb? then sniCb err, certInfo.tlsContext else result = certInfo.tlsContext
+            else
+                if opts.debug
+                    console.log 'cert is NOT looking good'
+                sniCb? err or new Error('couldn\'t get certInfo: unknown'), null
+            now = Date.now()
+            certInfo = ipc[hostname] = assignBestByDates(now, certInfo)
+            renewInBackground now, hostname, certInfo
+            if sniCb? then return else return result
+    
+        registerCert = (hostname, sniCb) ->
+            if opts.debug
+                console.log '[ChocoLetsEncrypt] \'' + hostname + '\' is not registered, requesting approval'
+            if !hostname
+                sniCb? new Error('[registerCert] no hostname')
+                return
+            opts.approveRegistration hostname, (err, args) ->
+                if opts.debug
+                    console.log '[ChocoLetsEncrypt] \'' + hostname + '\' registration approved, attempting register'
+                if err
+                    cacheResult err, hostname, null, sniCb
+                    return
+                if !(args and args.agreeTos and args.email and args.domains)
+                    cacheResult new Error('not approved or approval is missing arguments - such as agreeTos, email, domains'), hostname, null, sniCb
+                    return
+                opts.letsencrypt.register args, (err, certInfo) ->
+                    if opts.debug
+                        console.log '[ChocoLetsEncrypt] \'' + hostname + '\' register completed', err and err.stack or null, certInfo
+                        if (!err or !err.stack) and !certInfo
+                            console.error new Error('[ChocoLetsEncrypt] SANITY FAIL: no error and yet no certs either').stack
+                    cacheResult err, hostname, certInfo, sniCb
+                    return
+                return
+            return
+    
+        fetch = (hostname, sniCb) ->
+            if !hostname
+                sniCb? new Error('[sniCallback] [fetch] no hostname')
+                return
+            opts.letsencrypt.fetch { domains: [ hostname ] }, (err, certInfo) ->
+                if opts.debug
+                    console.log '[ChocoLetsEncrypt] fetch from disk result \'' + hostname + '\':'
+                    console.log certInfo and Object.keys(certInfo)
+                    if err
+                        console.error err.stack or err
+                if err
+                    sniCb? err, null
+                    return
+                if certInfo
+                    result = cacheResult err, hostname, certInfo, sniCb
+                    if sniCb? then return else return result
+                registerCert hostname, sniCb
+                return
+            return
+    
+        if !opts
+            throw new Error('requires opts to be an object')
+        if opts.debug
+            console.log '[ChocoLetsEncrypt] creating sniCallback', JSON.stringify(opts, ((k, v) ->
+                if v instanceof Array
+                    return JSON.stringify(v)
+                v
+            ), '    ')
+        if !opts.letsencrypt
+            throw new Error('requires opts.letsencrypt to be a letsencrypt instance')
+        if !opts.lifetime
+            opts.lifetime = 90 * 24 * 60 * 60 * 1000
+        if !opts.failedWait
+            opts.failedWait = 5 * 60 * 1000
+        if !opts.renewWithin
+            opts.renewWithin = 3 * 24 * 60 * 60 * 1000
+        if !opts.memorizeFor
+            opts.memorizeFor = 1 * 24 * 60 * 60 * 1000
+        if !opts.approveRegistration
+    
+            opts.approveRegistration = (hostname, cb) ->
+                cb null, null
+                return
+    
+        #opts.approveRegistration = function (hostname, cb) { cb(null, null); };
+        if !opts.handleRenewFailure
+            opts.handleRenewFailure = handleRenewFailure
+        (hostname, cb) ->
+            if !hostname
+                cb? new Error('[sniCallback] no hostname')
+                return
+            
+            # use first domain name defined in `letsencrypt.domains` 
+            # as the certificate for `hostname` will be there
+            if opts.domains then hostname = opts.domains[0]
+
+            now = Date.now()
+            certInfo = ipc[hostname]
+            
+            #
+            # No cert is available in cache.
+            # try to fetch it from disk quickly
+            # and return to the browser
+            #
+            if !certInfo
+                if opts.debug
+                    console.log '[ChocoLetsEncrypt] no certs loaded for \'' + hostname + '\''
+                result = fetch hostname, cb
+                if cb? then return else return result
+            #
+            # A cert is available
+            # See if it's old enough that
+            # we should refresh it from disk
+            # (in the background)
+            #
+            # TODO once ECDSA is available, wait for cert renewal if its due (maybe?)
+            if certInfo.tlsContext
+                cb? null, certInfo.tlsContext
+                if now - (certInfo.loadedAt) < certInfo.memorizeFor
+                    # these aren't stale, so don't fall through
+                    if opts.debug
+                        console.log '[ChocoLetsEncrypt] certs for \'' + hostname + '\' are fresh from disk'
+                    if cb? then return else return certInfo.tlsContext
+            else if now - (certInfo.loadedAt) < opts.failedWait
+                if opts.debug
+                    console.log '[ChocoLetsEncrypt] certs for \'' + hostname + '\' recently failed and are still in cool down'
+                # this was just fetched and failed, wait a few minutes
+                cb? null, null
+                return
+            if opts.debug
+                console.log '[ChocoLetsEncrypt] certs for \'' + hostname + '\' are stale on disk and should be will be fetched again'
+                console.log
+                    age: now - (certInfo.loadedAt)
+                    loadedAt: certInfo.loadedAt
+                    issuedAt: certInfo.issuedAt
+                    expiresAt: certInfo.expiresAt
+                    privkey: ! !certInfo.privkey
+                    chain: ! !certInfo.chain
+                    fullchain: ! !certInfo.fullchain
+                    cert: ! !certInfo.cert
+                    memorizeFor: certInfo.memorizeFor
+                    failedWait: opts.failedWait
+            result = fetch hostname, cb
+            if cb? then return else return result
+
 #### The World to animate 
 
 class World
@@ -115,26 +341,108 @@ class World
         sessions = new Sessions cache
         
         space = new Reserve.Space datadir
-        
+
         workflow = Workflow.main
 
         # Get application Config for Http only server and base port, key and cert options
         config = require('./config')(datadir).clone()
-        port ?= config.port
-        port ?= 8026
+        port_https = port
+        port_https ?= config.port_https
+        port_https ?= config.port
+        port_https ?= 8026
+        port_http = config.port_http
+        port_http ?= port_https + if config.http_only then 0 else 1
+        domains = config.letsencrypt?.domains
+        if domains?
+            hostname = domains[0]
+            # There is currently a bug in letsencrypt/core.js which forces us to repeat first domain name at the end of the `domains` array
+            if domains.length > 1 and domains[domains.length - 1] isnt hostname then domains.push hostname
+        config.letsencrypt.published = Fs.existsSync datadir + '/letsencrypt/live/' + hostname + '/fullchain.pem' if config.letsencrypt? 
         key ?= config.key
-        key ?= 'privatekey.pem'
+        key ?= if config.letsencrypt?.published is on then 'privkey.pem' else 'privatekey.pem'
         cert ?= config.cert
-        cert ?= 'certificate.pem'
+        cert ?= if config.letsencrypt?.published is on then 'fullchain.pem' else 'certificate.pem'
+        
+        LetsEncrypt = if config.letsencrypt? then require('letsencrypt') else null
+
+        middleware = do ->
+            middleware = https:[], http:[]
+            
+            if config.letsencrypt? then do ->
+                middleware.http.push (args) ->
+                    {request, response} = args
+                    prefix = '/.well-known/acme-challenge/'
+                    if request.url.indexOf(prefix) >= 0
+                        response.writeHead 200, { "Content-Type": "text/plain" }
+                        key = request.url.slice prefix.length
+                        try source = Fs.readFileSync Path.join(datadir + '/letsencrypt/root', key), 'utf8' 
+                        catch then source = ""
+                        response.end source
+                        return no
+                    yes
+            
+            if config.proxy? then do ->
+                proxies = {}
+                domain_port = port_https + 10
+                
+                domains_proxied = switch _.type(config.proxy)
+                    when _.Type.Array then config.proxy
+                    when _.Type.Boolean then config.letsencrypt?.domains
+                
+                if domains_proxied? then for domain in domains_proxied when not proxies[domain] 
+                    if domain.substr(0,4) is 'www.'
+                        main_domain = domain.substr 4
+                        main_domain_port = proxies[main_domain].port
+                        proxies[domain] = host:domain, port:main_domain_port ? domain_port
+                        if not main_domain_port? then domain_port += 10
+                    else
+                        proxies[domain] = host:domain, port:domain_port
+                        domain_port += 10
+                
+                    HttpProxy = require 'http-proxy'
+                    proxy = HttpProxy.createProxyServer {}
+                
+                    proxy.on 'error', (err, request, response) ->
+                        console.log  'Proxy ' + err + ' - Message:' + request.url + ' - Headers: ' + ((k + ':' + v for k,v of request.headers when k in ['host', 'user-agent']).join ', ') + '\n\n'
+                        
+                    middleware[if config.http_only then 'http' else 'https'].push (args) ->
+                        {request, response} = args
+                        {port} = proxies[request.headers.host]
+                        if port is null then response.end('') ; return no 
+                        proxy.web request, response, { target: "#{if config.http_only then 'http' else 'https'}://127.0.0.1:#{port}", secure:false }                        
+
+            middleware
+        
+        if config.http_only
+            for func in middleware.http then middleware.https.push func
+            middleware.http.length = 0
 
         # Https security options
-        options = unless config.http_only
-                [
-                    key: Fs.readFileSync datadir + '/' + key
-                    cert: Fs.readFileSync datadir + '/' + cert
-                ]
-            else
-                []
+        options = unless config.http_only then do ->
+            dir = datadir + if config.letsencrypt?.published is on then '/letsencrypt/live/' + hostname else ''
+            option = 
+                key: Fs.readFileSync dir + '/' + key
+                cert: Fs.readFileSync dir + '/' + cert
+            if config.letsencrypt? and config.letsencrypt.domains? and config.letsencrypt.email?
+                le_config =
+                  server: if config.letsencrypt.production is on then LetsEncrypt.productionServerUrl else LetsEncrypt.stagingServerUrl
+                  webrootPath: datadir + '/letsencrypt/root'
+                  configDir: datadir + '/letsencrypt'
+                  privkeyPath: ':config/live/:hostname/privkey.pem'
+                  fullchainPath: ':config/live/:hostname/fullchain.pem'
+                  certPath: ':config/live/:hostname/cert.pem'
+                  chainPath: ':config/live/:hostname/chain.pem'
+                  debug: config.letsencrypt.debug ? false
+            
+                le_handlers =
+                  {}
+            
+                letsencrypt = LetsEncrypt.create le_config, le_handlers
+                {email, domains, agreeTos, debug} = config.letsencrypt
+                option.SNICallback = sni_callback.create { letsencrypt, debug, domains, httpsOptions:_.clone(option), approveRegistration: (hostname, cb) -> cb null, {email, domains, agreeTos, debug} }
+            [option]
+        else
+            []
                 
         network = if config.http_only then Http else Https
 
@@ -272,6 +580,9 @@ class World
         # and fills an [HttpResponse](http://nodejs.org/docs/latest/api/all.html#http.ServerResponse)
         server = network.createServer.apply network, options.concat (request, response) ->
             try
+                # execute middleware services if any (like LetsEncrypt...)
+                for func in middleware.https then unless func({request, response}) then return
+                
                 # upgrade a fallback websocket call
                 return if upgrade request, response
                 
@@ -286,14 +597,16 @@ class World
                 response.end 'error : ' + err.stack
                 
         # Start our web server
-        server.listen port
+        server.listen unless config.http_only then port_https else port_http
 
         unless config.http_only
             # Start Http server with redirection to Https
             Http.createServer (request, response) ->
+                for func in middleware.http then unless func({request, response}) then return
+
                 response.writeHead 302, {'Location': "https://#{request.headers.host}" }
                 response.end ''
-            .listen port+1
+            .listen port_http
 
         new WebSocket.Server {server} 
         .on 'connection', (ws) ->
@@ -305,7 +618,7 @@ class World
                     ws.send "{result:#{result.body},id:#{message.id}}" if result.body? and result.body isnt ''
         
         return
-        
+
 #### Start
 # The main workflow service.
 exports.start = (appdir, port) ->

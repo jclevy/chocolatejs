@@ -1,3 +1,54 @@
+## v0.0.17 - (2016-06-08)
+
+--------------
+
+NEW FEATURES
+
+ - Free SSL certificate generation using `letsencrypt` service!
+  - configure in `data/app.config.json`:
+
+            "letsencrypt": {
+                "domains": [ "yourdomain.com" ],
+                "email": "you@yourdomain.com",
+                "agreeTos": true,
+                "production": true,
+            }
+            
+  - put `false` in `production` parameter to test certificate generation
+  - generated certificate should appear in `data/letsencrypt/live/yourdomain` folder
+  - your certificate will be renewed and the app restarted, automatically after approximately 90 days
+  - you can put many domains in the same certificate `"domains": [ "yourdomain.com", "theirdomain.com", "ourdomain.com" ]`
+  - you **have** to explicitly add an entry with `yourdomain` prefixed with `www` if you want to support it
+ 
+      `"domains": [ "yourdomain.com", "www.yourdomain.com" ]`
+
+ - Reverse proxy simple service
+  - configure in `data/app.config.json`:
+
+            "proxy": ['yourdomain.com', 'theirdomain.com', 'ourdomain.com']
+            
+  - `Chocolate` will forward request for those domains to local processes/apps awaiting requests on your proxy app port + 10  
+    so if your proxy app is on `8026` port then `yourdomain.com` will be on `8036`, `theirdomain.com` will be on `8046`...
+  - if you also use `Chocolate`'s `letsencrypt` feature, you only have to set:
+
+            "proxy": true
+            
+     and `Chocolate` will use the domains defined in
+    
+            "letsencrypt": {
+                "domains": [ "yourdomain.com" ],
+                ...
+                
+                
+UPDATES
+
+ - in `data/app.config.json` :
+  - `port_https` and `port_https` can be defined in `data/app.config.json` and will be used if present when starting the app
+  - When `port_https` and `port_https` are not defined in config file but `port` is then `port` will be used as port for `https` and `port+1` for `http`
+
+ - in `server.file`:
+  - `logConsoleAndErrors` now add a timestamp on every log entry in `chocolate.log`
+
 ## v0.0.16 - (2016-05-31)
 
 --------------
@@ -597,7 +648,7 @@ FIXED BUGS
 - editing code in lab panel is very laggy
 - 'body' does not work in chocokup when not used in panel
 - 'static' folder missing
-- incorrected Monit sample to supervise the upstart daemon
+- incorrect Monit sample to supervise the upstart daemon
 - update client libraries:
   - coffescript: 1.6.2
   - jasmine: 1.3.1

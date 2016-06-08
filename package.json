@@ -1,27 +1,53 @@
 {
-    "name": "chocolate",
-    "version": "0.0.16",
-    "description": "A full stack Node.js web framework built using Coffeescript",
-    "preferGlobal": "true",
-    "keywords": ["fullstack", "reactive", "coffeescript", "framework", "online", "ide", "web", "app", "markdown", "jasmine", "ace", "jquery", "coffeekup", "docco", "git", "impress"],
-    "homepage": "https://chocolatejs.org",
-    "repository": "git://github.com/jclevy/chocolatejs",
-    "bugs": { "url" : "http://github.com/jclevy/chocolatejs/issues"
-    },
-    "license":"MIT",
-    "bin": { "chocomake": "./bin/chocomake" },
-    "author": "Jean-Claude Levy",
-    "dependencies": {
-        "coffee-script": "1.9.1",
-        "bufferstream": "0.6.2",
-        "jasmine-node": "1.5.0",
-        "chokidar": "1.4.3",
-        "formidable": "1.0.14",
-        "microtime": "2.1.1",
-        "sqlite3": "3.1.3",
-        "ws": "0.8.1",
-        "node-inspector": "0.12.8"
-    },
-    "engines": { "node": ">=0.10.0" },
-    "os" : [ "!win32" ]
+  "name": "chocolate",
+  "version": "0.0.17",
+  "description": "A full stack Node.js web framework built using Coffeescript",
+  "preferGlobal": "true",
+  "keywords": [
+    "fullstack",
+    "reactive",
+    "coffeescript",
+    "framework",
+    "online",
+    "ide",
+    "web",
+    "app",
+    "markdown",
+    "jasmine",
+    "ace",
+    "jquery",
+    "coffeekup",
+    "docco",
+    "git",
+    "impress"
+  ],
+  "homepage": "https://chocolatejs.org",
+  "repository": "git://github.com/jclevy/chocolatejs",
+  "bugs": {
+    "url": "http://github.com/jclevy/chocolatejs/issues"
+  },
+  "license": "MIT",
+  "bin": {
+    "chocomake": "./bin/chocomake"
+  },
+  "author": "Jean-Claude Levy",
+  "dependencies": {
+    "bufferstream": "0.6.2",
+    "chokidar": "1.4.3",
+    "coffee-script": "1.9.1",
+    "formidable": "1.0.14",
+    "jasmine-node": "1.5.0",
+    "letsencrypt": "^1.4.4",
+    "microtime": "2.1.1",
+    "node-inspector": "0.12.8",
+    "http-proxy": "1.13.3",
+    "sqlite3": "3.1.3",
+    "ws": "0.8.1"
+  },
+  "engines": {
+    "node": ">=0.10.0"
+  },
+  "os": [
+    "!win32"
+  ]
 }

@@ -39,11 +39,15 @@ It includes :
 
  - **liteJq** -- a lite jQuery-compatible library
 
+ - an automatic **free SSL certificate** service with Let's Encrypt
+
+ - a simple **reverse proxy** service
+
+ - a basic **source control** with Git
+
  - **Chocoss** -- a Css framework
 
  - **ChocoDB** -- a kind of nosql database running on SQLite
-
- - a basic **source control** with Git
 
  -  **NewNotes** -- a promising note taking tool
 
@@ -57,75 +61,55 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.16 - (2016-05-31)**
+**Chocolate v0.0.17 - (2016-06-08)**
 
 NEW FEATURES
 
- - `server/config` module is added to manage config files, instead of being defined the `data/config.coffee` file. 
-  - Configuration will now be done inside `data/app.config.json` file
-  - When `Chocolate` finds a `data/config.coffee` file it copies it's content in `data/app.config.json` if the keys are not already existing ther.
-  - So after running once, you can safely remove the `data/config.coffee` file or only parts of it, if it's better for you.
-  - If you keep `data/config.coffee` alongside the new `data/app.config.json`, then configurations done in `data/app.config.json` will be overridden by those done in `data/config.coffee`
-  - as the `config` module is available in __ params of locco/interface service, you can not anymore directly access config key/values, but you will have to use the `get` method of the `config` object
-   
-                myservice = new Interface ({__}) -> 
-                    configValue = __.config.get 'configKey'
+ - Free SSL certificate generation using `letsencrypt` service!
+  - configure in `data/app.config.json`:
 
+            "letsencrypt": {
+                "domains": [ "yourdomain.com" ],
+                "email": "you@yourdomain.com",
+                "agreeTos": true,
+                "production": true,
+            }
+            
+  - put `false` in `production` parameter to test certificate generation
+  - generated certificate should appear in `data/letsencrypt/live/yourdomain` folder
+  - your certificate will be renewed and the app restarted, automatically after approximately 90 days
+  - you can put many domains in the same certificate `"domains": [ "yourdomain.com", "theirdomain.com", "ourdomain.com" ]`
+  - you **have** to explicitly add an entry with `yourdomain` prefixed with `www` if you want to support it:
+ 
+      `"domains": [ "yourdomain.com", "www.yourdomain.com" ]`
 
+ - Reverse proxy simple service
+  - configure in `data/app.config.json`:
+
+            "proxy": ['yourdomain.com', 'theirdomain.com', 'ourdomain.com']
+            
+  - `Chocolate` will forward request for those domains to local processes/apps awaiting requests on your proxy app port + 10  
+    so if your proxy app is on `8026` port then `yourdomain.com` will be on `8036`, `theirdomain.com` will be on `8046`...
+  - if you also use `Chocolate`'s `letsencrypt` feature, you only have to set:
+
+            "proxy": true
+            
+     and `Chocolate` will use the domains defined in
+    
+            "letsencrypt": {
+                "domains": [ "yourdomain.com" ],
+                ...
+                
+                
 UPDATES
 
- - in `locco/interface`:
-  - `this` in `check` and `locks` function is now defined to `{bin, document:@document, 'interface':@}`
- 
- - in server/document:
-  - add `throttle` option in Cache and Structure class to define time to wait between successive `hibernate` calls
-  - add `reload` method in Cache class to reload the cache from file
-  - add `save` method in Cache class to put save the cache to file
-  - add `clone` method in Cache class to clone an object from the cache
-  - add `set` method in Cache class to put a new value to cache and immediately hibernate the cache
-  - add `update` method to allow the update of many keys at once syncing from an optional external store and saving updates on file immediately
+ - in `data/app.config.json` :
+  - `port_https` and `port_https` can be defined in `data/app.config.json` and will be used if present when starting the app
+  - When `port_https` and `port_https` are not defined in config file but `port` is then `port` will be used as port for `https` and `port+1` for `http`
 
- - in `general/chocodash`:
-  - add `_.Cuid` generator from Eric Elliott
-  - allow `_.throttle` to receive no options parameter, `_.throttle -> #do something max once a second`
+ - in `server.file`:
+  - `logConsoleAndErrors` now add a timestamp on every log entry in `chocolate.log`
 
- - in `general/coffeekup`:
-  - coffeekup id generator replaced by the Cuid generator from Eric Elliott
-
- - in `server/interface`:
-   - access to the `client`, `general` and `server` folders is now restricted
-     - as a standard user you can only call functions called `interface` in modules of those folders
-     - other functions defined in modules of those folders are accessible only from other modules on the server
-     - a user with the `sofkey` can access every function in those modules
- 
- - in `server/monitor`:
-  - now also restarts the app when a file with suffix `.config.json` is modified
-
- - in `data/config` or now in `data/app.config.json`, if you add a default page handler to which redirect unkonwn pages, you have to use an Array and not a Function to pass value as a key index:
-
-        before:
-            exports.defaultExchange = where:'demo', what:'showme', params: name: -> 0
-        
-        now:
-            exports.defaultExchange = where:'demo', what:'showme', params: name: [0]
-
-    - `where`: module name you want to call for every unknown page
-    - `what`: function name in the module do call (if omitted the module itself will be called)
-    - `params`: params to pass to the function. If the param value is an array, then the value(s) in the array will be used as key index(es) to the original params. 0 is the page path and 1...N are the querystring parameters' value
-
-FIXED BUGS
-
- - in locco/interface:
-  - `TypeError: Object true has no method 'call'` in Interface.Web.submit 
- 
- - in server/document:
-  - bug in asynchronous hibernate (typo)
-
- - in general/coffeekup:
-  - attributes with `undefined`, `null` and `false` values are not rendered anymore
- 
- - in server/file:
-  - `logConsoleAndErrors` now works better on consecutive calls to `console` functions like `console.log`
 
 See history in **CHANGELOG.md** file
 
@@ -191,40 +175,27 @@ There is a non-writable demo at : <https://demo.chocolatejs.org/>
 
 ## <a name="Choco-Installation"></a> Installation [⌂](#Choco-Summary) 
 
-This procedure was tested as **root** on Debian 6.0
+This procedure was tested as **root** on Debian 8.0
 
 ### Prerequisites
 
-Chocolate needs Node.js. If you need to install it, here is a procedure to:
+Chocolate needs Node.js (from v0.10.22 to latest).
 
-**Install Node.js**
+**Install Node.js (v6.x)**
 
     apt-get update
-    apt-get install python
-    apt-get install git-core curl build-essential openssl libssl-dev
-    mkdir -p /tmp/build/node
-    cd /tmp/build/node
-    git clone https://github.com/joyent/node.git .
-    git checkout v0.10.0 #Try checking nodejs.org for what the stable version is
-    ./configure --openssl-libpath=/usr/lib/ssl
-    make
-    make install
+    apt-get upgrade
+    apt-get install curl
+    curl -sL https://deb.nodesource.com/setup_6.x | bash -
+    apt-get install -y nodejs
 
 **Make node modules accessible everywhere**
 
- -- In /etc/profile, append :
- 
-    export NODE_PATH="/usr/local/lib/node_modules"
+You can use start, stop and monitor Chocolate's app with PM2 service:
 
-&nbsp;
+**Install PM2**
 
-You can use start, stop and monitor Chocolate's daemon if you:
-
-**Install Upstart, Monit and Sudo**
-
-    apt-get install upstart
-    apt-get install monit
-    apt-get install sudo
+    npm install -g pm2
 
 &nbsp;
 
@@ -232,89 +203,47 @@ Chocolate also needs:
 
 **Other prerequisites**
 
-    apt-get install openssl
+    apt-get install g++
     apt-get install git
-    apt-get install sqlite3
-    apt-get install libsqlite3-dev
-
+        
+    npm install -g coffee-script
+    
 &nbsp;
 
 ### Install Chocolate:
 
-    npm install -g chocolate
+    npm install -g --unsafe-perm chocolate
 
 &nbsp;
 
-**Create Chocolate user to start Chocolate daemon**
-
-    useradd chocolate
-    mkdir /home/chocolate
-    usermod -d /home/chocolate -s /bin/bash chocolate
-
 **Run chocomake to create myapp**
 
-    cd /home/chocolate
+    cd /home
     chocomake myapp
 
 Answer asked questions to create a self-signed SSL certificate.
 
-**Change chocolate files owner**
-
-    cd /home
-    chown -R chocolate:chocolate chocolate
-
 &nbsp;
 
-**Install Chocolate as daemon**
+**Install Chocolate in PM2**
 
-    vi /etc/init/chocolate.conf
+    su - myapp
 
-        #!upstart
-        description "Chocolate node.js server"
-    
-        start on startup
-        stop on shutdown
-    
-        script
-        exec sudo -u chocolate -i /usr/local/lib/node_modules/coffee-script/bin/coffee /usr/local/lib/node_modules/chocolate/server/monitor.coffee /home/chocolate/myapp 2>&1 >> /var/log/node.log
-        end script
+**Start 'myapp'**
 
-    chmod 755 /etc/init/chocolate.conf
+    pm2 start coffee --name="myapp" -- /usr/lib/node_modules/chocolate/server/monitor.coffee /home/myapp
+        
+    pm2 save
+    pm2 startup
+    ctrl+d
+    -- then execute the command that was displayed
 
-**Install Monit to supervise the upstart daemon**
+**To stop, start or restart 'myapp'**
 
-    vi /etc/monit/conf.d/chocolate.conf
+    pm2 stop myapp
+    pm2 start myapp
+    pm2 restart myapp
 
-        #!monit
-        set logfile /var/log/monit.log
-         
-        check host nodejs with address 127.0.0.1
-            start program = "/sbin/start chocolate"
-            stop program = "/sbin/stop chocolate"
-            if failed port 8026 type TCPSSL protocol HTTP
-                request /
-                with timeout 10 seconds
-                then restart
-         
-     # unless it it's configured
-     # please configure monit and then edit /etc/default/monit
-     # and set the "startup" variable to 1 in order to allow
-     # monit to start
-
-    vi /etc/monit/monitrc
-
-    # remove comment on line :
-    #   set daemon  120           # check services at 2-minute intervals 
-     
-    /etc/init.d/monit start
-
-**Reboot**
-
-Please **reboot** to activate Upstart and Monit...
-
-**Run chocolate**
-
-    start chocolate
 
 &nbsp;
 
@@ -324,14 +253,14 @@ Please **reboot** to activate Upstart and Monit...
 
 Chocolate runs on your server and responds to https requests on port 8026
 
-You can change port number in /etc/init/chocolate.conf where you add the **port** parameter after  `/home/chocolate/myapp` at line:
+You can change port number in the `pm2 start` command where you append the **port** parameter:
 
-    exec sudo -u chocolate -i /usr/local/lib/node_modules/coffee-script/bin/coffee /usr/local/lib/node_modules/chocolate/server/monitor.coffee /home/chocolate/myapp 80 2>&1 >> /var/log/node.log
+    pm2 start coffee --name="myapp" -- /usr/lib/node_modules/chocolate/server/monitor.coffee /home/myapp 8081
 
-You can also use a simple Http server by specifying options in the config.coffee file:
+You can also use a simple Http server by specifying options in the `/home/myapp/data/app.config.json` file:
 
-    exports.http_only = yes
-    exports.port = 80
+    http_only: true
+    port: 80
 
 ### <a name="Choco-UseIt-LogOn"></a> Log on [⌂](#Choco-Summary)
 
@@ -387,16 +316,62 @@ Http requests are redirected to https
 Https server is located (by default) at port 8026  
 Http server is located at port Https+1 (8027)
 
-You can specify options in data/config.coffee file:
+You can specify options in `data/app.config.json` file:
 
-    exports.http_only = yes or no
-    exports.port = <main port number>
-    exports.key = <key filename>
-    exports.cert = <cert filename>
+    http_only: true or false
+    port: <main port number>
+    key: <key filename>
+    cert: <cert filename>
+
+**Let's Encrypt SSL certificate**
+
+You can use [Let's Encrypt](https://letsencrypt.org/) free SSL certificate service directly in your Chocolate app:
+
+First configure Let's Encrypt's service in `data/app.config.json`:
+
+    "letsencrypt": {
+        "domains": [ "yourdomain.com" ],
+        "email": "you@yourdomain.com",
+        "agreeTos": true,
+        "production": true,
+    }
+            
+You can put `false` in `production` parameter to test certificate generation. The generated certificates should appear in `data/letsencrypt/live/yourdomain` folder
+
+Your certificate will then be renewed and the app restarted, automatically after approximately 90 days
+
+But there is more: you can put many domains in the same certificate 
+
+    "domains": [ "yourdomain.com", "theirdomain.com", "ourdomain.com" ]
+
+Finally, know that you **have** to explicitly add an entry with `yourdomain` prefixed with `www` if you want to support it:
+ 
+    "domains": [ "yourdomain.com", "www.yourdomain.com" ]
+
+**Reverse Proxy service**
+
+There is a simple Reverse Proxy service that you can configure in `data/app.config.json`:
+
+    "proxy": ['yourdomain.com', 'theirdomain.com', 'ourdomain.com']
+            
+Then `Chocolate` will forward request for those domains to local processes/apps awaiting requests on your proxy app port + 10
+    
+So if your proxy app is on `8026` port then `yourdomain.com` will be on `8036`, `theirdomain.com` will be on `8046`...
+
+And if you also use `Chocolate`'s `letsencrypt` feature, you'll only have to set:
+
+            "proxy": true
+            
+and `Chocolate` will use the domains defined in
+    
+            "letsencrypt": {
+                "domains": [ "yourdomain.com" ],
+                ...
+
 
 **Chocolate system services and files**
 
-They are accessible at:
+They are accessible (if you registered the master key) at:
 
     https://myserver:8026/-/server...
     https://myserver:8026/-/general...
@@ -405,11 +380,12 @@ They are accessible at:
 
 They are at:
 
+    https://myserver:8026/myservice...
     https://myserver:8026/mydir/myservice...
 
 **Default service in source file**
 
-If your source file exports an `interface` function (ie. in default.coffee):
+If your source file exports an `interface` function (ie. in `default.coffee`):
 
     exports.interface = () -> 
         'Hello world!'    
@@ -427,7 +403,7 @@ You can use the [Interface.Web](#Choco-Interface-Web) service with [Chocokup](#C
     Interface = require 'chocolate/general/locco/interface'
     exports.interface = 
         new Interface.Web ->
-            div 'Hello world #{world}!' for world in [1..5]
+            div "Hello world #{world}!" for world in [1..5]
 
 &nbsp;
 

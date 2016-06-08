@@ -358,33 +358,27 @@ exports.logConsoleAndErrors = (path) ->
     process.stdout.write = stdout_write if stdout_write?
     process.stderr.write = stderr_write if stderr_write?
 
-    stdout_write = process.stdout.write
-    stderr_write = process.stderr.write
+    write = (target, chunk, encoding, callback) ->
+        return unless chunk?
+        encoding = null if encoding is 'buffer'
+        done = no
+        if write_stream.write new Date().toJSON() + ' - '
+            if write_stream.write chunk, encoding
+                write[target] chunk, encoding, callback
+                done = yes
+        if not done then write_stream.once 'drain', write
+        
+    write.stdout = stdout_write = process.stdout.write.bind(process.stdout)
+    write.stderr = stderr_write = process.stderr.write.bind(process.stderr)
     
     streamOut = new require('stream').Writable()
-    streamOut._write = (chunk, encoding, done) ->
-        write = ->
-            encoding = null if encoding is 'buffer'
-            if write_stream.write chunk, encoding
-                stdout_write.call process.stdout, chunk, encoding
-                done?()
-            else write_stream.once 'drain', write
-        write()
-        
+    streamOut._write = (chunk, encoding, callback) -> write 'stdout', chunk, encoding, callback
 
     streamErr = new require('stream').Writable()
-    streamErr._write = (chunk, encoding, done) ->
-        write = ->
-            encoding = null if encoding is 'buffer'
-            if write_stream.write chunk, encoding
-                stderr_write.call process.stderr, chunk, encoding
-                done?()
-            else write_stream.once 'drain', write
-        write()
+    streamErr._write = (chunk, encoding, callback) -> write 'stderr', chunk, encoding, callback
 
     process.stdout.write = streamOut.write.bind(streamOut)
     process.stderr.write = streamErr.write.bind(streamErr)
-
 
 #### Internal functions
 
