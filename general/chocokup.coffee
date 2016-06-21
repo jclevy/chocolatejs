@@ -336,7 +336,6 @@ class Chocokup.Html extends Chocokup
         super @params, @content
         @params = {} unless @params?
 
-
 Chocokup.Panel = Chocokup.Html
 
 class Chocokup.App extends Chocokup.Document

@@ -35,6 +35,8 @@ languages =
     name: 'javascript', symbol: '//', symbol_close: ''
   '.json':
     name: 'javascript', symbol: '//', symbol_close: ''
+  '.html':
+    name: 'xml', symbol: '/* ', symbol_close: ' */'
   '.css':
     name: 'css', symbol: '/* ', symbol_close: ' */'
   '.rb':
@@ -49,6 +51,10 @@ languages =
     name: 'markdown', symbol: '', symbol_close: ''
   '.cd':
     name: 'markdown', symbol: '', symbol_close: ''
+  '.chocokup':
+    name: 'coffeescript', symbol: '', symbol_close: ''
+  '.ck':
+    name: 'coffeescript', symbol: '', symbol_close: ''
 
 for ext, l of languages
 
@@ -143,8 +149,12 @@ generate = (source, code) ->
     switch path.extname(source)
         when '.txt'
             html = '<pre>' + code + '</pre>'
+        when '.html'
+            html = code
         when '.markdown', '.md', '.chocodown', '.cd'
             html = new Chocodown.converter().makeHtml code
+        when '.chocokup', '.ck'
+            try html = new Chocodown.Chocokup.Panel(code).render() catch e then html = e.message
         else
             sections = parse source, code
             hihilighted = highlight source, sections

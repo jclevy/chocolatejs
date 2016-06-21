@@ -53,7 +53,9 @@ It includes :
 
 Chocolate integrates:
 
- > [Node.js](http://nodejs.org) - [Coffeescript](http://coffeescript.org) - [Ace](http://ace.ajax.org) - [Docco](http://jashkenas.github.com/docco/) - [Coffeekup](http://coffeekup.org) - [Jasmine](http://pivotal.github.com/jasmine) - [Reactor](https://github.com/fynyky/reactor.js) - [Highlight.js](http://softwaremaniacs.org/soft/highlight/en) - [Showdown](https://github.com/coreyti/showdown) - [Ccss](https://github.com/aeosynth/ccss) - [Git](http://git-scm.com) - [Impress](http://bartaz.github.com/impress.js/#/bored)
+ > [Node.js](http://nodejs.org) - [Coffeescript](http://coffeescript.org) - [Ace](http://ace.ajax.org) - [Letsencrypt](https://github.com/Daplie/node-letsencrypt) - [Http-proxy](https://github.com/nodejitsu/node-http-proxy) - [Jasmine](http://pivotal.github.com/jasmine) - [Reactor](https://github.com/fynyky/reactor.js)
+ >
+ > [Coffeekup](http://coffeekup.org) - [Showdown](https://github.com/coreyti/showdown) - [Highlight.js](http://softwaremaniacs.org/soft/highlight/en) - [Docco](http://jashkenas.github.com/docco/) - [Ccss](https://github.com/aeosynth/ccss) - [Git](http://git-scm.com) - [Impress](http://bartaz.github.com/impress.js/#/bored)
 
 &nbsp;
 
@@ -61,54 +63,25 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.17 - (2016-06-08)**
+**Chocolate v0.0.18 - (2016-06-21)**
 
 NEW FEATURES
 
- - Free SSL certificate generation using `letsencrypt` service!
-  - configure in `data/app.config.json`:
+ - add .chocokup files support
+  - Chocokup files are `html` files written with a Coffeescript syntax
+  - Using `Code` and `Doc` panel side-by-side you can design Html page easily
+  - When you save a `.chocokup` file in the `client` folder, it is immediately converted to an `html` file in the `static/lib` folder
 
-            "letsencrypt": {
-                "domains": [ "yourdomain.com" ],
-                "email": "you@yourdomain.com",
-                "agreeTos": true,
-                "production": true,
-            }
-            
-  - put `false` in `production` parameter to test certificate generation
-  - generated certificate should appear in `data/letsencrypt/live/yourdomain` folder
-  - your certificate will be renewed and the app restarted, automatically after approximately 90 days
-  - you can put many domains in the same certificate `"domains": [ "yourdomain.com", "theirdomain.com", "ourdomain.com" ]`
-  - you **have** to explicitly add an entry with `yourdomain` prefixed with `www` if you want to support it:
- 
-      `"domains": [ "yourdomain.com", "www.yourdomain.com" ]`
-
- - Reverse proxy simple service
-  - configure in `data/app.config.json`:
-
-            "proxy": ['yourdomain.com', 'theirdomain.com', 'ourdomain.com']
-            
-  - `Chocolate` will forward request for those domains to local processes/apps awaiting requests on your proxy app port + 10  
-    so if your proxy app is on `8026` port then `yourdomain.com` will be on `8036`, `theirdomain.com` will be on `8046`...
-  - if you also use `Chocolate`'s `letsencrypt` feature, you only have to set:
-
-            "proxy": true
-            
-     and `Chocolate` will use the domains defined in
-    
-            "letsencrypt": {
-                "domains": [ "yourdomain.com" ],
-                ...
-                
-                
 UPDATES
+ 
+ - text written in `Coffeescript` or `Chocodown` Lab panels are saved in local storage, so you can get them back on page reload
+ - updated Ace to package April.16.2016
 
- - in `data/app.config.json` :
-  - `port_https` and `port_https` can be defined in `data/app.config.json` and will be used if present when starting the app
-  - When `port_https` and `port_https` are not defined in config file but `port` is then `port` will be used as port for `https` and `port+1` for `http`
+FIXED BUGS
 
- - in `server.file`:
-  - `logConsoleAndErrors` now add a timestamp on every log entry in `chocolate.log`
+ - in `coffeekup.coffee`: when a tag has only one attribute and this attributes starts with a dot then it is correctly interpreted as a css class declaration
+  
+     `i '.icon'` is now correctly translated to `<i class="icon"> ` instead of `<i>.icon</i>`
 
 
 See history in **CHANGELOG.md** file

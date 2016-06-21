@@ -297,7 +297,7 @@ exports.enter = (__) ->
             \t\t\t${1:end() | end.later}
             """
 
-        text "<script>_ide = {}; _sofkey = #{if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null'};</script>\n"
+        text "<script>_ = Chocodash; _ide = {}; _sofkey = #{if backdoor_key isnt '' then '"' + backdoor_key + '"' else 'null'};</script>\n"
         text "<script>_ide.snippets = {studio:{applied:{}, modes:#{JSON.stringify(snippets)}}, user:{applied:{}, modes:#{if @params.snippets then JSON.stringify @params.snippets else '{}'}}}</script>" 
         script src:"/static/vendor/ace/ace.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/ext-searchbox.js", type:"text/javascript", charset:"utf-8"
@@ -802,7 +802,7 @@ exports.enter = (__) ->
                 EditSession = require("ace/edit_session").EditSession
                 UndoManager = require("ace/undomanager").UndoManager
                 mode = switch _ide.get_extension path ? ''
-                    when '.coffee' then 'coffee'
+                    when '.coffee', '.chocokup', '.ck' then 'coffee'
                     when '.js' then 'javascript'
                     when '.json' then 'json'
                     when '.css' then 'css'
@@ -819,7 +819,7 @@ exports.enter = (__) ->
                 for type in ['studio', 'user']
                     if _ide.snippets[type].modes[mode]? and _ide.snippets[type].applied[mode] isnt on then snippetMode.snippetText += "\n#{_ide.snippets[type].modes[mode]}"
                 snippetManager.unregister _ide.current_snippet
-                _ide.current_snippet = snippetManager.parseSnippetFile snippetMode.snippetText
+                _ide.current_snippet = snippetManager.parseSnippetFile(snippetMode.snippetText ? "")
                 snippetManager.register _ide.current_snippet
                 doc.setUseSoftTabs true
                 if path? and path isnt ''
@@ -1417,10 +1417,13 @@ exports.enter = (__) ->
                             editor.selection.setSelectionRange start, start
             
             _ide.run_doccolate = (init) ->
-                style = '<style>' + Chocokup.Css.core + '</style>'
-                _ide.iframe_write document.id('documentation-doccolate-panel'),
-                    (if sources.current isnt '' then style + Doccolate.generate sources.current, editor.getSession().getValue() else ''), 
-                    (if init? then left:editor.getSession().getScrollLeft(), top:editor.getSession().getScrollTop(), elemW:-1, elemH:editor.getSession().getScreenLength() * editor.renderer.lineHeight - editor.renderer.scroller.clientHeight else undefined)
+                doit = ->
+                    style = '<style>' + Chocokup.Css.core + '</style>'
+                    _ide.iframe_write document.id('documentation-doccolate-panel'),
+                        (if sources.current isnt '' then style + Doccolate.generate sources.current, editor.getSession().getValue() else ''), 
+                        (if init? then left:editor.getSession().getScrollLeft(), top:editor.getSession().getScrollTop(), elemW:-1, elemH:editor.getSession().getScreenLength() * editor.renderer.lineHeight - editor.renderer.scroller.clientHeight else undefined)
+                        
+                setTimeout doit, 100
 
             _ide.error_message = (error) ->
                 line = if (info = error.location)? then '\n' + "at line:" + info.first_line + ", column:" + info.first_column + " (Coffeescript)" else ''
@@ -1491,9 +1494,12 @@ exports.enter = (__) ->
                 if debugColumnWidth + delta > 3
                     debugColumnWidth += delta
                     _ide.compile_coffeescript_code()
+            
+            _ide.saveInLocalStorage = _.throttle (section, value) -> localStorage.setItem section, value
                     
             _ide.compile_coffeescript_code = ->
                 source = experiment_editor.getSession().getValue()
+                _ide.saveInLocalStorage 'experiment_editor_content', source
                 no_debug = document.id('experiment-debug-panel-main').hasClass 'hidden'
                 
                 debug_core = (lines) -> """
@@ -1719,6 +1725,7 @@ exports.enter = (__) ->
                     
             _ide.compile_chocodown_code = ->
                 source = chocodown_editor.getSession().getValue()
+                _ide.saveInLocalStorage 'chocodown_editor_content', source
                 try
                     html = new Chocodown.converter({formatChocokup}).makeHtml source
                     document.id('experiment-html-panel').set 'text', html
@@ -1726,6 +1733,7 @@ exports.enter = (__) ->
                     _ide.iframe_write document.id('experiment-dom-panel'), html
                     chocodown_editor.focus()
                     document.id('experiment-run-panel').set 'text', ''
+
                 catch error
                     document.id('experiment-run-panel').set 'text', error
 
@@ -1810,6 +1818,8 @@ exports.enter = (__) ->
                 experiment_editor = set_editor 'experiment-coffeescript-panel-editor'
 
                 Acelang = require("ace/lib/lang")
+                past_content = localStorage.getItem('experiment_editor_content')
+                if past_content then experiment_editor.insert past_content
                 experiment_editor.getSession().on 'change', ->
                     Acelang.delayedCall(_ide.compile_coffeescript_code).schedule 200
 
@@ -1832,6 +1842,8 @@ exports.enter = (__) ->
 
                 chocodown_editor = set_editor 'experiment-chocodown-panel-editor', markdownMode
                 chocodown_editor.renderer.setShowGutter false
+                past_content = localStorage.getItem('chocodown_editor_content')
+                if past_content then chocodown_editor.insert past_content
                 chocodown_editor.getSession().on 'change', ->
                     Acelang.delayedCall(_ide.compile_chocodown_code).schedule 350
 

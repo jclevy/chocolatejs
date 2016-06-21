@@ -1,3 +1,25 @@
+## v0.0.18 - (2016-06-21)
+
+--------------
+
+NEW FEATURES
+
+ - add .chocokup files support
+  - Chocokup files are `html` files written with a Coffeescript syntax
+  - Using `Code` and `Doc` panel side-by-side you can design Html page easily
+  - When you save a `.chocokup` file in the `client` folder, it is immediately converted to an `html` file in the `static/lib` folder
+
+UPDATES
+ 
+ - text written in `Coffeescript` or `Chocodown` Lab panels are saved in local storage, so you can get them back on page reload
+ - updated Ace to package April.16.2016
+
+FIXED BUGS
+
+ - in `coffeekup.coffee`: when a tag has only one attribute and this attributes starts with a dot then it is correctly interpreted as a css class declaration
+  
+     `i '.icon'` is now correctly translated to `<i class="icon"> ` instead of `<i>.icon</i>`
+
 ## v0.0.17 - (2016-06-08)
 
 --------------

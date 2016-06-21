@@ -202,7 +202,9 @@ skeleton = (__data = {}) ->
           contents = a
         when 'string'
           if args.length is 1
-            contents = a
+            if args[0][0] isnt '.' then contents = a
+            else idclass = a ; contents = null
+                
           else
             if a is args[0]
               idclass = a

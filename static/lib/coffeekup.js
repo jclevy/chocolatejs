@@ -219,7 +219,12 @@
             break;
           case 'string':
             if (args.length === 1) {
-              contents = a;
+              if (args[0][0] !== '.') {
+                contents = a;
+              } else {
+                idclass = a;
+                contents = null;
+              }
             } else {
               if (a === args[0]) {
                 idclass = a;

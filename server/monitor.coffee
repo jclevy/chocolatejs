@@ -12,6 +12,8 @@ Util = require 'util'
 Path = require 'path'
 File = require './file'
 Chokidar = require 'chokidar'
+_ = require '../general/chocodash' 
+Chocokup = require '../general/chocokup' 
 Debugate = require '../general/debugate' 
 
 monitor_server = new class
@@ -103,7 +105,30 @@ monitor_server = new class
                 self.unwatchFiles()
                 self.start()
                 self.restarting = false
-                
+    
+    "convertFile": _.throttle wait:500, reset:on, (file, file_path, file_base, curdir) ->
+        file_html_name = file_path + file_base + '.html'
+        add_html_file_to_git = not Fs.existsSync file_html_name
+        source = null; code = null; curent_code = null
+        _.flow (run) ->
+            run (end) ->
+                Fs.readFile file, (err, data) -> 
+                    source = data.toString() unless err?
+                    end()
+            run (end) ->
+                if source? and source isnt ""
+                    try code = new Chocokup.Panel(source).render(format:yes)
+                end()
+            run (end) ->
+                Fs.readFile file_html_name, (err, data) -> 
+                    curent_code = data.toString() unless err?
+                    end()
+            run ->
+                if code? and code isnt "" and code isnt curent_code
+                    Fs.writeFile file_html_name, code, (err) ->
+                        unless err? and add_html_file_to_git 
+                            Child_process.exec 'git add ' + file_html_name, cwd:curdir if add_html_file_to_git
+        
     "watchFiles": ->
         self = this
         
@@ -116,7 +141,7 @@ monitor_server = new class
                 if path is folder then return yes
             try stats = Fs.statSync path catch then return yes
             if stats.isDirectory() then return no
-            suffixes = ['.js', '.coffee', '.config.json']
+            suffixes = ['.js', '.coffee', '.chocokup', '.ck', '.config.json']
             suffixes.push self.cert_suffix if self.cert_suffix
             for suffix in suffixes
                 if path.substr(path.length - suffix.length, suffix.length) is suffix then return no
@@ -126,6 +151,8 @@ monitor_server = new class
         on_change = (file) -> on_event 'change', file           
         on_event = (event, file) ->
             return if self.restarting
+            
+            should_restart = if Path.extname(file) in ['.chocokup', '.ck'] then no else yes
             
             if File.hasWriteAccess appdir
             
@@ -146,6 +173,7 @@ monitor_server = new class
                             command = "cp"
                             params = [file, file_js_name]
                         else
+                            self.convertFile file, file_path, file_base, curdir if file_ext in ['.chocokup', '.ck'] and file.indexOf(curdir + '/client/') is 0
                             command = param = undefined
                         
                     if command? then do (file, file_base, file_js_name, add_js_file_to_git) ->
@@ -200,7 +228,7 @@ monitor_server = new class
 
             self.log 'CHOCOLATEJS: Restarting because of ' + event + ' file at ' + file
             
-            setTimeout (-> self.restart()), 1000
+            setTimeout (-> self.restart() if should_restart), 1000
 
         @watcher = Chokidar.watch appdir, ignored: filter, persistent: yes, ignoreInitial:yes
         @watcher.on 'add', on_add

@@ -40,6 +40,11 @@
       symbol: '//',
       symbol_close: ''
     },
+    '.html': {
+      name: 'xml',
+      symbol: '/* ',
+      symbol_close: ' */'
+    },
     '.css': {
       name: 'css',
       symbol: '/* ',
@@ -72,6 +77,16 @@
     },
     '.cd': {
       name: 'markdown',
+      symbol: '',
+      symbol_close: ''
+    },
+    '.chocokup': {
+      name: 'coffeescript',
+      symbol: '',
+      symbol_close: ''
+    },
+    '.ck': {
+      name: 'coffeescript',
       symbol: '',
       symbol_close: ''
     }
@@ -163,15 +178,26 @@
   };
 
   generate = function(source, code) {
-    var hihilighted, html, sections;
+    var e, hihilighted, html, sections;
     switch (path.extname(source)) {
       case '.txt':
         return html = '<pre>' + code + '</pre>';
+      case '.html':
+        return html = code;
       case '.markdown':
       case '.md':
       case '.chocodown':
       case '.cd':
         return html = new Chocodown.converter().makeHtml(code);
+      case '.chocokup':
+      case '.ck':
+        try {
+          return html = new Chocodown.Chocokup.Panel(code).render();
+        } catch (_error) {
+          e = _error;
+          return html = e.message;
+        }
+        break;
       default:
         sections = parse(source, code);
         hihilighted = highlight(source, sections);
