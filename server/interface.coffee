@@ -106,7 +106,7 @@ exports.exchange = (bin, send) ->
         if config.sofkey in [hashed_backdoor_key, backdoor_key] or config.sofkey in session.keys or hasKeypass then true else false         
 
     # `getMethodInfo` retrieve a method and its parameters from a required module
-    getMethodInfo = (required, action) ->
+    getMethodInfo = ({required, action, instanciate}) ->
         try
             self = klass = property = undefined
             method = node_module = require required
@@ -114,7 +114,11 @@ exports.exchange = (bin, send) ->
             if action?
                 if node_module?.prototype?
                     method = method[name] for name in ('prototype.' + action).split('.') when method?
-                    if method? then self = null ; klass = node_module ; property = name
+                    if method?
+                        self = null ; klass = node_module ; property = name
+                        if instanciate is on
+                            self = new klass 
+                            self.hydrate?.call self, args
                 
                 if node_module? and method is node_module or not method?
                     method ?= node_module
@@ -124,10 +128,11 @@ exports.exchange = (bin, send) ->
                 infos = method.toString().match(/function\s+\w*\s*\((.*?)\)/)
                 args = infos[1].split(/\s*,\s*/) if infos?
             else if method instanceof Interface
-                    self = method if self is undefined
+                    self = method
                     method = method.submit
                     args = ['{__}']
             else throw new Error("Can't find '#{action}' in #{required}") 
+
                 
             {method, args, self, klass, property}
         catch error
@@ -170,6 +175,7 @@ exports.exchange = (bin, send) ->
                                 when '.manifest' then "text/cache-manifest"
                                 when '.ttf' then "font/ttf"
                                 when '.html', '.md', '.markdown', '.cd', '.chocodown' then "text/html"
+                                when '.pdf' then  "application/pdf"
                             
                             respondStatic 200, headers, switch extension
                                 when '.md', '.markdown', '.cd', '.chocodown' 
@@ -224,7 +230,7 @@ exports.exchange = (bin, send) ->
         switch so
             # if so is 'do' and what is public then authorize access  
             when 'do'
-                {method, args, self, klass, property, error} = getMethodInfo required, what
+                {method, args, self, klass, property, error} = getMethodInfo { required, action:what }
                 return if has500 error
                 if method? and region isnt 'secure'
                     what_is_public = yes
@@ -232,11 +238,11 @@ exports.exchange = (bin, send) ->
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
                 if how is 'web' and where isnt 'ping'
-                    {method, args, self, klass, property, error} = getMethodInfo required
+                    {method, args, self, klass, property, error} = getMethodInfo { required }
                     unless error
                         if method? then so = 'do' ; what = undefined ; what_is_public = yes
                     else
-                        {method, args, self, klass, property, error} = getMethodInfo required, 'interface'
+                        {method, args, self, klass, property, error} = getMethodInfo { required, action:'interface' }
                         return if has500 error
                         if method? # TODO - should implement security checking
                             so = 'do' ; what = 'interface'
@@ -342,7 +348,7 @@ exports.exchange = (bin, send) ->
                     node_module = require required 
                     method = node_module[action]
                 else if so is 'do'
-                    {method, args:expected_args, self, klass, property, error} = getMethodInfo required, what
+                    {method, args:expected_args, self, klass, property, error} = getMethodInfo { required, action:what, instanciate:on }
                     return if has500 error
                     if '__' in expected_args then params['__'] = context
                     args = []
@@ -359,11 +365,6 @@ exports.exchange = (bin, send) ->
                            if params['__' + args_index] is undefined then args_index = -1
                            else args.push params[ '__' + args_index++ ]
 
-                if klass? and self is null
-                    self = new klass 
-                    if property? then self = self[property]
-                    self.hydrate? args
-                    
                 produced = method.apply self, args
                 
                 if produced instanceof _.Publisher

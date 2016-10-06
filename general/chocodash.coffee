@@ -116,6 +116,7 @@ _.prototype = (options, more) ->
         inherit: (parent) ->
             child = @
             if parent?
+                if parent instanceof _.Prototyper then child.__prototyper__ = parent.prototyper ; parent = parent.prototyper()
                 child[k] = v for own k,v of parent
                 ctor = -> @constructor = child; return
                 ctor:: = parent::
@@ -166,6 +167,11 @@ _.super = () ->
     
     if super_func
         return super_func.apply self, Array.prototype.slice.call arguments, if func? then 2 else 1 
+
+# `_.Prototyper` allows to higher order function inheritance
+_.Prototyper = _.prototype constructor:(@prototyper) ->
+
+_.prototyper = (prototyper) -> new _.Prototyper prototyper
 
 # `_.stringify` transforms a javascript object in a string that can be parsed back as an object
 #
@@ -908,10 +914,21 @@ _.Observer = Observer = _.prototype
 _.Publisher = Publisher = _.prototype
     constructor:  ->
         @subscribers = []
+        @unreported = []
 
-    notify: (value) -> for report in @subscribers then report value
+    notify: (value) -> 
+        if @subscribers.length > 0 then for report in @subscribers then report value
+        else @unreported.push value
     
-    subscribe: (reporter) -> @subscribers.push reporter
+    subscribe: (reporter) -> 
+        @subscribers.push reporter
+        
+        if @unreported.length > 0 
+            self = @
+            notify = -> 
+                for value in self.unreported then reporter value
+                @unreported.length = 0
+            setTimeout notify, 0 
 
 # cuid.js
 # Collision-resistant UID generator for browsers and node.

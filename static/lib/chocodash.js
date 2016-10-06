@@ -101,6 +101,10 @@
           var child, ctor;
           child = this;
           if (parent != null) {
+            if (parent instanceof _.Prototyper) {
+              child.__prototyper__ = parent.prototyper;
+              parent = parent.prototyper();
+            }
             for (k in parent) {
               if (!hasProp.call(parent, k)) continue;
               v = parent[k];
@@ -197,6 +201,16 @@
     if (super_func) {
       return super_func.apply(self, Array.prototype.slice.call(arguments, func != null ? 2 : 1));
     }
+  };
+
+  _.Prototyper = _.prototype({
+    constructor: function(prototyper1) {
+      this.prototyper = prototyper1;
+    }
+  });
+
+  _.prototyper = function(prototyper) {
+    return new _.Prototyper(prototyper);
   };
 
   _.stringify = function() {
@@ -911,20 +925,39 @@
 
   _.Publisher = Publisher = _.prototype({
     constructor: function() {
-      return this.subscribers = [];
+      this.subscribers = [];
+      return this.unreported = [];
     },
     notify: function(value) {
       var len, m, ref, report, results;
-      ref = this.subscribers;
-      results = [];
-      for (m = 0, len = ref.length; m < len; m++) {
-        report = ref[m];
-        results.push(report(value));
+      if (this.subscribers.length > 0) {
+        ref = this.subscribers;
+        results = [];
+        for (m = 0, len = ref.length; m < len; m++) {
+          report = ref[m];
+          results.push(report(value));
+        }
+        return results;
+      } else {
+        return this.unreported.push(value);
       }
-      return results;
     },
     subscribe: function(reporter) {
-      return this.subscribers.push(reporter);
+      var notify, self;
+      this.subscribers.push(reporter);
+      if (this.unreported.length > 0) {
+        self = this;
+        notify = function() {
+          var len, m, ref, value;
+          ref = self.unreported;
+          for (m = 0, len = ref.length; m < len; m++) {
+            value = ref[m];
+            reporter(value);
+          }
+          return this.unreported.length = 0;
+        };
+        return setTimeout(notify, 0);
+      }
     }
   });
 

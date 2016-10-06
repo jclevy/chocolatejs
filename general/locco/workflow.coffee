@@ -39,7 +39,7 @@ Workflow = _.prototype
                     @ws.onmessage =  (evt) ->
                         if options.debug then console.log "Message is received:" + evt.data if evt.data isnt ''
 
-                        data = _.parse evt.data
+                        data = JSON.parse evt.data
                         if data? and data.result isnt undefined and data.id
                             callback = callbacks[data.id]
                             callback data.result
@@ -74,8 +74,7 @@ Workflow = _.prototype
             if service? 
                 params = (_.param param for param in params).join '&'
                 if params.length > 0 then params = '&' + params
-                if params.indexOf('&how=') is -1 then params += '&how=json-late'
-                @ws.send "{url:'/#{location}?#{service}#{params}', id:#{@message_id(callback)}}"
+                @ws.send JSON.stringify url:"/#{location}?#{service}#{params}", id:@message_id(callback)
 
     execute: (action) ->
         for action in action.actions

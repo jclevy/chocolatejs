@@ -39,7 +39,7 @@ Interface = _.prototype
                 when _.Type.String then @observe (html) => $(@update).html html; return
     
     review: (bin, reaction, end) ->
-        self = {bin, document:@document, 'interface':@}
+        self = {bin, props:bin, document:@document, 'interface':@}
         check =
             # `defaults` ensure default values are set on an object
             defaults: (object, defaults) =>
@@ -80,24 +80,30 @@ Interface = _.prototype
         reaction = new Interface.Reaction
         
         _.flow self:@, (run) ->
+            getSelf = (end) ->
+                respond = (o) -> @reaction.props = @reaction.bin = o ; end()
+                respond.later = end.later
+                
+                transmit = (actor, service) ->
+                    actor[service].submit(@bin).subscribe (reaction) => @respond reaction.bin
+                    respond.later
+                        
+                { bin, props:bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit }
+                
             run (end) -> 
                 end.with @review bin, reaction, end
             
             run (end) ->
                 if reaction.certified and @steps?
-                    respond = (o) -> @reaction.bin = o ; end()
-                    respond.later = end
-                    self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
+                    self = getSelf.call this, end
                     result = @steps.call self, bin
                 end.with result
 
             run (end) ->
                 if reaction.certified and @render?
-                    respond = (o) -> @reaction.bin = o ; end()
-                    respond.later = end
-                    self = {bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit: ((actor, service) -> actor[service].submit(@bin).subscribe((reaction) => @respond reaction.bin); respond.later) }
-                    result = @render.call self, bin 
-                    reaction.bin = result unless reaction.bin? or result is end.later
+                    self = getSelf.call this, end
+                    result = @render.call self, bin
+                    reaction.props = reaction.bin = result unless reaction.bin? or result is end.later
                 end.with result
 
             run -> 
@@ -110,7 +116,7 @@ Interface = _.prototype
             @document.signal?.value() ; @submit().subscribe ({bin}) -> render if typeof bin.render is 'function' then bin.render() else bin
 
 Interface.Reaction = _.prototype
-    constructor: (@bin, @certified) ->
+    constructor: (@bin, @certified) -> @props = @bin ; return
         
 Interface.Remote = _.prototype inherit:Interface, use: ->
     @submit = (bin = {}) ->
@@ -141,7 +147,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                 end.with _.super Interface.Web::review, @, bin, reaction, end
 
             run ->
-                reaction.bin = ''
+                reaction.props = reaction.bin = ''
                 return end() if reaction.kups is false
                 
                 scope = []
@@ -168,7 +174,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                                 try {this.interface = bin#{if scope.length > 0 then '.' + scope.join('.') else ''}.#{name};} 
                                 catch (error) { try {this.interface = bin.#{name};} catch (error) {}; };
                                 this.actor = this.interface != null ? this.interface.actor : null;
-                                this.bin = {};
+                                this.props = this.bin = {};
                                 this.keys = [];
                                 if (this.bin.__ == null) this.bin.__ = bin.__
                                 if (bin != null) {for (k in bin) {if (__hasProp.call(bin, k)) { this.bin[k] = bin[k]; }}}
@@ -223,12 +229,12 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                     """
                 else render_code
                 
-                options = {bin, document:@document, 'interface':@, actor:@actor, kups}
+                options = {bin, props:bin, document:@document, 'interface':@, actor:@actor, kups}
                 options.theme = bin.theme if bin.theme?
                 options.with_coffee = bin.with_coffee if bin.with_coffee?
                 options.manifest = bin.manifest if bin.manifest?
                 
-                @reaction.bin = switch @interface.type
+                @reaction.props = @reaction.bin = switch @interface.type
                     when 'Panel'then new Chocokup.Panel options, chocokup_code
                     else new Chocokup[@interface.type] bin?.name ? '', options, chocokup_code
                     

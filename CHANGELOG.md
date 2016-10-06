@@ -1,3 +1,106 @@
+## v0.0.19 - (2016-10-06)
+
+--------------
+
+NEW FEATURES
+
+ - `letsencrypt` renewal service now works automaticaly
+
+ - `Single Page Application` can be easily created using `locco/actor`
+  
+> Create a new service `myservice.coffee`, in which you will define a function that will return an actor that can work both client and server sides :
+            
+            MyService = ->
+                _ = require 'chocolate/general/chocodash'
+                Interface = require 'chocolate/general/locco/interface'
+                Actor = require 'chocolate/general/locco/actor'
+                
+                _.prototype inherit:Actor.Web,                   # make your service inherit from Actor.Web
+            
+                    ping: new Interface.Remote -> "pong"         # use Interface.Remote to have your interface work client and server side 
+            
+                    login: new Interface.Remote -> @transmit @actor.users, 'login' # in the Interface render code you can use @transmit to delegate the interface handling to another Actor's interface
+                    
+                    main: new Interface.Web.Html ->              # your actor's interface called main will be used as the default interface
+                        # ...
+                        # my css and html code written using Chocokup
+                        # ...
+                        coffeescript: ->
+                            # send a message server side when the login button is clicked
+                            
+                            $("#loginButtonId").on "click", (e) ->
+                                loginInfos = login:$("#login").val(), pwd:$("#password").val()
+                                self.login.submit(login_infos).subscribe (result) ->
+                                    {name} = result.props
+                                    if name?
+                                        # ...
+                            
+> Then the server side only services:
+            
+            Users = _.prototype inherit:Actor,
+            
+                constructor: ->
+                    # @usersDb = ... whatever method you want to store your users' data
+            
+                login: new Interface ->
+                    {login, pwd} = @props
+            
+                    # user = @actor.usersDb.get login, pwd
+                    # ...
+            
+                logged: new Interface ->
+                    # ...
+                
+> Then the server main interface:
+            
+            module.exports = _.prototype inherit: _.prototyper(MyService),
+                constructor: ->
+                    @options = 
+                        filename: __filename     # required to have the page's manifest file being managed automatialy
+                        name: 'My Service'           # the title displayed by the client window
+                        script: """
+                                                 # whatever client scripts needed...
+                            """
+                        stylesheet: """
+                                                 # whatever css files needed...
+                            """
+                     
+                    @users = new Users
+
+
+UPDATES
+ 
+ - can now serve `.pdf` files in `static` folder
+ - in locco/interface, data given to an interface service, like  the `render` function, is accessible through an object named `bin`.
+  
+   Now, you can use  `props` as a synonym to `bin`
+   
+          myService = new Interface.Web
+              defaults: ->
+                  title: 'home'
+              render: ->
+                  div this.props.title
+     
+   or 
+     
+          myService = new Interface.Web { title: 'home' }, -> div @props.title
+    
+   or it is still possible to use `bin`
+          
+          myService = new Interface.Web { title: 'home' }, -> div @bin.title
+    
+   The data returned by the Interface also has now a `props` property that can be used as a synonym to `bin`
+   
+          myInterface.submit(params).subscribe (result) ->
+              {name} = result.props
+              ...
+  
+FIXED BUGS
+
+ - in chocokup/coffeekup: a markup with an attribute starting with a point (like style '.mycssclass {color:white}' was wrongly interpreted as an html class id
+ - in package.json: works with letsencrypt module version 1.4.4 only
+ - in chocodash: Publisher with no subscriber will save notified values until a reporter has subscribed
+
 ## v0.0.18 - (2016-06-21)
 
 --------------

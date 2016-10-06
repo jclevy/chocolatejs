@@ -284,8 +284,11 @@ sni_callback = do ->
             # we should refresh it from disk
             # (in the background)
             #
-            # TODO once ECDSA is available, wait for cert renewal if its due (maybe?)
+            # once ECDSA is available, wait for cert renewal if its due (renewInBackground)
             if certInfo.tlsContext
+                renewInBackground now, hostname, certInfo
+                return if certInfo.timeout?
+                
                 cb? null, certInfo.tlsContext
                 if now - (certInfo.loadedAt) < certInfo.memorizeFor
                     # these aren't stale, so don't fall through
@@ -552,7 +555,7 @@ class World
                                 .on 'field', (field, value) -> 
                                     fields.push if value? and value isnt '' then value else field
                                 .on 'end', ->
-                                    message = _.parse fields.join ''
+                                    message = JSON.parse fields.join ''
                                     return empty() unless message?
                                         
                                     bin = extract request, message.url
@@ -608,14 +611,15 @@ class World
                 response.end ''
             .listen port_http
 
-        new WebSocket.Server {server} 
-        .on 'connection', (ws) ->
+        new WebSocket.Server({server}).on 'connection', (ws) ->
             ws.on 'message', (str) ->
-                message = _.parse str
+                message = JSON.parse str
                 bin = extract ws.upgradeReq, message.url
+                bin.how = how = 'json'
 
                 Interface.exchange bin, (result) ->
-                    ws.send "{result:#{result.body},id:#{message.id}}" if result.body? and result.body isnt ''
+                    feedback = "{\"result\":#{result.body}, \"id\":#{message.id}}"
+                    ws.send feedback if result.body? and result.body isnt ''
         
         return
 

@@ -135,14 +135,14 @@ monitor_server = new class
         appdir = if @appdir? then @appdir else '.'
         sysdir = Path.resolve __dirname, '..' 
         
-        filter = (path) ->
+        filter = (path) -> 
             if path.search(/^\.[^\.\/]+/) isnt -1 then return yes
             for folder in ['static']
                 if path is folder then return yes
             try stats = Fs.statSync path catch then return yes
             if stats.isDirectory() then return no
             suffixes = ['.js', '.coffee', '.chocokup', '.ck', '.config.json']
-            suffixes.push self.cert_suffix if self.cert_suffix
+            suffixes.push self.cert_suffix if self.cert_suffix?
             for suffix in suffixes
                 if path.substr(path.length - suffix.length, suffix.length) is suffix then return no
             return yes

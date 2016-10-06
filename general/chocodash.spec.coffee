@@ -1,6 +1,6 @@
 _ = require '../general/chocodash'
 
-xdescribe 'prototype', ->
+describe 'prototype', ->
     Document = _.prototype()
     DocWithCons = DocWithInst = null
     doc = null
@@ -123,7 +123,7 @@ xdescribe 'Data', ->
             a = _.param {u:1, v:2}
             expect(a).toBe 'u=1&v=2'
 
-describe 'Flow', ->
+xdescribe 'Flow', ->
     f1 = (cb) -> setTimeout (-> cb new Date().getTime()), 250
     f2 = (cb) -> setTimeout (-> cb new Date().getTime()), 150
     f3 = (cb) -> setTimeout (-> cb new Date().getTime()), 350

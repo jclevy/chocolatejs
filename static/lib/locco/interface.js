@@ -76,6 +76,7 @@
       var check, ref, ref1, self;
       self = {
         bin: bin,
+        props: bin,
         document: this.document,
         'interface': this
       };
@@ -152,64 +153,51 @@
       _.flow({
         self: this
       }, function(run) {
+        var getSelf;
+        getSelf = function(end) {
+          var respond, transmit;
+          respond = function(o) {
+            this.reaction.props = this.reaction.bin = o;
+            return end();
+          };
+          respond.later = end.later;
+          transmit = function(actor, service) {
+            actor[service].submit(this.bin).subscribe((function(_this) {
+              return function(reaction) {
+                return _this.respond(reaction.bin);
+              };
+            })(this));
+            return respond.later;
+          };
+          return {
+            bin: bin,
+            props: bin,
+            document: this.document,
+            'interface': this,
+            actor: this.actor,
+            reaction: reaction,
+            respond: respond,
+            transmit: transmit
+          };
+        };
         run(function(end) {
           return end["with"](this.review(bin, reaction, end));
         });
         run(function(end) {
-          var respond, result, self;
+          var result, self;
           if (reaction.certified && (this.steps != null)) {
-            respond = function(o) {
-              this.reaction.bin = o;
-              return end();
-            };
-            respond.later = end;
-            self = {
-              bin: bin,
-              document: this.document,
-              'interface': this,
-              actor: this.actor,
-              reaction: reaction,
-              respond: respond,
-              transmit: (function(actor, service) {
-                actor[service].submit(this.bin).subscribe((function(_this) {
-                  return function(reaction) {
-                    return _this.respond(reaction.bin);
-                  };
-                })(this));
-                return respond.later;
-              })
-            };
+            self = getSelf.call(this, end);
             result = this.steps.call(self, bin);
           }
           return end["with"](result);
         });
         run(function(end) {
-          var respond, result, self;
+          var result, self;
           if (reaction.certified && (this.render != null)) {
-            respond = function(o) {
-              this.reaction.bin = o;
-              return end();
-            };
-            respond.later = end;
-            self = {
-              bin: bin,
-              document: this.document,
-              'interface': this,
-              actor: this.actor,
-              reaction: reaction,
-              respond: respond,
-              transmit: (function(actor, service) {
-                actor[service].submit(this.bin).subscribe((function(_this) {
-                  return function(reaction) {
-                    return _this.respond(reaction.bin);
-                  };
-                })(this));
-                return respond.later;
-              })
-            };
+            self = getSelf.call(this, end);
             result = this.render.call(self, bin);
             if (!((reaction.bin != null) || result === end.later)) {
-              reaction.bin = result;
+              reaction.props = reaction.bin = result;
             }
           }
           return end["with"](result);
@@ -241,6 +229,7 @@
     constructor: function(bin1, certified) {
       this.bin = bin1;
       this.certified = certified;
+      this.props = this.bin;
     }
   });
 
@@ -294,7 +283,7 @@
           });
           return run(function() {
             var check_interfaces, scope;
-            reaction.bin = '';
+            reaction.props = reaction.bin = '';
             if (reaction.kups === false) {
               return end();
             }
@@ -319,7 +308,7 @@
                   }
                   declare_kups = get_declare_kups(kups);
                   service_id = _.Uuid().replace(/\-/g, '_');
-                  service_kup = new Function('args', "var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? this.interface.actor : null;\nthis.bin = {};\nthis.keys = [];\nif (this.bin.__ == null) this.bin.__ = bin.__\nif (bin != null) {for (k in bin) {if (__hasProp.call(bin, k)) { this.bin[k] = bin[k]; }}}\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction, function(){});\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref = (ref1 = service.render) != null ? ref1.overriden : void 0) != null ? ref : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.interface = interface, this.actor = actor;");
+                  service_kup = new Function('args', "var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? this.interface.actor : null;\nthis.props = this.bin = {};\nthis.keys = [];\nif (this.bin.__ == null) this.bin.__ = bin.__\nif (bin != null) {for (k in bin) {if (__hasProp.call(bin, k)) { this.bin[k] = bin[k]; }}}\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction, function(){});\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref = (ref1 = service.render) != null ? ref1.overriden : void 0) != null ? ref : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.interface = interface, this.actor = actor;");
                   if (reaction.kups == null) {
                     reaction.kups = {};
                   }
@@ -365,6 +354,7 @@
             chocokup_code = declare_kups.length > 0 ? new Function('args', "this.keys = [];\nif (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\n" + (declare_kups.join(';\n')) + ";\nwith (this.locals) {return (" + (render_code.toString()) + ").apply(this, arguments);}") : render_code;
             options = {
               bin: bin,
+              props: bin,
               document: this.document,
               'interface': this,
               actor: this.actor,
@@ -379,7 +369,7 @@
             if (bin.manifest != null) {
               options.manifest = bin.manifest;
             }
-            return this.reaction.bin = (function() {
+            return this.reaction.props = this.reaction.bin = (function() {
               var ref2;
               switch (this["interface"].type) {
                 case 'Panel':

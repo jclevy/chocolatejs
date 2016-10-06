@@ -31,7 +31,7 @@
       function _Class() {}
 
       _Class.prototype.__verify = function() {
-        var a, args, attributes, content, id_class, j, len;
+        var a, args, attributes, content, contents, id_class, idclass, j, len;
         args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
         attributes = content = null;
         id_class = '';
@@ -50,7 +50,12 @@
               break;
             case 'string':
               if (args.length === 1) {
-                content = a;
+                if (args[0][0] !== '.' || args[0].indexOf(' ') >= 0) {
+                  contents = a;
+                } else {
+                  idclass = a;
+                  contents = null;
+                }
               } else {
                 if (a === args[0]) {
                   id_class = a;
@@ -497,6 +502,7 @@
         actor: _interface != null ? _interface.actor : void 0,
         locals: locals,
         bin: bin,
+        props: bin,
         __: __
       };
       __.title(this.title);

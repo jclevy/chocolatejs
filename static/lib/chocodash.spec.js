@@ -4,7 +4,7 @@
 
   _ = require('../general/chocodash');
 
-  xdescribe('prototype', function() {
+  describe('prototype', function() {
     var CopiedDocument, DocWithCons, DocWithInst, Document, InheritedDocument, cop, doc, inh;
     Document = _.prototype();
     DocWithCons = DocWithInst = null;
@@ -186,7 +186,7 @@
     });
   });
 
-  describe('Flow', function() {
+  xdescribe('Flow', function() {
     var f1, f2, f3;
     f1 = function(cb) {
       return setTimeout((function() {

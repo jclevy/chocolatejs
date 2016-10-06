@@ -188,7 +188,7 @@ skeleton = (__data = {}) ->
 
         text "</#{name}>"
         text '\n' if __data.format
-  
+
       null
 
   tag = (name, args...) ->
@@ -202,9 +202,8 @@ skeleton = (__data = {}) ->
           contents = a
         when 'string'
           if args.length is 1
-            if args[0][0] isnt '.' then contents = a
+            if args[0][0] isnt '.' or args[0].indexOf(' ') >= 0 then contents = a
             else idclass = a ; contents = null
-                
           else
             if a is args[0]
               idclass = a

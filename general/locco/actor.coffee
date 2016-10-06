@@ -2,6 +2,7 @@ _ = require '../../general/chocodash'
 Interface = require '../locco/interface'
 Workflow = require '../locco/workflow'
 Document = require '../locco/document'
+Chocokup = require 'chocolate/general/chocokup'
 
 # An `Actor` is a Document full of Data and Actions
 # placed in a Flow and providing Interfaces
@@ -108,5 +109,85 @@ Actor.Web = _.prototype inherit:Actor, use: ->
             when 'modal' then
             when 'popup' then
 
+    @interface = new Interface.Web
+        defaults: ->
+            if (filename = @actor.options?.filename)?
+                start = end = null
+                for i in [0...filename.length]
+                    if filename[filename.length-1-i] in ['/', '\\'] then start = filename.length-i ; end ?= filename.length ; break
+                    if filename[filename.length-1-i] is '.' then end = filename.length-i-1
+                start ?= 0
+                end ?= filename.length
+                basename = filename.substring start, end
+            
+            options:@actor.options
+            name:@actor.options?.name ? basename ? ''
+            theme: 'writer'
+            manifest:"#{basename ? '/'}?manifest&how=manifest"
+            actor:
+                source: "var Service = (#{_.stringify(@actor.constructor.__prototyper__ ? -> {})})();"
+    
+        render: ->
+            for src in (@props.options?.script ? '').split('\n') then script {src, charset:"utf-8"}
+            for href in (@props.options?.stylesheet ? '').split('\n') then link {rel:"stylesheet", href}
+    
+            script -> text @props.actor.source
+    
+            coffeescript (main:@props.options?.main), ->
+                $ ->
+                    Workflow = require 'general/locco/workflow'
+                    Actor = require 'general/locco/actor'
+    
+                    if window.applicationCache?
+                        (cache = window.applicationCache).addEventListener 'updateready', (e) ->
+                            (cache.swapCache() ; window.location.reload()) if cache.status is cache.UPDATEREADY
+    
+                    Workflow.main.ready ->
+                        service = new Service 
+                        service.ready ->
+                            Actor.go service, main ? 'main', (str) -> $('body').html str
+                            
+    @manifest = (__) ->
+        Fs = require 'fs'
+        
+        to_cache = """
+            #{Chocokup.App.manifest.cache}
+            /static/lib/chocodown.js
+            /static/lib/coffeekup.js
+            /static/lib/chocokup.js
+            #{@options?.script ? ''}
+            #{@options?.stylesheet ? ''}
+            """
+    
+        to_cache_list = []
+        to_cache_list.push ((line.split '?')[0]).replace('/-', '') for line in to_cache.split '\n'
+    
+        time_stamps_list = []
+        for filename in to_cache_list
+            try
+                pathname = require.resolve '/' + __.sysdir + filename
+                stats = Fs.statSync pathname
+                time_stamps_list.push '#' + filename + ' : ' + stats.mtime.getTime()
+        time_stamps = time_stamps_list.join '\n'
+    
+        """
+        CACHE MANIFEST
+        # v1.00.000
+        # Actor Version:#{if @options?.filename? then (Fs.statSync @options.filename).mtime.getTime() else -1}
+        #
+        # Files Timestamp
+        #
+        #{time_stamps}
+    
+        CACHE:
+        #{to_cache}
+
+        FALLBACK:
+        favicon.ico /
+    
+        NETWORK:
+        /~
+        """
+    
 _module = window ? module
 if _module.exports? then _module.exports = Actor else window.Locco ?= {} ; window.Locco.Actor = Actor

@@ -68,7 +68,7 @@
                     console.log("Message is received:" + evt.data);
                   }
                 }
-                data = _.parse(evt.data);
+                data = JSON.parse(evt.data);
                 if ((data != null) && data.result !== void 0 && data.id) {
                   callback = callbacks[data.id];
                   callback(data.result);
@@ -137,10 +137,10 @@
           if (params.length > 0) {
             params = '&' + params;
           }
-          if (params.indexOf('&how=') === -1) {
-            params += '&how=json-late';
-          }
-          return this.ws.send("{url:'/" + location + "?" + service + params + "', id:" + (this.message_id(callback)) + "}");
+          return this.ws.send(JSON.stringify({
+            url: "/" + location + "?" + service + params,
+            id: this.message_id(callback)
+          }));
         }
       }
     },

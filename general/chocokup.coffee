@@ -27,7 +27,8 @@ class Chocokup
                         content = a
                     when 'string'
                         if args.length is 1
-                            content = a
+                            if args[0][0] isnt '.' or args[0].indexOf(' ') >= 0 then contents = a
+                            else idclass = a ; contents = null
                         else
                             if a is args[0]
                                 id_class = a
@@ -296,7 +297,7 @@ class Chocokup
 
         all_tags = options?.all_tags ? true
         format = options?.format ? false
-        data = { params:@params, format, all_tags, hardcode:helpers, document, 'interface':_interface, actor:_interface?.actor, locals, bin, __ }
+        data = { params:@params, format, all_tags, hardcode:helpers, document, 'interface':_interface, actor:_interface?.actor, locals, bin, props:bin, __ }
         __.title @title
         __.content Coffeekup.render @content, data
         __.body Coffeekup.render @body_template, data
