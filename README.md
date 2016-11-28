@@ -30,7 +30,7 @@ It includes :
  - **Chocodown** -- Chocokup-aware port of Markdown (based on Showdown)
 
  - **Chocolate Lab** -- an online and immediate **Lab** playground where you write, transpile and/or test code between Javascript and Coffeescript and also between Html and Chocokup...
- - 
+
  - **Specolate** -- a behavior/test driven development tool (based on Jasmine) that works client and server side
 
  - **Doccolate** -- an online documentation editing tool (based on Docco)

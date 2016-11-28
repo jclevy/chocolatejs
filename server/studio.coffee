@@ -1974,7 +1974,7 @@ exports.enter = (__) ->
                     Acelang.delayedCall(service).schedule 350
 
                 last_experiment = localStorage.getItem('lab_last_experiment')
-                _ide.toggleExperimentPanel last_experiment unless last_experiment is 'coffeescript'
+                _ide.toggleExperimentPanel last_experiment unless last_experiment is 'coffeescript' or not last_experiment?
 
                 specolate_editor = set_editor 'specolate-panel-editor'
                 specolate_editor.getSession().on 'change', ->
