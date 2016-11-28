@@ -85,7 +85,7 @@
           return function(object, defaults) {
             var set;
             if (typeof defaults === 'function') {
-              defaults = defaults.call(_this);
+              defaults = defaults.call(self, object);
             }
             set = function(o, d) {
               var dk, dv;
@@ -193,11 +193,18 @@
         });
         run(function(end) {
           var result, self;
-          if (reaction.certified && (this.render != null)) {
-            self = getSelf.call(this, end);
-            result = this.render.call(self, bin);
-            if (!((reaction.bin != null) || result === end.later)) {
-              reaction.props = reaction.bin = result;
+          if (reaction.certified) {
+            if (this.render != null) {
+              self = getSelf.call(this, end);
+              result = this.render.call(self, bin);
+              if (!((reaction.bin != null) || result === end.later)) {
+                reaction.props = reaction.bin = result;
+              }
+            }
+          } else {
+            if (this.redirect != null) {
+              self = getSelf.call(this, end);
+              reaction.redirect = typeof this.redirect === 'function' ? this.redirect.call(self) : this.redirect;
             }
           }
           return end["with"](result);

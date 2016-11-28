@@ -1237,6 +1237,9 @@ var _FormParagraphs = function(text) {
 		if (str.search(/~K(\d+)K/g) >= 0) {
 			grafsOut.push(str);
 		}
+		else if (str.search(/~P(\d+)P/g) >= 0) {
+			grafsOut.push(str);
+		}
 		else if (str.search(/\S/) >= 0) {
 			str = _RunSpanGamut(str);
 			str = str.replace(/^([ \t]*)/g,"<p>");

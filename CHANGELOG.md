@@ -1,3 +1,60 @@
+## v0.0.20 - (2016-11-28)
+
+--------------
+
+NEW FEATURES
+
+ - Added `Javascript` code execution and `Javascript` to `Coffeescript` conversion services in the `Lab` panels
+   (thanks to js2coffee.js library)
+ 
+ - Added `Html` code rendering and `Html` to `Coffekup`/`Chocokup` conversion services in the `Lab` panels
+   (thanks to htmlkup.coffee library)
+
+ - locco protocol and Interface allows a `redirect` url to be specified and used to generate an HTTP 303 response
+        
+        service = new Interface
+            check -> ...        # if the `check` function returns false 
+            redirect: 'login'   # the interface will return an HTTP 303 redirect to the `login` page
+
+ - `monitor.coffee` service now allows you to define Javascript bundles to be build when source files are saved.  
+    If you have some client side Coffeescript/Javascript files (in Client or General folders) with the same prefix (or in the same subfolder), they can be bundled in the same file.
+
+    In the `app.config.json` file, add a `build:{bundles:[]}` section, with the following parameters:
+    
+        filename: the name for the output bundle file
+        prefix: the prefix used in (or the path to) every file to put in the bundle
+        known_files: an array of files' path, that have to be put in that precise order in the bundle
+        with_modules: true or false, to put in the bundle the necessary code to make those files required by the Chocolate's require service
+        
+        "build": {
+            "bundles": [
+                {
+                    "filename": "locco.js",
+                    "prefix": "locco",
+                    "known_files": {
+                        "locco/intention.js": true,
+                        "locco/data.js": true,
+                        "locco/action.js": true,
+                        "locco/document.js": true,
+                        "locco/workflow.js": true,
+                        "locco/interface.js": true,
+                        "locco/actor.js": true,
+                        "locco/reserve.js": true,
+                        "locco/prototype.js": true
+                    },
+                    "with_modules": true
+                }
+            ]
+        }
+
+UPDATES
+
+ - `this` and `bin` available in Locco/Interface's `defaults` and `check` functions
+
+FIXED BUGS
+
+ - `Chocodown` does not insert unnecessary `<p>` tag anymore when it translates `Chocokup` block (`<<<`) or `Coffeescript` block (`{{{`)
+
 ## v0.0.19 - (2016-10-06)
 
 --------------

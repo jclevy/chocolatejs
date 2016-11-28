@@ -504,7 +504,7 @@
     $.post = function(url, data, success, dataType) {
       return _xhrForm("POST", url, data, success, dataType);
     };
-    $.getJson = function(url, data, success) {
+    $.getJSON = $.getJson = function(url, data, success) {
       return $.get(url, data, success, Ajax_default.mime);
     };
     $.getScript = function(url, success) {

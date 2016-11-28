@@ -98,7 +98,7 @@ exports.enter = (__) ->
             #specolate-panel-editor .ace_text-layer, #specolate-panel-editor .ace_gutter {
                 font-size: 9pt;
             }
-            #experiment-coffeescript-panel-editor .ace_text-layer, #experiment-chocodown-panel-editor .ace_text-layer,
+            #experiment-script-panel-editor .ace_text-layer, #experiment-markup-panel-editor .ace_text-layer,
             #notes-panel .ace_text-layer {
                 font-size: 9pt;
                 line-height: 12pt;
@@ -319,6 +319,8 @@ exports.enter = (__) ->
         script src:"/static/vendor/ace/theme-coffee.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/theme-coffee_white.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/lib/doccolate.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/lib/js2coffee.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/lib/htmlkup.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/datejs/date.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/mootools/mootools-core-uncompressed.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/lib/newnotes.js", type:"text/javascript", charset:"utf-8"
@@ -404,18 +406,26 @@ exports.enter = (__) ->
                                                 panel ->
                                                     footer ->
                                                         panel proportion:'half', ->
-                                                            box -> a '#toggle-coffeescript.selected', href:"#", onclick:"_ide.toggleExperimentPanel('coffeescript');", -> 'Coffeescript'
-                                                            box -> a '#toggle-chocodown', href:"#", onclick:"_ide.toggleExperimentPanel('chocodown');", -> 'Chocodown'                                                        
+                                                            box -> 
+                                                                a '#toggle-coffeescript.selected', href:"#", onclick:"_ide.toggleExperimentPanel('coffeescript');", -> 'Coffeescript'
+                                                                text ' / '
+                                                                a '#toggle-javascript', href:"#", onclick:"_ide.toggleExperimentPanel('javascript');", -> 'Javascript'
+                                                            box -> 
+                                                                a '#toggle-chocodown', href:"#", onclick:"_ide.toggleExperimentPanel('chocodown');", -> 'Chocodown'                                                        
+                                                                text ' / '
+                                                                a '#toggle-html', href:"#", onclick:"_ide.toggleExperimentPanel('html');", -> 'Html'
                                                     body -> 
-                                                        box '#experiment-coffeescript-panel-main.chocoblack.round', -> panel '#experiment-coffeescript-panel-editor', ''
-                                                        box '#experiment-chocodown-panel-main.chocoblack.round.hidden', -> panel '#experiment-chocodown-panel-editor', ''
+                                                        box '#experiment-script-panel-main.chocoblack.round', -> panel '#experiment-script-panel-editor', ''
+                                                        box '#experiment-markup-panel-main.chocoblack.round.hidden', -> panel '#experiment-markup-panel-editor', ''
                                                 panel ->
-                                                    panel '#experiment-coffeescript-compiled', ->
+                                                    panel '#experiment-script-transpiled', ->
                                                         footer ->
                                                             panel proportion:'half', ->
-                                                                box -> a '#toggle-js.selected', href:"#", onclick:"_ide.toggleExperimentPanel('js');", -> 'Javascript'
+                                                                box -> a '#toggle-script-output.selected', href:"#", onclick:"_ide.toggleExperimentPanel('script-output');", -> 
+                                                                    span '#label-javascript-output', 'Javascript'
+                                                                    span '#label-coffeescript-output.hidden', 'Coffeescript'
                                                                 box -> 
-                                                                    panel proportion:'half-served', ->
+                                                                    panel "#toggle-debug-panel", proportion:'half-served', ->
                                                                         panel ->
                                                                             a '#toggle-debug', href:"#", onclick:"_ide.toggleExperimentPanel('debug');", -> 'Debug'
                                                                         panel proportion:'half', ->
@@ -424,26 +434,28 @@ exports.enter = (__) ->
                                                                             panel ->
                                                                                 a href:"#", title:"Increase column width",  onclick:"_ide.changeDebugColWidth(1);", -> '+'                                                        
                                                         body ->
-                                                            panel '#experiment-js-panel-main', -> 
-                                                                box '#.white.round', -> body '#experiment-js-panel.source-code.dl-s-default', ->
+                                                            panel '#experiment-script-output-panel-main', -> 
+                                                                box '#.white.round', -> body '#experiment-script-output-panel.source-code.dl-s-default', ->
                                                             panel '#experiment-debug-panel-main.hidden', -> 
                                                                 box '#.chocoblack.round', -> panel '#experiment-debug-panel.source-code', ''
-                                                    panel '#experiment-chocodown-compiled.hidden', ->
+                                                    panel '#experiment-markup-transpiled.hidden', ->
                                                         footer ->
                                                             panel proportion:'half', ->
                                                                 box -> 
                                                                     panel proportion:'half-served', ->
                                                                         panel ->
-                                                                            a '#toggle-html.selected', href:"#", onclick:"_ide.toggleExperimentPanel('html');", -> 'Html'
-                                                                        panel proportion:'half', ->
+                                                                            a '#toggle-markup-output.selected', href:"#", onclick:"_ide.toggleExperimentPanel('markup-output');", -> 
+                                                                                span '#label-chocodown-output', 'Html'
+                                                                                span '#label-html-output.hidden', 'Chocokup'
+                                                                        panel '#experiment-markup-options', proportion:'half', ->
                                                                             panel ->
                                                                                 a href:"#", title:"Indented Chocokup", onclick:"_ide.toggleFormatChocokup(true);", -> '↘'
                                                                             panel ->
                                                                                 a href:"#", title:"Raw Chocokup", onclick:"_ide.toggleFormatChocokup(false);", -> '→'
                                                                 box -> a '#toggle-dom', href:"#", onclick:"_ide.toggleExperimentPanel('dom');", -> 'Dom'                                                        
                                                         body ->
-                                                            panel '#experiment-html-panel-main', -> 
-                                                                box '#.white.round', -> body '#experiment-html-panel.source-code', ->
+                                                            panel '#experiment-markup-output-panel-main', -> 
+                                                                box '#.white.round', -> body '#experiment-markup-output-panel.source-code', ->
                                                             panel '#experiment-dom-panel-main.hidden', -> 
                                                                 box '#.white.round', -> panel '#.padded', -> 
                                                                     iframe '#experiment-dom-panel.expand.fullscreen.white-background', frameborder:'0', ->
@@ -509,7 +521,7 @@ exports.enter = (__) ->
 
         coffeescript ->
             sofkey = _sofkey
-            editor = chocodown_editor = debug_editor = experiment_editor = specolate_editor = null
+            editor = lab_markup_editor = debug_editor = lab_script_editor = specolate_editor = null
             ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/coffee_white' else 'ace/theme/coffee'
             debug_experiment_sync = null
             sources =
@@ -1172,9 +1184,9 @@ exports.enter = (__) ->
 
             _ide.resize_editors = ->
                 editor.resize on
-                experiment_editor.resize on
+                lab_script_editor.resize on
                 debug_editor.resize on
-                chocodown_editor.resize on
+                lab_markup_editor.resize on
                 specolate_editor.resize on
 
             _ide.toggleLogin = ->
@@ -1208,9 +1220,9 @@ exports.enter = (__) ->
                 document.id('switch-theme').set 'text', if $(document.body).hasClass('lightTheme') then '□' else '■'
                 ace_theme = if $(document.body).hasClass('lightTheme') then 'ace/theme/coffee_white' else 'ace/theme/coffee'
                 editor.setTheme ace_theme
-                experiment_editor.setTheme ace_theme
+                lab_script_editor.setTheme ace_theme
                 debug_editor.setTheme ace_theme
-                chocodown_editor.setTheme ace_theme
+                lab_markup_editor.setTheme ace_theme
                 specolate_editor.setTheme ace_theme
 
             _ide.switchInvisible = ->
@@ -1282,44 +1294,97 @@ exports.enter = (__) ->
             _ide.toggleExperimentPanel = (what) ->
                 _ide.toggleMainDisplay 'main'
                 
+                return if _ide.experimentPanel_lastWhat is what
+                
+                _ide.experimentPanel_lastWhat = what
+                
                 css_class = 
                     switch what
-                        when 'js' then debug : 'add', js: 'remove'
-                        when 'debug' then debug : 'remove', js: 'add'
-                        when 'coffeescript' then chocodown : 'add', coffeescript: 'remove'
-                        when 'chocodown' then chocodown : 'remove', coffeescript: 'add'
-                        when 'html' then dom : 'add', html: 'remove'
-                        when 'dom' then dom : 'remove', html: 'add'
+                        when 'script-output' then debug : 'add', script_output: 'remove'
+                        when 'debug' then debug : 'remove', script_output: 'add'
+                        when 'coffeescript' then markup : 'add', script: 'remove', coffee:'add', js:'remove'
+                        when 'javascript' then markup : 'add', script: 'remove', coffee:'remove', js:'add'
+                        when 'chocodown' then markup : 'remove', script: 'add', chocodown:'remove', html:'add'
+                        when 'html' then markup : 'remove', script: 'add', chocodown:'add', html:'remove'
+                        when 'markup-output' then dom : 'add', markup_output: 'remove'
+                        when 'dom' then dom : 'remove', markup_output: 'add'
                         
                 if css_class.debug?
                     document.id('experiment-debug-panel-main')[css_class.debug + 'Class']('hidden')
-                    document.id('experiment-js-panel-main')[css_class.js + 'Class']('hidden')
+                    document.id('experiment-script-output-panel-main')[css_class.script_output + 'Class']('hidden')
                     
-                    document.id(item).removeClass('selected') for item in ['toggle-js', 'toggle-debug']
+                    document.id(item).removeClass('selected') for item in ['toggle-script-output', 'toggle-debug']
                     document.id('toggle-' + what).addClass 'selected'
                     _ide.compile_coffeescript_code()
-                    experiment_editor.focus()
+                    lab_script_editor.focus()
                 else 
-                if css_class.chocodown?
-                    document.id('experiment-coffeescript-panel-main')[css_class.coffeescript + 'Class']('hidden')
-                    document.id('experiment-chocodown-panel-main')[css_class.chocodown + 'Class']('hidden')
-                    document.id('experiment-coffeescript-compiled')[css_class.coffeescript + 'Class']('hidden')
-                    document.id('experiment-chocodown-compiled')[css_class.chocodown + 'Class']('hidden')
+                if css_class.markup?
+                    document.id('experiment-script-panel-main')[css_class.script + 'Class']('hidden')
+                    document.id('experiment-markup-panel-main')[css_class.markup + 'Class']('hidden')
+                    document.id('experiment-markup-output-panel-main')[css_class.markup + 'Class']('hidden')
+                    document.id('experiment-script-transpiled')[css_class.script + 'Class']('hidden')
+                    document.id('experiment-markup-transpiled')[css_class.markup + 'Class']('hidden')
                     
-                    document.id(item).removeClass('selected') for item in ['toggle-coffeescript', 'toggle-chocodown']
+                    document.id(item).removeClass('selected') for item in ['toggle-coffeescript', 'toggle-javascript', 'toggle-chocodown', 'toggle-html']
                     document.id('toggle-' + what).addClass 'selected'
                     
-                    experiment_editor.resize on
+                    if css_class.coffee?
+                        document.id('label-coffeescript-output')[css_class.coffee + 'Class']('hidden')
+                        document.id('label-javascript-output')[css_class.js + 'Class']('hidden')
+                        
+                        if what in ['coffeescript', 'javascript']
+                            lab_script_editor.getSession().setMode _ide.modes[what]
+                            
+                            _ide.experimentPanel_lastScript ?= 'coffeescript'
+                            
+                            if _ide.experimentPanel_lastScript isnt what
+                                _ide.experimentPanel_lastScript = what
+                                source = lab_script_editor.getSession().getValue()
+                                dest = document.id('experiment-script-output-panel').get 'text'
+                                lab_script_editor.getSession().setValue dest
+                                document.id('experiment-script-output-panel').set 'html', Highlight.highlight('javascript', source).value
+                                localStorage.setItem 'lab_last_experiment', what
+                                localStorage.setItem 'lab_script_editor_language', what
+                                localStorage.setItem 'lab_script_editor_content', dest
+                                
+                                document.id('toggle-debug-panel')["#{if what is 'javascript' then 'add' else 'remove'}Class"] 'hidden'
+                                if what is 'javascript'
+                                    document.id('experiment-debug-panel-main').addClass 'hidden'
+                                    document.id('experiment-script-output-panel-main').removeClass 'hidden'
+                                    document.id('toggle-script-output').addClass 'selected'
+                                    document.id('toggle-debug').removeClass 'selected'
+                        
+                    if css_class.chocodown?
+                        document.id('label-chocodown-output')[css_class.chocodown + 'Class']('hidden')
+                        document.id('label-html-output')[css_class.html + 'Class']('hidden')
+
+                        if what in ['chocodown', 'html']
+                            lab_markup_editor.getSession().setMode _ide.modes[if what is 'chocodown' then 'coffeescript' else 'html']
+                            
+                            _ide.experimentPanel_lastMarkup ?= 'chocodown'
+                            
+                            if _ide.experimentPanel_lastMarkup isnt what
+                                _ide.experimentPanel_lastMarkup = what
+                                source = lab_markup_editor.getSession().getValue()
+                                dest = document.id('experiment-markup-output-panel').get 'text'
+                                if what is 'chocodown' and dest isnt '' then dest = '<<<\n' + dest + '\n>>>'
+                                lab_markup_editor.getSession().setValue dest
+                                document.id('experiment-markup-output-panel').set 'text', source
+                                localStorage.setItem 'lab_last_experiment', what
+                                localStorage.setItem 'lab_markup_editor_language', what
+                                localStorage.setItem 'lab_markup_editor_content', dest
+                        
+                    lab_script_editor.resize on
                     debug_editor.resize on
-                    chocodown_editor.resize on                    
+                    lab_markup_editor.resize on                    
                 else 
-                if css_class.html?
-                    document.id('experiment-html-panel-main')[css_class.html + 'Class']('hidden')
+                if css_class.markup_output?
+                    document.id('experiment-markup-output-panel-main')[css_class.markup_output + 'Class']('hidden')
                     document.id('experiment-dom-panel-main')[css_class.dom + 'Class']('hidden')
                     
-                    document.id(item).removeClass('selected') for item in ['toggle-html', 'toggle-dom']
+                    document.id(item).removeClass('selected') for item in ['toggle-markup-output', 'toggle-dom']
                     document.id('toggle-' + what).addClass 'selected'
-                    chocodown_editor.focus()
+                    lab_markup_editor.focus()
 
             _ide.toggleServicesPanel = (what) ->
                 list = ['git', 'notes', 'help']
@@ -1433,7 +1498,7 @@ exports.enter = (__) ->
                 selection = editor.getSelectionRange()
                 if selection.start.row is selection.end.row and selection.start.column is selection.end.column then selection = null
                 code = if selection then editor.getSession().doc.getTextRange(selection) else editor.getSession().getValue()
-                experiment_editor.getSession().setValue code
+                lab_script_editor.getSession().setValue code
                 code = "wrap_func = ->\n  " + code.replace(/\n/g, "\n  ") + "\nreturn wrap_func()"
                 result = null ; error = null
                 try
@@ -1443,7 +1508,7 @@ exports.enter = (__) ->
                     result = _ide.error_message error
                 
                 _ide.toggleMainPanel 'shared' unless document.id('toggle-shared').hasClass 'selected'
-                experiment_editor.focus()
+                lab_script_editor.focus()
                 document.id('experiment-run-panel').set 'text', result
 
             _ide.run_specolate = ->
@@ -1498,8 +1563,8 @@ exports.enter = (__) ->
             _ide.saveInLocalStorage = _.throttle (section, value) -> localStorage.setItem section, value
                     
             _ide.compile_coffeescript_code = ->
-                source = experiment_editor.getSession().getValue()
-                _ide.saveInLocalStorage 'experiment_editor_content', source
+                source = lab_script_editor.getSession().getValue()
+                _ide.saveInLocalStorage 'lab_script_editor_content', source
                 no_debug = document.id('experiment-debug-panel-main').hasClass 'hidden'
                 
                 debug_core = (lines) -> """
@@ -1688,7 +1753,7 @@ exports.enter = (__) ->
 
                 if source.search(/\S/) is -1 
                     result = ''
-                    document.id('experiment-js-panel').set 'html', ''
+                    document.id('experiment-script-output-panel').set 'html', ''
                     debug_editor.setValue ''
                 else
                     displayDebugged = (value) ->
@@ -1698,7 +1763,7 @@ exports.enter = (__) ->
                         
                     try
                         orig_compiled = CoffeeScript.compile source, bare: true
-                        document.id('experiment-js-panel').set 'html', Highlight.highlight('javascript', orig_compiled).value
+                        document.id('experiment-script-output-panel').set 'html', Highlight.highlight('javascript', orig_compiled).value
                     catch e
                         error = e
                         result = _ide.error_message error
@@ -1718,25 +1783,56 @@ exports.enter = (__) ->
                         result = eval orig_compiled
                         
                 document.id('experiment-run-panel').set 'text', result
+            
+            _ide.transpile_javascript_code = ->
+                source = lab_script_editor.getSession().getValue()
+                _ide.saveInLocalStorage 'lab_script_editor_content', source
+                
+                error = undefined
+                try
+                    transpiled = js2coffee.build(source).code
+                    document.id('experiment-script-output-panel').set 'html', Highlight.highlight('coffeescript', transpiled).value
+                catch e
+                    error = e
+                    result = _ide.error_message error.message
+
+                unless error?
+                    result = eval source
+
+                document.id('experiment-run-panel').set 'text', result
 
             _ide.toggleFormatChocokup = (value) ->
                 formatChocokup = value
                 _ide.compile_chocodown_code()
                     
             _ide.compile_chocodown_code = ->
-                source = chocodown_editor.getSession().getValue()
-                _ide.saveInLocalStorage 'chocodown_editor_content', source
+                source = lab_markup_editor.getSession().getValue()
+                _ide.saveInLocalStorage 'lab_markup_editor_content', source
                 try
                     html = new Chocodown.converter({formatChocokup}).makeHtml source
-                    document.id('experiment-html-panel').set 'text', html
+                    document.id('experiment-markup-output-panel').set 'text', html
                     html = "<html><head><head><style>#{Chocokup.Css.core}</style><body>#{html}</body></html>"
                     _ide.iframe_write document.id('experiment-dom-panel'), html
-                    chocodown_editor.focus()
+                    lab_markup_editor.focus()
                     document.id('experiment-run-panel').set 'text', ''
 
                 catch error
                     document.id('experiment-run-panel').set 'text', error
 
+            _ide.transpile_html_code = ->
+                html = lab_markup_editor.getSession().getValue()
+                _ide.saveInLocalStorage 'lab_markup_editor_content', html
+                try
+                    kup = htmlkup html
+                    document.id('experiment-markup-output-panel').set 'text', kup
+                    _ide.iframe_write document.id('experiment-dom-panel'), html
+                    lab_markup_editor.focus()
+                    document.id('experiment-run-panel').set 'text', ''
+
+                catch error
+                    document.id('experiment-run-panel').set 'text', error
+                
+                
             _ide.refresh_rate = 2 * 60 * 1000
             
             _ide.display_synchro_conflict_message = (path) ->
@@ -1782,9 +1878,17 @@ exports.enter = (__) ->
                     
             window.addEvent 'domready', ->
                 Request.implement processScripts: (text) -> text
+                
+                _ide.modes = {}
                         
                 CoffeeScriptMode = require('ace/mode/coffee').Mode                    
-                coffeescriptMode = new CoffeeScriptMode()
+                _ide.modes.coffeescript = new CoffeeScriptMode()
+                
+                JavaScriptMode = require('ace/mode/javascript').Mode                    
+                _ide.modes.javascript = new JavaScriptMode()
+                
+                HtmlMode = require('ace/mode/html').Mode                    
+                _ide.modes.html = new HtmlMode()
                 
                 MarkdownMode = require('ace/mode/markdown').Mode
                 markdownMode = new MarkdownMode()
@@ -1805,7 +1909,7 @@ exports.enter = (__) ->
                     e.setShowPrintMargin no
                     e.setTheme ace_theme
 
-                    e.getSession().setMode mode ? coffeescriptMode
+                    e.getSession().setMode mode ? _ide.modes.coffeescript
                     e.getSession().setUseSoftTabs yes
                     e.setOptions
                         enableBasicAutocompletion: yes
@@ -1815,18 +1919,30 @@ exports.enter = (__) ->
                     
                 editor = set_editor 'editor'
                 
-                experiment_editor = set_editor 'experiment-coffeescript-panel-editor'
+                lab_script_editor = set_editor 'experiment-script-panel-editor'
 
+                past_script_language = _ide.experimentPanel_lastScript = localStorage.getItem('lab_script_editor_language')
+                unless past_script_language? then _ide.experimentPanel_lastScript = 'coffeescript' ; localStorage.setItem('lab_script_editor_language', 'coffeescript')
+                
                 Acelang = require("ace/lib/lang")
-                past_content = localStorage.getItem('experiment_editor_content')
-                if past_content then experiment_editor.insert past_content
-                experiment_editor.getSession().on 'change', ->
-                    Acelang.delayedCall(_ide.compile_coffeescript_code).schedule 200
+                past_content = localStorage.getItem('lab_script_editor_content')
+                if past_content 
+                    lab_script_editor.insert past_content
+                    service = if _ide.experimentPanel_lastScript is 'coffeescript' then _ide.compile_coffeescript_code else _ide.transpile_javascript_code
+                    Acelang.delayedCall(service).schedule 200
+                
+                lab_script_editor.getSession().on 'change', ->
+                    _ide.experimentPanel_lastScript ?= 'coffeescript'
+                    service = if _ide.experimentPanel_lastScript is 'coffeescript' then _ide.compile_coffeescript_code else _ide.transpile_javascript_code
+                    Acelang.delayedCall(service).schedule 200
+                
+                if _ide.experimentPanel_lastScript is 'javascript'
+                    document.id('toggle-debug-panel').addClass 'hidden'
 
                 debug_editor = set_editor 'experiment-debug-panel', textMode
                 debug_editor.setReadOnly on
                     
-                experiment_editor.getSession().on 'changeScrollTop', (scroll) ->
+                lab_script_editor.getSession().on 'changeScrollTop', (scroll) ->
                     if debug_experiment_sync is "debug" 
                         debug_experiment_sync = null
                     else  
@@ -1838,14 +1954,27 @@ exports.enter = (__) ->
                         debug_experiment_sync = null
                     else  
                         debug_experiment_sync = "debug"
-                        experiment_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
+                        lab_script_editor.getSession()['setScrollTop'] parseInt(scroll) || 0
 
-                chocodown_editor = set_editor 'experiment-chocodown-panel-editor', markdownMode
-                chocodown_editor.renderer.setShowGutter false
-                past_content = localStorage.getItem('chocodown_editor_content')
-                if past_content then chocodown_editor.insert past_content
-                chocodown_editor.getSession().on 'change', ->
-                    Acelang.delayedCall(_ide.compile_chocodown_code).schedule 350
+                lab_markup_editor = set_editor 'experiment-markup-panel-editor', markdownMode
+                lab_markup_editor.renderer.setShowGutter false
+                
+                past_markup_language = _ide.experimentPanel_lastMarkup = localStorage.getItem('lab_markup_editor_language')
+                unless past_markup_language? then _ide.experimentPanel_lastMarkup = 'chocodown' ; localStorage.setItem('lab_markup_editor_language', 'chocodown')
+
+                past_content = localStorage.getItem('lab_markup_editor_content')
+                if past_content 
+                    lab_markup_editor.insert past_content
+                    service = if _ide.experimentPanel_lastMarkup is 'chocodown' then _ide.compile_chocodown_code else _ide.transpile_html_code
+                    Acelang.delayedCall(service).schedule 350
+                
+                lab_markup_editor.getSession().on 'change', ->
+                    _ide.experimentPanel_lastMarkup ?= 'chocodown'
+                    service = if _ide.experimentPanel_lastMarkup is 'chocodown' then _ide.compile_chocodown_code else _ide.transpile_html_code
+                    Acelang.delayedCall(service).schedule 350
+
+                last_experiment = localStorage.getItem('lab_last_experiment')
+                _ide.toggleExperimentPanel last_experiment unless last_experiment is 'coffeescript'
 
                 specolate_editor = set_editor 'specolate-panel-editor'
                 specolate_editor.getSession().on 'change', ->
@@ -1855,7 +1984,7 @@ exports.enter = (__) ->
                 _ide.check_connected()
                 setTimeout _ide.keep_uptodate, _ide.refresh_rate
                 
-                for _ in [editor, experiment_editor, debug_editor, chocodown_editor, specolate_editor]
+                for _ in [editor, lab_script_editor, debug_editor, lab_markup_editor, specolate_editor]
                     do add_findnext_shortcut = (editor) ->
                         _.commands.addCommand
                             name: "find next"

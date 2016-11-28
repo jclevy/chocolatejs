@@ -39,6 +39,7 @@ exports.exchange = (bin, send) ->
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
         type = 'text'
+        status = 200
         subtype = switch as
             when 'web', 'edit', 'help' then 'html'
             when 'manifest' then 'cache-manifest'
@@ -66,7 +67,12 @@ exports.exchange = (bin, send) ->
                 # render if instance of Chocokup
                 
                 if result instanceof Interface.Reaction
-                    result = result.bin
+                    if result.redirect
+                        status = 303
+                        response_headers['Location'] = result.redirect
+                        result = ''
+                    else
+                        result = result.bin
                 
                 if result instanceof Chocokup
                     try
@@ -87,7 +93,7 @@ exports.exchange = (bin, send) ->
                 else
                     result = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + result + '</body></html>'
         
-        send status : 200, headers : response_headers, body : result
+        send {status, headers:response_headers, body:result}
         
     # `has500` will send an HTTP 500 error
     has500 = (error) ->

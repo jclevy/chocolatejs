@@ -22,6 +22,7 @@ monitor_server = new class
     restarting: false
     appdir: null
     logging: no
+    config: null
 
     "log": (msg) ->
         Debugate.log msg if @logging
@@ -66,9 +67,9 @@ monitor_server = new class
 
         File.logConsoleAndErrors @datadir + '/chocolate.log'
         
-        config = require('./config')(@datadir, reload:on).clone()
-        if config.letsencrypt?
-            hostname = config.letsencrypt.domains[0] if config.letsencrypt.domains?
+        @config = require('./config')(@datadir, reload:on).clone()
+        if @config.letsencrypt?
+            hostname = @config.letsencrypt.domains[0] if @config.letsencrypt.domains?
             @cert_suffix = '/letsencrypt/live/' + hostname + '/privkey.pem'
         
         process.on 'uncaughtException', (err) ->
@@ -79,15 +80,15 @@ monitor_server = new class
         this.log 'CHOCOLATEJS: Starting server'
         this.watchFiles()
 
-        if config.debug
-            @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', config.debug_port ? "8081"])
+        if @config.debug
+            @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', @config.debug_port ? "8081"])
 
         args = []
         args.push @appdir if @appdir?
         args.push @port if @port?
         cmds = []
         cmds = ['--nodejs', "--max-old-space-size=#{@memory}"] if @memory?
-        cmds = ['--nodejs', '--debug-brk'] if config.debug
+        cmds = ['--nodejs', '--debug-brk'] if @config.debug
         cmds.push 'server/server.coffee'
         @process = Child_process.spawn("coffee", cmds.concat args)
 
@@ -175,20 +176,12 @@ monitor_server = new class
                         else
                             self.convertFile file, file_path, file_base, curdir if file_ext in ['.chocokup', '.ck'] and file.indexOf(curdir + '/client/') is 0
                             command = param = undefined
-                        
-                    if command? then do (file, file_base, file_js_name, add_js_file_to_git) ->
-                        self.compile_process[file] = Child_process.spawn command, params, cwd:curdir
-                        self.compile_process[file].addListener 'exit', (code) ->
-                            Child_process.exec 'git add ' + file_js_name, cwd:curdir if add_js_file_to_git
-                            if file_rel_path.indexOf('locco') is 0 and file_base.indexOf('.spec') is -1 then build_lib_package()
-                            delete self.compile_process[file]
-                        
-                    build_lib_package = ->
-                        bundle_filename = 'locco.js'
-                        files = File.readDirDownSync static_lib_dirname
-                        files = (file.substr(static_lib_dirname.length + 1) for file in files)
-                        bundle_file = ''
-                        bundle_known_files = {
+
+                    bundles = self.config.build?.bundles ? []
+                    bundles.push
+                        filename: 'locco.js'
+                        prefix: 'locco'
+                        known_files: {
                             'locco/intention.js'
                             'locco/data.js'
                             'locco/action.js'
@@ -199,28 +192,53 @@ monitor_server = new class
                             'locco/reserve.js'
                             'locco/prototype.js'
                         }
+                        with_modules: on
+                        
+                    build_lib_package = (bundle) ->
+                        bundle_file = ''
 
                         put = (pathname) ->
                             try
                                 file_content = Fs.readFileSync static_lib_dirname + '/' + pathname
-                                bundle_file += 
+                                bundle_file += if bundle.with_modules
                                     """
-                                if (typeof window !== "undefined" && window !== null) { window.previousExports = window.exports; window.exports = {} };
-                                #{file_content}
-                                if (typeof window !== "undefined" && window !== null) { window.modules['#{pathname.replace ".js", ""}'] = window.exports; window.exports = window.previousExports };
-                                
-                                
-                                """
+                                    if (typeof window !== "undefined" && window !== null) { window.previousExports = window.exports; window.exports = {} };
+                                    #{file_content}
+                                    if (typeof window !== "undefined" && window !== null) { window.modules['#{pathname.replace ".js", ""}'] = window.exports; window.exports = window.previousExports };
+                                    
+                                    
+                                    """
+                                else 
+                                    """
+                                    #{file_content}
+                                    
+                                    
+                                    """
 
                         sort = (a,b) ->
                             name = (path) ->
                                 if (i = path.lastIndexOf '.') >= 0 then path[0...i] else path
                             if name(a) > name(b) then 1 else if name(a) < name(b) then -1 else 0
-    
-                        for own filename of bundle_known_files then put filename
-                        for filename in files.sort(sort) when bundle_known_files[filename] is undefined and filename.indexOf('locco') is 0 and filename.indexOf('.spec') is -1 and filename isnt bundle_filename then put filename
+                        
+                        files = File.readDirDownSync static_lib_dirname
+                        files = (file.substr(static_lib_dirname.length + 1) for file in files)
+
+                        for own filename of bundle.known_files then put filename
+                        for filename in files.sort(sort) when bundle.known_files[filename] is undefined and filename.indexOf(bundle.prefix) is 0 and filename.indexOf('.spec') is -1 and filename isnt bundle.filename then put filename
                             
-                        Fs.writeFileSync static_lib_dirname + '/' + bundle_filename, bundle_file                    
+                        Fs.writeFileSync static_lib_dirname + '/' + bundle.filename, bundle_file   
+                        
+                    if command? then do (file, file_base, file_js_name, add_js_file_to_git) ->
+                        self.compile_process[file] = Child_process.spawn command, params, cwd:curdir
+                        self.compile_process[file].addListener 'exit', (code) ->
+                            Child_process.exec 'git add ' + file_js_name, cwd:curdir if add_js_file_to_git
+                            
+                            for bundle in bundles
+                                file_rel_name = file_rel_path + (if file_rel_path is '' then '' else '/') + file_base + file_ext
+                                if file_rel_name.indexOf(bundle.prefix) is 0 and file_base.indexOf('.spec') is -1
+                                    build_lib_package(bundle)
+                                    
+                            delete self.compile_process[file]
             
                 file = appdir + '/' + file if appdir is '.'
                 if (file.indexOf(appdir + '/client/') is 0 or file.indexOf(appdir + '/general/') is 0) then build file, appdir

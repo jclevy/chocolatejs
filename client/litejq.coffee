@@ -410,7 +410,7 @@ $.Ajax = do ->
 
     $.post = (url, data, success, dataType) -> _xhrForm("POST", url, data, success, dataType)
 
-    $.getJson = (url, data, success) -> $.get url, data, success, Ajax_default.mime
+    $.getJSON = $.getJson = (url, data, success) -> $.get url, data, success, Ajax_default.mime
 
     $.getScript = (url, success) -> $.get url, undefined, success, "script"
 

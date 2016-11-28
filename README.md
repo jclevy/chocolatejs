@@ -25,12 +25,12 @@ It includes :
 
  - **Locco** -- the Chocolate protocol : so, what, where, how...
 
- - **Chocolate playground** -- an online and immediate **playground** for Coffeescript, Chocokup and Doccolate
-
  - **Chocokup** -- a 100% pure CoffeeScript templating language that helps build web user interfaces (based on Coffeekup)
 
  - **Chocodown** -- Chocokup-aware port of Markdown (based on Showdown)
 
+ - **Chocolate Lab** -- an online and immediate **Lab** playground where you write, transpile and/or test code between Javascript and Coffeescript and also between Html and Chocokup...
+ - 
  - **Specolate** -- a behavior/test driven development tool (based on Jasmine) that works client and server side
 
  - **Doccolate** -- an online documentation editing tool (based on Docco)
@@ -63,108 +63,61 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.19 - (2016-10-06)**
+**Chocolate v0.0.20 - (2016-11-28)**
 
 
 NEW FEATURES
 
- - `letsencrypt` renewal service now works automaticaly
+ - Added `Javascript` code execution and `Javascript` to `Coffeescript` conversion services in the `Lab` panels
+   (thanks to js2coffee.js library)
+ 
+ - Added `Html` code rendering and `Html` to `Coffekup`/`Chocokup` conversion services in the `Lab` panels
+   (thanks to htmlkup.coffee library)
 
- - `Single Page Application` can be easily created using `locco/actor`
-  
-> Create a new service `myservice.coffee`, in which you will define a function that will return an actor that can work both client and server sides :
-            
-            MyService = ->
-                _ = require 'chocolate/general/chocodash'
-                Interface = require 'chocolate/general/locco/interface'
-                Actor = require 'chocolate/general/locco/actor'
-                
-                _.prototype inherit:Actor.Web,                   # make your service inherit from Actor.Web
-            
-                    ping: new Interface.Remote -> "pong"         # use Interface.Remote to have your interface work client and server side 
-            
-                    login: new Interface.Remote -> @transmit @actor.users, 'login' # in the Interface render code you can use @transmit to delegate the interface handling to another Actor's interface
-                    
-                    main: new Interface.Web.Html ->              # your actor's interface called main will be used as the default interface
-                        # ...
-                        # my css and html code written using Chocokup
-                        # ...
-                        coffeescript: ->
-                            # send a message server side when the login button is clicked
-                            
-                            $("#loginButtonId").on "click", (e) ->
-                                loginInfos = login:$("#login").val(), pwd:$("#password").val()
-                                self.login.submit(login_infos).subscribe (result) ->
-                                    {name} = result.props
-                                    if name?
-                                        # ...
-                            
-> Then the server side only services:
-            
-            Users = _.prototype inherit:Actor,
-            
-                constructor: ->
-                    # @usersDb = ... whatever method you want to store your users' data
-            
-                login: new Interface ->
-                    {login, pwd} = @props
-            
-                    # user = @actor.usersDb.get login, pwd
-                    # ...
-            
-                logged: new Interface ->
-                    # ...
-                
-> Then the server main interface:
-            
-            module.exports = _.prototype inherit: _.prototyper(MyService),
-                constructor: ->
-                    @options = 
-                        filename: __filename     # required to have the page's manifest file being managed automatialy
-                        name: 'My Service'           # the title displayed by the client window
-                        script: """
-                                                 # whatever client scripts needed...
-                            """
-                        stylesheet: """
-                                                 # whatever css files needed...
-                            """
-                     
-                    @users = new Users
+ - locco protocol and Interface allows a `redirect` url to be specified and used to generate an HTTP 303 response
+        
+        service = new Interface
+            check -> ...        # if the `check` function returns false 
+            redirect: 'login'   # the interface will return an HTTP 303 redirect to the `login` page
 
+ - `monitor.coffee` service now allows you to define Javascript bundles to be build when source files are saved.  
+    If you have some client side Coffeescript/Javascript files (in Client or General folders) with the same prefix (or in the same subfolder), they can be bundled in the same file.
+
+    In the `app.config.json` file, add a `build:{bundles:[]}` section, with the following parameters:
+    
+        filename: the name for the output bundle file
+        prefix: the prefix used in (or the path to) every file to put in the bundle
+        known_files: an array of files' path, that have to be put in that precise order in the bundle
+        with_modules: true or false, to put in the bundle the necessary code to make those files required by the Chocolate's require service
+        
+        "build": {
+            "bundles": [
+                {
+                    "filename": "locco.js",
+                    "prefix": "locco",
+                    "known_files": {
+                        "locco/intention.js": true,
+                        "locco/data.js": true,
+                        "locco/action.js": true,
+                        "locco/document.js": true,
+                        "locco/workflow.js": true,
+                        "locco/interface.js": true,
+                        "locco/actor.js": true,
+                        "locco/reserve.js": true,
+                        "locco/prototype.js": true
+                    },
+                    "with_modules": true
+                }
+            ]
+        }
 
 UPDATES
- 
- - can now serve `.pdf` files in `static` folder
- - in locco/interface, data given to an interface service, like  the `render` function, is accessible through an object named `bin`.
-  
-   Now, you can use  `props` as a synonym to `bin`
-   
-          myService = new Interface.Web
-              defaults: ->
-                  title: 'home'
-              render: ->
-                  div this.props.title
-     
-   or 
-     
-          myService = new Interface.Web { title: 'home' }, -> div @props.title
-    
-   or it is still possible to use `bin`
-          
-          myService = new Interface.Web { title: 'home' }, -> div @bin.title
-    
-   The data returned by the Interface also has now a `props` property that can be used as a synonym to `bin`
-   
-          myInterface.submit(params).subscribe (result) ->
-              {name} = result.props
-              ...
-  
+
+ - `this` and `bin` available in Locco/Interface's `defaults` and `check` functions
+
 FIXED BUGS
 
- - in chocokup/coffeekup: a markup with an attribute starting with a point (like style '.mycssclass {color:white}' was wrongly interpreted as an html class id
- - in package.json: works with letsencrypt module version 1.4.4 only
- - in chocodash: Publisher with no subscriber will save notified values until a reporter has subscribed
-
+ - `Chocodown` does not insert unnecessary `<p>` tag anymore when it translates `Chocokup` block (`<<<`) or `Coffeescript` block (`{{{`)
 
 See history in **CHANGELOG.md** file
 
@@ -423,7 +376,39 @@ and `Chocolate` will use the domains defined in
                 "domains": [ "yourdomain.com" ],
                 ...
 
+**Javascript Bundle service**
 
+You can define Javascript bundles to be build when source files are saved.  
+If you have some client side Coffeescript/Javascript files (in Client or General folders) with the same prefix (or in the same subfolder), they can be bundled in the same file.
+    
+In the `app.config.json` file, add a `build:{bundles:[]}` section, with the following parameters:
+    
+        filename: the name for the output bundle file
+        prefix: the prefix used in (or the path to) every file to put in the bundle
+        known_files: an array of files' path, that have to be put in that precise order in the bundle
+        with_modules: true or false, to put in the bundle the necessary code to make those files required by the Chocolate's require service
+        
+        "build": {
+            "bundles": [
+                {
+                    "filename": "locco.js",
+                    "prefix": "locco",
+                    "known_files": {
+                        "locco/intention.js": true,
+                        "locco/data.js": true,
+                        "locco/action.js": true,
+                        "locco/document.js": true,
+                        "locco/workflow.js": true,
+                        "locco/interface.js": true,
+                        "locco/actor.js": true,
+                        "locco/reserve.js": true,
+                        "locco/prototype.js": true
+                    },
+                    "with_modules": true
+                }
+            ]
+        }
+        
 **Chocolate system services and files**
 
 They are accessible (if you registered the master key) at:
@@ -531,7 +516,7 @@ The [Notes](#Choco-Newnotes) panel allows you to write and save some notes.
 
 ## <a name="Choco-Lab"></a> The Lab [⌂](#Choco-Summary) 
 
-The Lab helps you write your code and test cases, syntax...
+The Lab helps you write your code and test cases, syntax and also translate between Javascript and Coffeescript and also between Html and Chocokup...
 
 **Coffeescript Lab**
 
@@ -567,6 +552,10 @@ Copy the following code in the Coffeescript Lab with the Debug panel:
 Then change the `'f'` to something else and see the Debug panel change in live!
 
 This service is experimental but it has been really useful to me.
+
+**Javascript Lab**
+
+But you can also select the Javascript mode where your Javascript code will be immediately executed and also translated to Coffeescript!
 
 **Chocodown Lab**
 
@@ -624,6 +613,10 @@ Copy the following code in the Chocokup Lab with the Dom panel:
 And see...
 
 Then change **[0.\.3]** to **[0.\.6]** and see the result...
+
+**Html Lab**
+
+But you can also select the Html mode where your Html code will be immediately rendered and also translated to Coffeekup/Chocokup!
 
 &nbsp;
 

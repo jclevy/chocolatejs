@@ -43,7 +43,7 @@ Interface = _.prototype
         check =
             # `defaults` ensure default values are set on an object
             defaults: (object, defaults) =>
-                if typeof defaults is 'function' then defaults = defaults.call @
+                if typeof defaults is 'function' then defaults = defaults.call self, object
                 
                 set = (o, d) ->
                     for own dk,dv of d
@@ -100,10 +100,16 @@ Interface = _.prototype
                 end.with result
 
             run (end) ->
-                if reaction.certified and @render?
-                    self = getSelf.call this, end
-                    result = @render.call self, bin
-                    reaction.props = reaction.bin = result unless reaction.bin? or result is end.later
+                if reaction.certified 
+                    if @render?
+                        self = getSelf.call this, end
+                        result = @render.call self, bin
+                        reaction.props = reaction.bin = result unless reaction.bin? or result is end.later
+                else
+                    if @redirect? 
+                        self = getSelf.call this, end
+                        reaction.redirect = if typeof @redirect is 'function' then @redirect.call self else @redirect
+                        
                 end.with result
 
             run -> 
