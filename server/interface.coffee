@@ -21,7 +21,7 @@ Interface = require '../general/locco/interface'
 # `cook` serves a cookies object containing cookies from the sent request
 exports.cook = (request) ->
     cookies = {}
-    (cookie_pair = http_cookie.split '=' ; cookies[cookie_pair[0]] = cookie_pair[1]) for http_cookie in http_cookies.split ';' if (http_cookies = request.headers['cookie'])?
+    (cookie_pair = http_cookie.split '=' ; cookies[cookie_pair[0].trim()] = cookie_pair[1].trim()) for http_cookie in http_cookies.split ';' if (http_cookies = request.headers['cookie'])?
     cookies
 
 #### Exchange
@@ -32,7 +32,7 @@ exports.exchange = (bin, send) ->
     config = require('./config')(datadir)
     where = where.replace(/\.\.[\/]*/g, '')
 
-    context = {space, workflow, request, where, params, websocket, session, sysdir, appdir, datadir, config}
+    context = {space, workflow, request, where, what, params, websocket, session, sysdir, appdir, datadir, config}
 
     config = config.clone()
     
@@ -72,7 +72,7 @@ exports.exchange = (bin, send) ->
                         response_headers['Location'] = result.redirect
                         result = ''
                     else
-                        result = result.bin
+                        result = result.bin ? ''
                 
                 if result instanceof Chocokup
                     try
@@ -86,21 +86,25 @@ exports.exchange = (bin, send) ->
                     result = '<?xml version="1.0" encoding="iso-8859-1"?>\n' + result
                     
                 # Defaults to Unicode
-                if result?.indexOf?('</head>') > 0
-                    result = result.replace('</head>', '<meta http-equiv="content-type" content="text/html; charset=utf-8" /></head>')
-                else if result?.indexOf?('<body') > 0
-                    result = result.replace('<body', '<head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body')
-                else
-                    result = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + result + '</body></html>'
+                unless request.headers['x-requested-with'] is 'XMLHttpRequest'
+                    if result?.indexOf?('</head>') > 0
+                        result = result.replace('</head>', '<meta http-equiv="content-type" content="text/html; charset=utf-8" /></head>')
+                    else if result?.indexOf?('<body') > 0
+                        result = result.replace('<body', '<head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body')
+                    else
+                        result = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + result + '</body></html>'
         
         send {status, headers:response_headers, body:result}
         
     # `has500` will send an HTTP 500 error
     has500 = (error) ->
         if error?
-            source = if (info = error.source)? then "Error in Module:" + info.module + ", with Function :" + info.method + '\n' else ''
-            line = if (info = error.location)? then "Coffeescript error at line:" + info.first_line + ", column:" + info.first_column + '\n' else ''
-            send status : 500, headers : {"Content-Type": "text/plain"}, body : source + line + (error.stack ? error.toString()) + "\n"
+            if config.display_errors
+                source = if (info = error.source)? then "Error in Module:" + info.module + ", with Function :" + info.method + '\n' else ''
+                line = if (info = error.location)? then "Coffeescript error at line:" + info.first_line + ", column:" + info.first_column + '\n' else ''
+                send status : 500, headers : {"Content-Type": "text/plain"}, body : source + line + (error.stack ? error.toString()) + "\n"
+            else
+                send status : 500, headers : {"Content-Type": "text/plain"}, body : "\n"
             true
         else
             false
@@ -109,7 +113,7 @@ exports.exchange = (bin, send) ->
     hasSofkey = ->
         hasKeypass = config.keypass is on and File.hasWriteAccess(appdir) is no
         hashed_backdoor_key = if backdoor_key isnt '' then Crypto.createHash('sha256').update(backdoor_key).digest('hex') else ''
-        if config.sofkey in [hashed_backdoor_key, backdoor_key] or config.sofkey in session.keys or hasKeypass then true else false         
+        if config.sofkey in [hashed_backdoor_key, backdoor_key] or config.sofkey of session.keys or hasKeypass then true else false         
 
     # `getMethodInfo` retrieve a method and its parameters from a required module
     getMethodInfo = ({required, action, instanciate}) ->
@@ -432,7 +436,7 @@ exports.register_key = (__) ->
             
     entered_kup = ->
         text 'Key registered'
-    
+
     if __.request.method isnt 'POST'
         new Chocokup.Document 'Key registration', kups:{key:enter_kup}, Chocokup.Kups.Tablet
 
@@ -445,7 +449,7 @@ exports.register_key = (__) ->
         __.request.on 'end', () ->
             fields = require('querystring').parse source
 
-            __.session.keys.push Crypto.createHash('sha256').update(fields.key).digest('hex')
+            __.session.addKey Crypto.createHash('sha256').update(fields.key).digest('hex')
             
             event.emit 'end', new Chocokup.Document 'Key registration', kups:{key:entered_kup}, Chocokup.Kups.Tablet
         
@@ -464,7 +468,7 @@ exports.forget_keys = (__) ->
     if __.request.method isnt 'POST'
         new Chocokup.Document 'Key unregistration', kups:{key:forget_kup}, Chocokup.Kups.Tablet
     else
-        __.session.keys = []
+        __.session.clearKeys()
         new Chocokup.Document 'Key unregistration', kups:{key:forgeted_kup}, Chocokup.Kups.Tablet
 
 #### Create Hash

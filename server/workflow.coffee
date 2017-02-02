@@ -27,7 +27,9 @@ class Sessions
     constructor: (cache) ->
         # The sessions store is managed by the `Document.Cache` service
         store = @store = cache.ensure 'Locco_Workflow_Sessions_Store', {}
-        
+
+        for id, session of store then store[id] = Session.fromStore session
+
         # The `cleanup` function will be called 
         # when a session will expire to remove it from the list
         cleanup = ->
@@ -64,6 +66,7 @@ class Sessions
                     session.hasCookie = true
                     session.lastAccess = new Date
                     session.expires = Session.newExpiration()
+                    if session.keys?.constructor isnt {}.constructor then session.keys = {}
                     createSession = false
         
         # If we didn't find a session in store
@@ -71,7 +74,7 @@ class Sessions
         if createSession
             browser_session_id = _.Uuid()
             session = @store[browser_session_id] ?= new Session(browser_session_id, remoteAddress)
-            
+
         session
         
 # `Session` object keeps informations about a session
@@ -82,11 +85,25 @@ class Sessions
 # - `expires` : when will the session expire (on the server and in the browser)
 class Session
     constructor: (@id, @remoteAddress, @hasCookie = false, @expires = Session.newExpiration()) ->
-        @keys = []
+        @keys = {}
         @lastAccess = new Date
 
     # `newExpiration`, a Session class method, calculates a new expiration date
     @newExpiration: -> new Date((+new Date) + 3600 * 1000)
+    
+    @fromStore: (o) ->
+        session = new Session
+        for k,v of o then session[k] = v
+        session
+    
+    # add `key` to keychain
+    addKey: (key) -> @keys[key] = null
+    
+    # remove `key` from keychain
+    removeKey: (key) -> delete @keys[key]
+
+    # remove all keys from keychain
+    clearKeys: -> @keys = {}
 
 #### `Sni-callback` to manage SSL
 # based on https://github.com/Daplie/letsencrypt-express

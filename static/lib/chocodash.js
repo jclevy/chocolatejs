@@ -490,10 +490,15 @@
   _.clone = function() {
     var clone, copy, copyIsArray, i, length, name, options, src, target;
     target = arguments[0] || {};
-    i = 1;
     length = arguments.length;
-    if (typeof target !== "object" && !_.type(target) === _.Type.Function) {
+    if (length === 1) {
+      i = 0;
       target = {};
+    } else {
+      i = 1;
+      if (typeof target !== "object" && !_.type(target) === _.Type.Function) {
+        target = {};
+      }
     }
     while (i < length) {
       if ((options = arguments[i]) != null) {
@@ -954,7 +959,7 @@
             value = ref[m];
             reporter(value);
           }
-          return this.unreported.length = 0;
+          return self.unreported.length = 0;
         };
         return setTimeout(notify, 0);
       }

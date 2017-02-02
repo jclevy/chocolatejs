@@ -443,11 +443,13 @@ _.extend = (object, values, overwrite) ->
 
 _.clone = ->
     target = arguments[0] or {}
-    i = 1
     length = arguments.length
 
-    # Handle case when target is a string or something (possible in deep copy)
-    target = {} if typeof target isnt "object" and not _.type(target) is _.Type.Function
+    if length is 1 then i = 0; target = {}
+    else
+        i = 1
+        # Handle case when target is a string or something (possible in deep copy)
+        target = {} if typeof target isnt "object" and not _.type(target) is _.Type.Function
         
     while i < length
         # Only deal with non-null/undefined values
@@ -927,7 +929,7 @@ _.Publisher = Publisher = _.prototype
             self = @
             notify = -> 
                 for value in self.unreported then reporter value
-                @unreported.length = 0
+                self.unreported.length = 0
             setTimeout notify, 0 
 
 # cuid.js

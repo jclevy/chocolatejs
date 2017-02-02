@@ -1,3 +1,28 @@
+## v0.0.21 - (2017-02-02)
+
+--------------
+
+NEW FEATURES
+
+ - in `data/app.config.json`: `display_errors` parameter tells Chocolate to display errors (or not) on the rendered web page
+
+UPDATES
+
+ - in locco/interface's Interface.Web : 
+  - introducing Interface.Web.Global objets that will be automatically copied from one props/bin to sub-interface's bin 
+  - only Interface.Web and Interface.Web.Global objects are copied from one props/bin to sub-interface's bin
+ 
+ - in server/interface: 
+  - don't add missing html/body tags in response if request is an Ajax call (headers['x-requested-with'] is 'XMLHttpRequest') 
+  - add `what` in context passed to invoked module service
+
+ - in server/workflow: Session::addKey and Session::removeKey were added to allow you to add or remove access keys from the Session's keychain 
+
+FIXED BUGS
+
+ - in `server/interface`'s `cook` service, we now trim cookies' key and value in case the client put spaces there
+ - in `general/chocodash`'s `clone` service, don't return the original object if only one parameter is provided (target object to receive cloned values not provided), but return the cloned object as expected
+
 ## v0.0.20-1 - (2016-11-28)
 
 --------------
