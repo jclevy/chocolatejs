@@ -1076,7 +1076,7 @@ exports.enter = (__) ->
                                 item = info.split ' '
                                 filename = item[0]
                                 displayed_name = filename.replace /node_modules\/chocolate/g, '-'
-                                if displayed_name.indexOf('-/node_modules') is 0 then continue
+                                continue if displayed_name.indexOf('-/node_modules') is 0 or displayed_name.indexOf('node_modules') is 0 
                                 (sources.searched[filename]={}).modifiedDate = 1000 * parseInt item[1]
                                 lines.push if filename.indexOf('.spec.coffee') >= 0 then "<a href=\"#\" onclick=\"javascript:_ide.open_file('#{filename.replace('.spec.coffee', '.coffee')}', true); _ide.toggleMainPanel('specolate')\">#{displayed_name}</a>" else "<a href=\"#\" onclick=\"javascript:_ide.open_file('#{filename}');\">#{displayed_name}</a>"
                             document.id("studio-search").set 'html', lines.join '<br/>'

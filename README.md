@@ -63,29 +63,80 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.21 - (2017-02-02)**
+**Chocolate v0.0.22 - (2017-03-07)**
 --------------
 
 NEW FEATURES
 
- - in `data/app.config.json`: `display_errors` parameter tells Chocolate to display errors (or not) on the rendered web page
+ - in `data/app.config.json`, `log` parameters are added :
+    - `inFile` (true or false) tells Chcolate to redirect log functions output to `data/chocolate.log` file
+    - `timestamp` (true or false) tells Chcolate to add a timestamp to every Console output
+
+            "log": {
+                "inFile": true,
+                "timestamp": true
+            }
+    
+    - `rewrite` an array of rewrite rules :
+    
+        `rule`: a regular expression  
+        `replace`: a string to replace what will be found by the regular expression
+    
+            "rewrite": [
+                {"rule": "/(.+)_(.+)_(.+)_(.+)", "replace":"/?Library=$1&Book=$2&Chapter=$3&Verse=$4"}
+            ]
 
 UPDATES
 
- - in locco/interface's Interface.Web : 
-  - introducing Interface.Web.Global objets that will be automatically copied from one props/bin to sub-interface's bin 
-  - only Interface.Web and Interface.Web.Global objects are copied from one props/bin to sub-interface's bin
- 
- - in server/interface: 
-  - don't add missing html/body tags in response if request is an Ajax call (headers['x-requested-with'] is 'XMLHttpRequest') 
-  - add `what` in context passed to invoked module service
+ - in `app.config.json`'s `proxy` section, you can now specify:
+  - a domain port redirection
 
- - in server/workflow: Session::addKey and Session::removeKey were added to allow you to add or remove access keys from the Session's keychain 
+            "proxy": {
+                "lestencrypt": true,
+                "redirect": {
+                    "mydomain.com": "mydomain.fr"
+                }
+            }
+    
+      will redirect mydomain.net requests to mydomain.com port
+
+  - a domain for the proxy service itself:
+
+            "proxy": {
+                "lestencrypt": true,
+                "proxy_domain": {
+                    "proxy.mydomain.com"
+                }
+            }
+            
+  - to log proxy events:
+
+            "proxy": {
+                "log": true,
+            }
+
+ - in `server/monitor`, you can now specify a user to run your `monitor` and app processes.  
+
+        coffee monitor --user myappuser 
+
+   NOTE: this will only work if you start `server/monitor` with a privileged account
+   
+ - in `server/interface`:
+   - now provides the HTTP response object to the called service in the `__` context parameter
+   - does not return anymore the `props` property as an alias to the `bin` property in `Interface.Reaction` response to a web request, which was an unnecessary duplicate. When using an `Interface.Actor` clientside, it puts back the `props` property as an alias to the `bin` property.
+
+ - in `server/studio`, search service does not give results from `node_modules` subdirectories anymore
+ - in `data/app.config.json` the`display_errors` parameter is renamed `displayErrors`
+ - `http-proxy` node-module upgraded to v1.16.2
+ - `logConsoleAndErrors` does not have a `timestamp` parameter anymore as it is managed by the`app.config.json` `timestamp` parameter
 
 FIXED BUGS
 
- - in `server/interface`'s `cook` service, we now trim cookies' key and value in case the client put spaces there
- - in `general/chocodash`'s `clone` service, don't return the original object if only one parameter is provided (target object to receive cloned values not provided), but return the cloned object as expected
+ - in `server/studio`, search/grep service was somehow broken
+ - in `server/workflow`, 
+  - send a response when a proxy error occurs and don't create unnecessary proxy handlers
+  - `http` redirection to `https` now includes the requested url
+ - in `server/file` `logConsoleAndErrors` service was broken. It should work now. `unlogConsoleAndErrors` was added.
 
 See history in **CHANGELOG.md** file
 

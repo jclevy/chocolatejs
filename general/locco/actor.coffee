@@ -65,7 +65,9 @@ Actor = _.prototype
     submit: (service, params...) ->
         publisher = new _.Publisher
         if window? and @stage.is_ready()
-            @stage.call @, service, params..., (data) -> publisher.notify data
+            @stage.call @, service, params..., (data) -> 
+                if data?.bin? and not data.props? then data.props = data.bin
+                publisher.notify data
         else
             setTimeout (-> publisher.notify()), 0
         publisher        

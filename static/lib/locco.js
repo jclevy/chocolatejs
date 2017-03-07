@@ -1047,6 +1047,9 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
       publisher = new _.Publisher;
       if ((typeof window !== "undefined" && window !== null) && this.stage.is_ready()) {
         (ref = this.stage).call.apply(ref, [this, service].concat(slice.call(params), [function(data) {
+          if (((data != null ? data.bin : void 0) != null) && (data.props == null)) {
+            data.props = data.bin;
+          }
           return publisher.notify(data);
         }]));
       } else {

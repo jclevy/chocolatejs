@@ -23,6 +23,7 @@ monitor_server = new class
     appdir: null
     logging: no
     config: null
+    user: null
 
     "log": (msg) ->
         Debugate.log msg if @logging
@@ -57,16 +58,18 @@ monitor_server = new class
                 when "--appdir" then @appdir = kv[1]
                 when "--port" then @port = kv[1]
                 when "--memory" then @memory = kv[1]
+                when "--user" then @user = kv[1]
                 else args.push kv[0] unless kv[1]?
         @appdir ?=  args[0]
         @port ?=  args[1]
         @memory ?=  args[2]
+        @user ?=  args[3]
         @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}/data"
+        
+        if @user? then process.setuid @user
         
         self = this
 
-        File.logConsoleAndErrors @datadir + '/chocolate.log'
-        
         @config = require('./config')(@datadir, reload:on).clone()
         if @config.letsencrypt?
             hostname = @config.letsencrypt.domains[0] if @config.letsencrypt.domains?

@@ -9,6 +9,7 @@
 Events = require 'events'
 Fs = require 'fs'
 Path = require 'path'
+Util = require 'util'
 # It uses **Git** to manage its system files versions
 Git = require './git'
 
@@ -286,7 +287,11 @@ exports.grep = (pattern, with_case, show_details, __) ->
     grep  = require('child_process').exec command
     grep.stdout.on 'data', (data) -> results.push data
     grep.stderr.on 'data', (data) ->
-    grep.on 'exit', (code) -> event.emit 'end', results.join ''
+    grep.on 'exit', (code) ->
+        results = results.map (item) ->
+            [path, stamp] = item.split ' '
+            (Path.relative (__?.appdir ? '.'), path) + ' ' + stamp
+        event.emit 'end', results.join ''
 
     event
 
@@ -353,33 +358,45 @@ exports.getAvailableCommits = (path, __) ->
 stdout_write = stderr_write = undefined
 
 exports.logConsoleAndErrors = (path) ->
+    return if stdout_write?
+
+    stdout_write = process.stdout.write
+    stderr_write = process.stderr.write
+    
     write_stream = Fs.createWriteStream(path, {'flags': 'a'})
     
-    process.stdout.write = stdout_write if stdout_write?
-    process.stderr.write = stderr_write if stderr_write?
-
-    write = (target, chunk, encoding, callback) ->
-        return unless chunk?
-        encoding = null if encoding is 'buffer'
-        done = no
-        if write_stream.write new Date().toJSON() + ' - '
-            if write_stream.write chunk, encoding
-                write[target] chunk, encoding, callback
-                done = yes
-        if not done then write_stream.once 'drain', write
+    log = (chunk) ->
+        write_stream.write = switch 
+            when typeof chunk is 'string' then chunk
+            when Buffer.isBuffer chunk then chunk.toString 'binary'
+            else chunk.toString()
         
-    write.stdout = stdout_write = process.stdout.write.bind(process.stdout)
-    write.stderr = stderr_write = process.stderr.write.bind(process.stderr)
+    process.stdout.write = ((write) -> (chunk, encoding, fd) -> log chunk ; write.apply process.stdout, arguments ; return)(process.stdout.write)
+    process.stderr.write = ((write) -> (chunk, encoding, fd) -> log chunk ; write.apply process.stderr, arguments ; return)(process.stderr.write)
+    return
     
-    streamOut = new require('stream').Writable()
-    streamOut._write = (chunk, encoding, callback) -> write 'stdout', chunk, encoding, callback
+exports.unlogConsoleAndErrors = ->
+    return unless stdout_write?
+    process.stdout.write = stdout_write
+    process.stderr.write = stderr_write
+    return
 
-    streamErr = new require('stream').Writable()
-    streamErr._write = (chunk, encoding, callback) -> write 'stderr', chunk, encoding, callback
-
-    process.stdout.write = streamOut.write.bind(streamOut)
-    process.stderr.write = streamErr.write.bind(streamErr)
-
+exports.logWithTimestamp = ->
+    funcs = 
+        log: console.log.bind console
+        info: console.info.bind console
+        warn: console.warn.bind console
+        error: console.error.bind console
+    
+    timestamp = -> '[' + (new Date).toISOString() + ']'
+    
+    Object.keys(funcs).forEach (k) ->
+        console[k] = ->
+            arguments[0] = Util.format(timestamp(), arguments[0])
+            funcs[k].apply console, arguments
+            return
+    return
+    
 #### Internal functions
 
 #### normalize

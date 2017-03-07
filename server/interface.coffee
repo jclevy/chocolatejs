@@ -27,17 +27,19 @@ exports.cook = (request) ->
 #### Exchange
 # `exchange` operates the interface
 exports.exchange = (bin, send) ->
-    {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket} = bin
+    {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, response, session, websocket} = bin
 
     config = require('./config')(datadir)
     where = where.replace(/\.\.[\/]*/g, '')
 
-    context = {space, workflow, request, where, what, params, websocket, session, sysdir, appdir, datadir, config}
+    context = {space, workflow, request, response, where, what, params, websocket, session, sysdir, appdir, datadir, config}
 
     config = config.clone()
     
     # `respond` will send the computed result as an Http Response.
     respond = (result, as = how) ->
+        return if result instanceof Interface.Reaction and result.piped
+        
         type = 'text'
         status = 200
         subtype = switch as
@@ -49,7 +51,7 @@ exports.exchange = (bin, send) ->
             switch request.headers['accept']?.split(',')[0] 
                 when 'application/json' then as = 'json'
                 when 'application/json-late' then as = 'json-late'
-
+        
         response_headers = { "Content-Type":"#{type}/#{subtype}; charset=utf-8" }
         
         switch as
@@ -58,6 +60,7 @@ exports.exchange = (bin, send) ->
                 response_headers['Expires'] = new Date().toUTCString()
                 
             when 'raw', 'json'
+                if result instanceof Interface.Reaction then delete result.props
                 result = JSON.stringify result unless as is 'raw' and Object.prototype.toString.call(result) is '[object String]'
         
             when 'json-late'
@@ -99,7 +102,7 @@ exports.exchange = (bin, send) ->
     # `has500` will send an HTTP 500 error
     has500 = (error) ->
         if error?
-            if config.display_errors
+            if config.displayErrors
                 source = if (info = error.source)? then "Error in Module:" + info.module + ", with Function :" + info.method + '\n' else ''
                 line = if (info = error.location)? then "Coffeescript error at line:" + info.first_line + ", column:" + info.first_column + '\n' else ''
                 send status : 500, headers : {"Content-Type": "text/plain"}, body : source + line + (error.stack ? error.toString()) + "\n"

@@ -349,8 +349,13 @@ class World
         sys_pathname = cwd
         
         datadir = appdir + '/data'
+        
+        # Get application Config for Http only server and base port, key and cert options
+        config = require('./config')(datadir).clone()
 
-        File.logConsoleAndErrors (appdir ? '.' ) + '/data/chocolate.log'
+        if config.log?
+            if config.log.inFile then File.logConsoleAndErrors (appdir ? '.' ) + '/data/chocolate.log'
+            if config.log.timestamp then File.logWithTimestamp()
         
         # If Node.js crashes unexpectedly, we will receive an `uncaughtException` and log it in a file
         process.on 'uncaughtException', (err) ->
@@ -364,8 +369,6 @@ class World
 
         workflow = Workflow.main
 
-        # Get application Config for Http only server and base port, key and cert options
-        config = require('./config')(datadir).clone()
         port_https = port
         port_https ?= config.port_https
         port_https ?= config.port
@@ -403,33 +406,46 @@ class World
             
             if config.proxy? then do ->
                 proxies = {}
-                domain_port = port_https + 10
+                domain_port = port_https + if config.proxy.proxy_domain? then 0 else 10
                 
                 domains_proxied = switch _.type(config.proxy)
                     when _.Type.Array then config.proxy
-                    when _.Type.Boolean then config.letsencrypt?.domains
+                    when _.Type.Boolean, _.Type.Object then config.letsencrypt?.domains
                 
-                if domains_proxied? then for domain in domains_proxied when not proxies[domain] 
-                    if domain.substr(0,4) is 'www.'
-                        main_domain = domain.substr 4
-                        main_domain_port = proxies[main_domain].port
-                        proxies[domain] = host:domain, port:main_domain_port ? domain_port
-                        if not main_domain_port? then domain_port += 10
-                    else
-                        proxies[domain] = host:domain, port:domain_port
-                        domain_port += 10
+                if domains_proxied? 
+                    for domain in domains_proxied
+                        redirect_domain = if config.proxy.redirect? then config.proxy.redirect[domain] else null
+                        continue if proxies[domain]?
+                        if domain.substr(0,4) is 'www.' then redirect_domain = domain.substr 4
+                        redirect_port = if redirect_domain? then proxies[redirect_domain].port else null
+                            
+                        proxies[domain] = host:redirect_domain ? domain, port:redirect_port ? domain_port
+                        domain_port += 10 unless redirect_port? 
                 
                     HttpProxy = require 'http-proxy'
                     proxy = HttpProxy.createProxyServer {}
-                
+
                     proxy.on 'error', (err, request, response) ->
                         console.log  'Proxy ' + err + ' - Message:' + request.url + ' - Headers: ' + ((k + ':' + v for k,v of request.headers when k in ['host', 'user-agent']).join ', ') + '\n\n'
-                        
+                        response.writeHead 500, {"Content-Type": if config.displayErrors then "application/json" else "text/plain"}
+                        response.end if config.displayErrors then JSON.stringify err else ""
+
+                    if config.proxy.log
+                        proxy.on 'proxyReq', (proxyReq, request, response) ->
+                            console.log 'proxyReq event:', 'host:' + request.headers.host, 'ip:' + request.connection?.remoteAddress, (k + ':' + v for k,v of proxyReq when k in ['method', 'path']).join ', '
+    
+                        proxy.on 'proxyRes', (proxyRes, request, response) ->
+                            console.log 'proxyRes event:', 'host:' + request.headers.host, 'ip:' + request.connection?.remoteAddress, (k + ':' + (if k is 'headers' then JSON.stringify(v) else v) for k,v of proxyRes when k in ['headers', 'statusCode']).join ', '
+
                     middleware[if config.http_only then 'http' else 'https'].push (args) ->
                         {request, response} = args
-                        {port} = proxies[request.headers.host]
-                        if port is null then response.end('') ; return no 
-                        proxy.web request, response, { target: "#{if config.http_only then 'http' else 'https'}://127.0.0.1:#{port}", secure:false }                        
+                        proxy_infos = proxies[request.headers.host]
+                        if proxy_infos? and config.proxy.proxy_domain is proxy_infos.host
+                            if config.proxy.log
+                                console.log 'proxyReq event:', 'host:' + request.headers.host, 'ip:' + request.connection?.remoteAddress, (k + ':' + v for k,v of request when k in ['method', 'url']).join ', '
+                            return yes
+                        unless proxy_infos?.port? then response.end('') ; return no 
+                        proxy.web request, response, { target: "#{if config.http_only then 'http' else 'https'}://127.0.0.1:#{proxy_infos.port}", secure:false }                        
 
             middleware
         
@@ -469,6 +485,13 @@ class World
         extract = (request, url) ->
             # We extract infos from the Request
             request.url = url if url?
+            # Execute rewrite rules if any
+            if config.rewrite?.length > 0
+                for rewrite in config.rewrite
+                    {rule, replace} = rewrite
+                    if typeof replace is 'function' then replace = replace(url)
+                    new_url = request.url.replace new RegExp(rule, "ig"), replace
+                    (request.url = new_url ; break) if new_url isnt request.url 
             url = Url.parse request.url
             query = QueryString.parse url.query, null, null, ordered:yes
             pathname = url.pathname
@@ -528,6 +551,7 @@ class World
 
         exchange = (bin, response) ->
             Interface.exchange bin, (result) ->
+                if response.finished then return
                 # We will send back a cookie with an id and an expiration date
                 result.headers['Set-Cookie'] = 'bsid=' + bin.session.id + ';path=/;secure;httponly;expires=' + bin.session.expires.toUTCString()
                 # And here is our response to the requestor
@@ -577,6 +601,7 @@ class World
                                         
                                     bin = extract request, message.url
                                     bin.websocket = ws
+                                    bin.response = response
                                 
                                     Interface.exchange bin, (result) ->
                                         response.writeHead result.status, result.headers
@@ -608,6 +633,7 @@ class World
                 
                 # Extract 'so, do, what...' infos from the Request
                 bin = extract request
+                bin.response = response
                 # We call the Interface service to make an exchange between the requestor and the place specified in `where`
                 exchange bin, response
 
@@ -624,7 +650,7 @@ class World
             Http.createServer (request, response) ->
                 for func in middleware.http then unless func({request, response}) then return
 
-                response.writeHead 302, {'Location': "https://#{request.headers.host}" }
+                response.writeHead 302, {'Location': "https://#{request.headers.host}#{request.url}" }
                 response.end ''
             .listen port_http
 

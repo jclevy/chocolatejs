@@ -1,3 +1,80 @@
+## v0.0.22 - (2017-03-07)
+
+--------------
+
+NEW FEATURES
+
+ - in `data/app.config.json`, `log` parameters are added :
+    - `inFile` (true or false) tells Chcolate to redirect log functions output to `data/chocolate.log` file
+    - `timestamp` (true or false) tells Chcolate to add a timestamp to every Console output
+
+            "log": {
+                "inFile": true,
+                "timestamp": true
+            }
+    
+    - `rewrite` an array of rewrite rules :
+    
+        `rule`: a regular expression  
+        `replace`: a string to replace what will be found by the regular expression
+    
+            "rewrite": [
+                {"rule": "/(.+)_(.+)_(.+)_(.+)", "replace":"/?Library=$1&Book=$2&Chapter=$3&Verse=$4"}
+            ]
+
+UPDATES
+
+ - in `app.config.json`'s `proxy` section, you can now specify:
+  - a domain port redirection
+
+            "proxy": {
+                "lestencrypt": true,
+                "redirect": {
+                    "mydomain.com": "mydomain.fr"
+                }
+            }
+    
+      will redirect mydomain.net requests to mydomain.com port
+
+  - a domain for the proxy service itself:
+
+            "proxy": {
+                "lestencrypt": true,
+                "proxy_domain": {
+                    "proxy.mydomain.com"
+                }
+            }
+            
+  - to log proxy events:
+
+            "proxy": {
+                "log": true,
+            }
+
+ - in `server/monitor`, you can now specify a user to run your `monitor` and app processes.  
+
+        coffee monitor --user myappuser 
+
+   NOTE: this will only work if you start `server/monitor` with a privileged account
+   
+ - in `server/interface`:
+   - now provides the HTTP response object to the called service in the `__` context parameter
+   - does not return anymore the `props` property as an alias to the `bin` property in `Interface.Reaction` response to a web request, which was an unnecessary duplicate. When using an `Interface.Actor` clientside, it puts back the `props` property as an alias to the `bin` property.
+
+ - in `server/studio`, does not give results from `node_modules` subdirectories anymore
+ - in `data/app.config.json` the`display_errors` parameter is renamed `displayErrors`
+ - `http-proxy` node-module upgraded to v1.16.2
+ - `logConsoleAndErrors` does not have a `timestamp` parameter anymore as it is managed by the`app.config.json` `timestamp` parameter
+
+FIXED BUGS
+
+ - in `server/studio`, search/grep service was somehow broken
+ - in `server/workflow`, 
+  - send a response when a proxy error occurs and don't create unnecessary proxy handlers
+  - `http` redirection to `https` now includes the requested url
+ - in `server/file` `logConsoleAndErrors` service was broken. It should work now. `unlogConsoleAndErrors` was added.
+
+
 ## v0.0.21 - (2017-02-02)
 
 --------------
@@ -182,6 +259,7 @@ FIXED BUGS
  - in chocokup/coffeekup: a markup with an attribute starting with a point (like style '.mycssclass {color:white}' was wrongly interpreted as an html class id
  - in package.json: works with letsencrypt module version 1.4.4 only
  - in chocodash: Publisher with no subscriber will save notified values until a reporter has subscribed
+ - 
 
 ## v0.0.18 - (2016-06-21)
 
