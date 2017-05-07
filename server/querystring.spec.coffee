@@ -1,5 +1,5 @@
 unless window?
-    QueryString = require '../../server/querystring'
+    QueryString = require '../server/querystring'
     
     describe 'QueryString', ->
         it 'should decode a querystring in an array', ->

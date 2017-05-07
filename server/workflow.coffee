@@ -105,6 +105,41 @@ class Session
     # remove all keys from keychain
     clearKeys: -> @keys = {}
 
+#### Workflow websockets management
+
+# `Websockets` object will maintain a list of all websocket objects
+class WebSockets
+    constructor: ->
+        @clients = {}
+        
+    get: (request) ->
+        # Get the cookies and the remote ip address from the `request`
+        cookies = Interface.cook request
+        
+        if cookies.bsid?
+            wss = @clients[cookies.bsid]
+            do (wss) ->
+                close: -> for ws in wss then ws.close.apply ws, arguments
+                send: -> for ws in wss then ws.send.apply ws, arguments
+        else
+            null
+
+    register: (ws) ->
+        cookies = Interface.cook ws.upgradeReq
+        if cookies.bsid?
+            #if @clients[cookies.bsid]? then console.log "client with bsid:#{cookies.bsid} has already a registered websocket"
+            array = @clients[cookies.bsid] ?= [] 
+            array.push ws
+        return
+    
+    unregister: (ws) ->
+        cookies = Interface.cook ws.upgradeReq
+        if cookies.bsid?
+            array = @clients[cookies.bsid]
+            for item, i in array when item is ws
+                array.splice i, 1
+        
+
 #### `Sni-callback` to manage SSL
 # based on https://github.com/Daplie/letsencrypt-express
 #
@@ -364,6 +399,7 @@ class World
         Document.datadir = datadir
         cache = new Document.Cache async:off
         sessions = new Sessions cache
+        websockets = new WebSockets
         
         space = new Reserve.Space datadir
 
@@ -481,7 +517,7 @@ class World
             []
                 
         network = if config.http_only then Http else Https
-
+        
         extract = (request, url) ->
             # We extract infos from the Request
             request.url = url if url?
@@ -538,16 +574,20 @@ class World
             sodowhat = query.dict['sodowhat'] ? null
             so = ('do' if sodowhat?) ? query.dict['so'] ? 'go'
             what = sodowhat ? query.dict['what'] ? ''
+            what_pathname = what
+            if (app_pathname + (if what[0] isnt '/' then '/' else '' ) + what).indexOf(sys_pathname) is 0 then what_pathname = '/-' + (app_pathname + (if what[0] isnt '/' then '/' else '' ) + what).substr sys_pathname.length
+            what_path = what_pathname.split '/'
             how = query.dict['how'] ? 'web'
             backdoor_key = if path[1] is '!' then path[2] else ''
             where_index = 1 + if backdoor_key isnt '' then 2 else 0
             where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
-            region = if path[where_index] is '-' then 'system' else if where_path[0] is 'static' and how is 'web' then 'static' else if path[where_index] in ['client', 'general', 'server'] then 'secure' else 'app'
+            region = if path[where_index] is '-' or what_path[1] is '-' then 'system' else if where_path[0] is 'static' and how is 'web' then 'static' else if path[where_index] in ['client', 'general', 'server'] then 'secure' else 'app'
             where = where_path.join '/'
             
             session = sessions.get(request)
+            websocket = websockets.get(request)
             
-            {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session}
+            {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket}
 
         exchange = (bin, response) ->
             Interface.exchange bin, (result) ->
@@ -560,7 +600,7 @@ class World
 
         upgrade = do ->
             
-            websockets = {}
+            fallback_websockets = {}
             
             Fallback_Websocket = _.prototype
                 constructor: (@id) -> @messages = []
@@ -570,7 +610,7 @@ class World
                 id = request.headers['x-litejq-websocket-id']
                 return null unless id?
 
-                websockets[id] ?= new Fallback_Websocket id
+                fallback_websockets[id] ?= new Fallback_Websocket id
             
             (request, response) ->
                 upgraded = no
@@ -655,6 +695,10 @@ class World
             .listen port_http
 
         new WebSocket.Server({server}).on 'connection', (ws) ->
+            websockets.register ws
+            
+            ws.on 'close', -> websockets.unregister ws
+
             ws.on 'message', (str) ->
                 message = JSON.parse str
                 bin = extract ws.upgradeReq, message.url

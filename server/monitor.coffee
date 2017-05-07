@@ -21,12 +21,12 @@ monitor_server = new class
     compile_process: {}
     restarting: false
     appdir: null
-    logging: no
+    logging: yes
     config: null
     user: null
 
     "log": (msg) ->
-        Debugate.log msg if @logging
+        Debugate.log "Time:#{Date.now()}: " + msg if @logging
 
     "exit": ->
         this.log 'CHOCOLATEJS: terminate child process'
@@ -44,11 +44,16 @@ monitor_server = new class
 
 
     "restart": ->
-        @restarting = true
-        this.log 'CHOCOLATEJS: Stopping server for restart'
-        this.kill(@process.pid) if @process?
-        this.kill(@debug_process.pid) if @debug_process?
-
+        self = this
+        
+        @throttled_restart ?= _.throttle wait:1000, reset:on, ->
+            @restarting = true
+            self.log 'CHOCOLATEJS: Stopping server for restart'
+            self.kill(@process.pid) if @process?
+            self.kill(@debug_process.pid) if @debug_process?
+        
+        @throttled_restart()
+        
     "start": ->
         process.chdir __dirname + '/..'
         args = []
@@ -249,7 +254,7 @@ monitor_server = new class
 
             self.log 'CHOCOLATEJS: Restarting because of ' + event + ' file at ' + file
             
-            setTimeout (-> self.restart() if should_restart), 1000
+            setTimeout (-> self.restart() if should_restart), 10
 
         @watcher = Chokidar.watch appdir, ignored: filter, persistent: yes, ignoreInitial:yes
         @watcher.on 'add', on_add
@@ -284,6 +289,7 @@ monitor_server = new class
     
     "killPid": (pid, signal) ->
         try
+            this.log "kill #{pid} #{signal ? ''}"
             process.kill parseInt(pid, 10), signal
         catch err
             if err.code != 'ESRCH'

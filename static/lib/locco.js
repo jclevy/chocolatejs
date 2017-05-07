@@ -341,17 +341,23 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
               };
               _this.ws = $.websocket("wss://" + window.location.host + "/~");
               _this.ws.onmessage = function(evt) {
-                var callback, data;
+                var callback, data, ref;
                 if (options.debug) {
                   if (evt.data !== '') {
                     console.log("Message is received:" + evt.data);
                   }
                 }
                 data = JSON.parse(evt.data);
-                if ((data != null) && data.result !== void 0 && data.id) {
-                  callback = callbacks[data.id];
-                  callback(data.result);
-                  return delete callbacks[data.id];
+                if (data != null) {
+                  if (data.result !== void 0 && data.id) {
+                    callback = callbacks[data.id];
+                    callback(data.result);
+                    return delete callbacks[data.id];
+                  } else {
+                    if (((ref = data.console) != null ? ref.log : void 0) != null) {
+                      return console.log(data.console.log);
+                    }
+                  }
                 }
               };
               _this.ws.onopen = function() {

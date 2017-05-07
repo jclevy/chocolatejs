@@ -72,7 +72,7 @@
     };
 
     Specolate.report = function(module_filename, options, callback) {
-      var context, error, event, host, k, reporter, result, specolate_filename, v, vm;
+      var context, error, event, host, k, reporter, result, specolate_filename, stack, v, vm;
       if (!finished) {
         return '';
       }
@@ -179,7 +179,7 @@
           context.require = require;
           context.global = context;
           context.global.global = context;
-          event = vm.runInContext("var Events, event, k;\nEvents = require('events');\nevent = new Events.EventEmitter;\nhost.jasmine = require('jasmine-node');\ntry { require('" + specolate_filename + "'); } catch (_error) {}\nhost.jasmine.getEnv().reporter = reporter;\nhost.jasmine.getEnv().__ = host.__;\nhost.jasmine.getEnv().execute();\nevent;", context, specolate_filename);
+          event = vm.runInContext("var Events, event, k;\nEvents = require('events');\nevent = new Events.EventEmitter;\nhost.jasmine = require('jasmine-node');\ntry { require('" + specolate_filename + "'); } catch (_error) {}\nhost.jasmine.getEnv().reporter = reporter;\nhost.jasmine.getEnv().__ = host.__;\ntry { host.jasmine.getEnv().execute(); } catch (_error) { process.nextTick(function() {event.emit('end', {count:{failed:1,total:1},log:[\"\", \"\", _error.toString()]});}) }\nevent;", context, specolate_filename);
         } else {
           require('../' + specolate_filename, {
             use_cache: false
@@ -190,8 +190,13 @@
       } catch (_error) {
         error = _error;
         finished = true;
+        try {
+          stack = error.stack;
+        } catch (_error) {
+          stack = error.toString();
+        }
         result = {
-          log: ['', '', '', error.stack],
+          log: ['', '', '', stack],
           count: {
             failed: 1,
             total: 1

@@ -1,6 +1,6 @@
 _ = require '../general/chocodash'
 
-describe 'prototype', ->
+xdescribe 'prototype', ->
     Document = _.prototype()
     DocWithCons = DocWithInst = null
     doc = null
@@ -360,6 +360,435 @@ xdescribe 'Actors', ->
         
 {Signal, Observer, Publisher} = _
 
+describe 'cell', ->
+
+  it 'cell is a cell', ->
+    a = _.cell 1
+
+    expect(a()).toBe 1
+
+  it 'Cell propagates on Cell but not on functions', ->
+    a = _.cell 1
+    
+    c = 0
+    b = -> c = a()
+    b()
+    
+    e = 0
+    d = _.cell -> e = a()
+
+    expect(c).toBe 1
+    expect(e).toBe 1
+    
+    a(2)
+    
+    expect(c).toBe 1
+    expect(e).toBe 2
+
+  it 'Single static cell', ->
+    a = _.cell 1
+
+    expect(a()).toEqual 1
+    expect(a(2)).toEqual 2
+    expect(a()).toEqual 2
+    expect(a(3)).toEqual 3
+    expect(a()).toEqual 3
+    
+  it 'Second static cell', ->
+    a = _.cell 1
+    b = _.cell 2
+
+    expect(a()).toEqual 1
+    expect(b()).toEqual 2
+    expect(a()).toEqual 1
+    expect(b(3)).toEqual 3
+    expect(a()).toEqual 1
+    expect(b()).toEqual 3
+    expect(a()).toEqual 1
+    expect(b(4)).toEqual 4
+    expect(a()).toEqual 1
+    expect(b()).toEqual 4
+
+  it "Cell with simple single dependency", ->
+    a = _.cell 1
+    b = _.cell -> a()
+    expect(a()).toEqual 1
+    expect(b()).toEqual 1
+    a(2)
+    expect(a()).toEqual 2
+    expect(b()).toEqual 2
+    c = _.cell 3
+    expect(a()).toEqual 2
+    expect(b()).toEqual 2
+
+  it "multi dependents", ->
+    a = _.cell 1
+    b = _.cell -> a()
+    c = _.cell -> a() + 1
+    expect(a()).toEqual 1
+    expect(b()).toEqual 1
+    expect(c()).toEqual 2
+    a(2)
+    expect(a()).toEqual 2
+    expect(b()).toEqual 2
+    expect(c()).toEqual 3
+
+  it "Breaking dependency", ->
+    a = _.cell 1
+    b = _.cell -> a()
+    expect(a()).toEqual 1
+    expect(b()).toEqual 1
+    a(2)
+    expect(a()).toEqual 2
+    expect(b()).toEqual 2
+    b(3)
+    expect(a()).toEqual 2
+    expect(b()).toEqual 3
+    a(7)
+    expect(a()).toEqual 7
+    expect(b()).toEqual 3
+
+  it "Cell with modified single dependency", ->
+    a = _.cell 1
+    b = _.cell -> a() + 10
+    expect(a()).toEqual 1
+    expect(b()).toEqual 11
+    a(2)
+    expect(a()).toEqual 2
+    expect(b()).toEqual 12
+
+  it "Cell with simple chain dependency", ->
+    a = _.cell 1
+    b = _.cell -> a()
+    c = _.cell -> b()
+    expect(a()).toEqual 1
+    expect(b()).toEqual 1
+    expect(c()).toEqual 1
+    a(2)
+    expect(a()).toEqual 2
+    expect(b()).toEqual 2
+    expect(c()).toEqual 2
+
+  it "Cell with complex chain dependency", ->
+    a = _.cell 1
+    b = _.cell -> a() + 1
+    c = _.cell -> b() + 1
+    expect(a()).toEqual 1
+    expect(b()).toEqual 2
+    expect(c()).toEqual 3
+    a(4)
+    expect(a()).toEqual 4
+    expect(b()).toEqual 5
+    expect(c()).toEqual 6
+
+  it "Cell with multiple dependency", ->
+    a = _.cell 1
+    b = _.cell 2
+    c = _.cell -> a() + b()
+    expect(a()).toEqual 1
+    expect(b()).toEqual 2
+    expect(c()).toEqual 3
+    a(3)
+    expect(a()).toEqual 3
+    expect(b()).toEqual 2
+    expect(c()).toEqual 5
+    b(4)
+    expect(a()).toEqual 3
+    expect(b()).toEqual 4
+    expect(c()).toEqual 7
+
+  it "Multipath dependencies", ->
+    a = _.cell 1
+    b = _.cell -> a() + 1
+    c = _.cell -> a() + b()
+    expect(a()).toEqual 1
+    expect(b()).toEqual 2
+    expect(c()).toEqual 3
+    a(7)
+    expect(a()).toEqual 7
+    expect(b()).toEqual 8
+    expect(c()).toEqual 15
+    b(3)
+    expect(a()).toEqual 7
+    expect(b()).toEqual 3
+    expect(c()).toEqual 10
+    a(4)
+    expect(a()).toEqual 4
+    expect(b()).toEqual 3
+    expect(c()).toEqual 7
+
+  it "avoid redundant multipath triggering", ->
+    cCount = 0
+    a = _.cell 1
+    b = _.cell -> a() + 1
+    c = _.cell -> 
+      a() + b()
+      cCount += 1
+    a(2)
+    expect(cCount).toEqual 2
+
+  it "deferred cell with simple single dependency", ->
+    a = b = null
+    
+    runs ->
+        a = _.cell 1
+        b = _.cell (deferred) -> setTimeout (-> deferred -> 2 * a()), 200; deferred
+
+    waitsFor (-> b 'idle', null), 'define - deferred cell with simple single dependency', 500
+    runs ->
+        expect(a()).toEqual 1
+        expect(b()).toEqual 2
+        
+    runs ->
+        a(2)
+        
+    waitsFor (-> b 'idle', null), 'update - deferred cell with simple single dependency', 1000
+    
+    runs ->
+        expect(a()).toEqual 2
+        expect(b()).toEqual 4    
+
+  it "deferred multi dependents", ->
+    a = b = c = null
+    
+    runs ->
+        a = _.cell 1
+        b = _.cell (deferred) -> setTimeout (-> deferred -> 2 * a()), 100; deferred
+        c = _.cell (deferred) -> setTimeout (-> deferred -> 1 + b()), 300; deferred 
+
+    waitsFor (-> b('idle', null) and c('idle', null)), 'define - deferred multi dependents', 500
+    runs ->
+        expect(a()).toEqual 1
+        expect(b()).toEqual 2
+        expect(c()).toEqual 3
+        
+    runs ->
+        a(2)
+    waitsFor (-> b('idle', null) and c('idle', null)), 'update - deferred multi dependents', 500
+    runs ->
+        expect(a()).toEqual 2
+        expect(b()).toEqual 4
+        expect(c()).toEqual 5
+        
+  it "catch an error", ->
+      err = undefined
+      try
+        a = _.cell -> throw 'an errror occured'
+      catch err
+        expect(a).toBe undefined
+        expect(err).toBe 'an errror occured'
+      
+      err = undefined
+      a = _.cell()
+      a 'catch', (e) -> err = e
+      a -> throw 'an errror occured'
+      expect(err).toBe 'an errror occured'
+
+describe "observer", ->
+  it "basic observer", ->
+    a = _.cell 1
+    expect(a()).toEqual 1
+    b = null
+    expect(b).toEqual null
+    c = _.observer -> b = a()
+    expect(b).toEqual 1
+    a(2)
+    expect(b).toEqual 2
+
+  it "multi observer", ->
+    a = _.cell 1
+    b = _.cell -> a()
+    c = _.cell -> a()
+    d = _.cell -> c()
+    e = 0
+    f = _.observer ->
+      e += a() + b() + c() + d()
+    expect(e).toEqual 4
+    a(2)
+    expect(e).toEqual 12
+
+  it "read write observer", ->
+    a = _.cell 1
+    b = _.cell 2
+    expect(a()).toEqual 1
+    expect(b()).toEqual 2
+    c = _.observer -> b(a())
+    expect(b()).toEqual 1
+    a(3)
+    expect(a()).toEqual 3
+    expect(b()).toEqual 3
+    b(4)
+    expect(a()).toEqual 3
+    expect(b()).toEqual 4
+
+  it "another read write observer", ->
+    a = 0
+    b = _.cell 1
+    c = _.cell 2
+    expect(a).toEqual 0
+    expect(b()).toEqual 1
+    expect(c()).toEqual 2
+    d = _.observer ->
+      a += 1
+      b()
+      c(3)
+    expect(a).toEqual 1
+    expect(b()).toEqual 1
+    expect(c()).toEqual 3
+    a = 4
+    expect(a).toEqual 4
+    expect(b()).toEqual 1
+    expect(c()).toEqual 3
+    b(6)
+    expect(a).toEqual 5
+    expect(b()).toEqual 6
+    expect(c()).toEqual 3
+    c(7)
+    expect(a).toEqual 5
+    expect(b()).toEqual 6
+    expect(c()).toEqual 7
+
+  it "defered multi observer", ->
+    a = b = c = d = e = f = null
+
+    runs ->
+        a = _.cell 1
+        b = _.cell (deferred) -> setTimeout (-> deferred -> a()), 100; deferred
+        c = _.cell (deferred) -> setTimeout (-> deferred -> a()), 100; deferred
+        d = _.cell -> c()
+        e = 0
+        f = _.observer ->
+            value = a() + b() + c() + d()
+            e += if a('idle', null) and b('idle', null) and c('idle', null) and d('idle', null) then value else 0
+          
+    waitsFor (-> f('ready', null)), 'define - deferred multi dependents', 500
+    
+    runs ->
+        expect(e).toEqual 4
+
+    runs ->
+        a(2)
+    waitsFor (-> f('ready', null)), 'update - deferred multi dependents', 500
+    runs ->
+        expect(e).toEqual 12
+
+  it "defered read write observer", ->
+    a = b = c = d = null
+
+    runs ->
+        a = _.cell 1
+        b = _.cell (deferred) -> setTimeout (-> deferred -> 2 * a()), 100; deferred
+        c = _.cell 3
+    waitsFor (-> b('idle', null)), 'define - defered read write observer', 500
+    runs ->
+        expect(a()).toEqual 1
+        expect(b()).toEqual 2
+        expect(c()).toEqual 3
+        
+    runs ->
+        d = _.observer -> c(b())
+    waitsFor (-> d('ready', null)), 'define d - defered read write observer', 500
+    runs ->
+        expect(c()).toEqual 2
+        
+    runs ->
+        a(3)
+    waitsFor (-> d('ready', null)), 'update a - defered read write observer', 500
+    runs ->
+        expect(a()).toEqual 3
+        expect(b()).toEqual 6
+        expect(c()).toEqual 6
+
+describe "cell misc.", ->
+  it "object setter", ->
+    a = _.cell {}
+    b = _.cell -> "Serialized: " + JSON.stringify(a())
+    expect(b()).toEqual "Serialized: {}"
+    a()["x"] = 1
+    expect(JSON.stringify(a())).toEqual '{"x":1}'
+    expect(b()).toEqual "Serialized: {}"
+    a(a())
+    expect(JSON.stringify(a())).toEqual '{"x":1}'
+    expect(b()).toEqual 'Serialized: {"x":1}'
+    a(_).set("x", 2)
+    expect(JSON.stringify(a())).toEqual '{"x":2}'
+    expect(b()).toEqual 'Serialized: {"x":2}'
+    a(3)
+    expect(a()).toEqual 3
+    expect(b()).toEqual 'Serialized: 3'
+
+  it "basic array push ", ->
+    a = _.cell []
+    a(_).push "x"
+    expect(JSON.stringify(a())).toEqual '["x"]'
+
+  it "array initialized properly", ->
+    a = _.cell []
+    a "push", "x" # alternate notation
+    expect(JSON.stringify(a())).toEqual '["x"]'
+    a(_).push "y"
+    expect(JSON.stringify(a())).toEqual '["x","y"]'
+    a(_).pop()
+    expect(JSON.stringify(a())).toEqual '["x"]'
+    a(_).pop()
+    expect(JSON.stringify(a())).toEqual '[]'
+    a(_).unshift "x"
+    expect(JSON.stringify(a())).toEqual '["x"]'
+    a(_).unshift "y"
+    expect(JSON.stringify(a())).toEqual '["y","x"]'
+    a(_).unshift "z"
+    expect(JSON.stringify(a())).toEqual '["z","y","x"]'
+    a(_).sort()
+    expect(JSON.stringify(a())).toEqual '["x","y","z"]'
+    a(_).reverse()
+    expect(JSON.stringify(a())).toEqual '["z","y","x"]'
+    a(_).splice 1, 1, "w"
+    expect(JSON.stringify(a())).toEqual '["z","w","x"]'
+    a(_).shift()
+    expect(JSON.stringify(a())).toEqual '["w","x"]'
+
+  it "array methods", ->
+    a = _.cell []
+    b = _.cell -> "Serialized: " + JSON.stringify(a())
+    expect(JSON.stringify(a())).toEqual '[]'
+    expect(b()).toEqual 'Serialized: []'
+    a()[0] = "x"
+    expect(JSON.stringify(a())).toEqual '["x"]'
+    expect(b()).toEqual 'Serialized: []'
+    a(a())
+    expect(JSON.stringify(a())).toEqual '["x"]'
+    expect(b()).toEqual 'Serialized: ["x"]'
+    a "set", 1, "y"
+    expect(JSON.stringify(a())).toEqual '["x","y"]'
+    expect(b()).toEqual 'Serialized: ["x","y"]'
+    a "push", "z"
+    expect(JSON.stringify(a())).toEqual '["x","y","z"]'
+    expect(b()).toEqual 'Serialized: ["x","y","z"]'
+    a "unshift", "w"
+    expect(JSON.stringify(a())).toEqual '["w","x","y","z"]'
+    expect(b()).toEqual 'Serialized: ["w","x","y","z"]'
+    c = a "shift", null
+    expect(JSON.stringify(a())).toEqual '["x","y","z"]'
+    expect(b()).toEqual 'Serialized: ["x","y","z"]'
+    expect(c).toEqual "w"
+    a "reverse", null
+    expect(JSON.stringify(a())).toEqual '["z","y","x"]'
+    expect(b()).toEqual 'Serialized: ["z","y","x"]'
+    d = a "pop", null
+    expect(JSON.stringify(a())).toEqual '["z","y"]'
+    expect(b()).toEqual 'Serialized: ["z","y"]'
+    a "push", "foo"
+    a "push", "bar"
+    expect(JSON.stringify(a())).toEqual '["z","y","foo","bar"]'
+    expect(b()).toEqual 'Serialized: ["z","y","foo","bar"]'
+    d = a "splice", 1, 2
+    expect(JSON.stringify(d)).toEqual '["y","foo"]'
+    expect(JSON.stringify(a())).toEqual '["z","bar"]'
+    expect(b()).toEqual 'Serialized: ["z","bar"]'
+    a("pies")
+    expect(a()).toEqual "pies"
+    expect(b()).toEqual 'Serialized: "pies"'
+    
 xdescribe 'Signal', ->
 
   it 'Signal is a Signal', ->
@@ -573,7 +1002,7 @@ xdescribe 'Signal', ->
   it "catch an error", ->
       err = undefined
       a = new Signal -> throw 'an errror occured'
-      a.catch (e) -> err = e
+      a 'catch', (e) -> err = e
       expect(a.value()).toBe undefined
       expect(err).toBe 'an errror occured'
 
@@ -717,7 +1146,6 @@ xdescribe "Signal misc.", ->
     a.value(3)
     expect(a.value()).toEqual 3
     expect(b.value()).toEqual 'Serialized: 3'
-    expect(a.set).toEqual undefined
 
   it "basic array push ", ->
     a = new Signal []
@@ -790,10 +1218,3 @@ xdescribe "Signal misc.", ->
     a.value("pies")
     expect(a.value()).toEqual "pies"
     expect(b.value()).toEqual 'Serialized: "pies"'
-    expect(a.pop).toEqual undefined
-    expect(a.push).toEqual undefined
-    expect(a.shift).toEqual undefined
-    expect(a.unshift).toEqual undefined
-    expect(a.sort).toEqual undefined
-    expect(a.reverse).toEqual undefined
-    expect(a.splice).toEqual undefined

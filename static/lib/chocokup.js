@@ -31,7 +31,7 @@
       function _Class() {}
 
       _Class.prototype.__verify = function() {
-        var a, args, attributes, content, contents, id_class, idclass, j, len;
+        var a, args, attributes, content, id_class, idclass, j, len;
         args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
         attributes = content = null;
         id_class = '';
@@ -51,10 +51,10 @@
             case 'string':
               if (args.length === 1) {
                 if (args[0][0] !== '.' || args[0].indexOf(' ') >= 0) {
-                  contents = a;
+                  content = a;
                 } else {
                   idclass = a;
-                  contents = null;
+                  content = null;
                 }
               } else {
                 if (a === args[0]) {

@@ -12,7 +12,7 @@ class Chocokup
         text "#{@__.body()}"
     body_template: ->
         text "#{@__.content()}"
-        
+
     @helpers: class
         __verify : (args...) ->
             attributes = content = null
@@ -27,8 +27,8 @@ class Chocokup
                         content = a
                     when 'string'
                         if args.length is 1
-                            if args[0][0] isnt '.' or args[0].indexOf(' ') >= 0 then contents = a
-                            else idclass = a ; contents = null
+                            if args[0][0] isnt '.' or args[0].indexOf(' ') >= 0 then content = a
+                            else idclass = a ; content = null
                         else
                             if a is args[0]
                                 id_class = a

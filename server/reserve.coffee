@@ -883,11 +883,11 @@ create_volume
 #upgrade_volume
 #open_volume
 #close_volume
-insert_nade
-update_nade
-link_nade
-merge_nade
-remove_nade
+insert_node
+update_node
+link_node
+merge_node
+remove_node
 read
 read_all
 read_at_time
@@ -930,7 +930,7 @@ Library = do ->
         
         return node
     
-    update_nade = (volume, uuid, data) ->
+    update_node = (volume, uuid, data) ->
         return if not volume? or not uuid? or not data? or not volume.nodes[uuid]?
         
         current_node = volume.nodes[uuid]
@@ -940,7 +940,7 @@ Library = do ->
         
         return current_node
         
-    {create_volume, insert_node, update_nade}
+    {create_volume, insert_node, update_node}
 
 exports.Space = Space
 exports.Library = Library

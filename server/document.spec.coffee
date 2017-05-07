@@ -13,7 +13,7 @@ unless window?
                 expect(datadir = jasmine.getEnv().__.datadir).not.toBeUndefined()
             
             it 'creates a Cache object', ->
-                cache = new Document.Cache datadir
+                cache = new Document.Cache datadir, async:off
                 cache.filename = "test.cache"
                 expect(cache instanceof Document.Cache).toBeTruthy()
                 

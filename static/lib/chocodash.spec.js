@@ -4,7 +4,7 @@
 
   _ = require('../general/chocodash');
 
-  describe('prototype', function() {
+  xdescribe('prototype', function() {
     var CopiedDocument, DocWithCons, DocWithInst, Document, InheritedDocument, cop, doc, inh;
     Document = _.prototype();
     DocWithCons = DocWithInst = null;
@@ -699,6 +699,581 @@
 
   Signal = _.Signal, Observer = _.Observer, Publisher = _.Publisher;
 
+  describe('cell', function() {
+    it('cell is a cell', function() {
+      var a;
+      a = _.cell(1);
+      return expect(a()).toBe(1);
+    });
+    it('Cell propagates on Cell but not on functions', function() {
+      var a, b, c, d, e;
+      a = _.cell(1);
+      c = 0;
+      b = function() {
+        return c = a();
+      };
+      b();
+      e = 0;
+      d = _.cell(function() {
+        return e = a();
+      });
+      expect(c).toBe(1);
+      expect(e).toBe(1);
+      a(2);
+      expect(c).toBe(1);
+      return expect(e).toBe(2);
+    });
+    it('Single static cell', function() {
+      var a;
+      a = _.cell(1);
+      expect(a()).toEqual(1);
+      expect(a(2)).toEqual(2);
+      expect(a()).toEqual(2);
+      expect(a(3)).toEqual(3);
+      return expect(a()).toEqual(3);
+    });
+    it('Second static cell', function() {
+      var a, b;
+      a = _.cell(1);
+      b = _.cell(2);
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(2);
+      expect(a()).toEqual(1);
+      expect(b(3)).toEqual(3);
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(3);
+      expect(a()).toEqual(1);
+      expect(b(4)).toEqual(4);
+      expect(a()).toEqual(1);
+      return expect(b()).toEqual(4);
+    });
+    it("Cell with simple single dependency", function() {
+      var a, b, c;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a();
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(1);
+      a(2);
+      expect(a()).toEqual(2);
+      expect(b()).toEqual(2);
+      c = _.cell(3);
+      expect(a()).toEqual(2);
+      return expect(b()).toEqual(2);
+    });
+    it("multi dependents", function() {
+      var a, b, c;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a();
+      });
+      c = _.cell(function() {
+        return a() + 1;
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(1);
+      expect(c()).toEqual(2);
+      a(2);
+      expect(a()).toEqual(2);
+      expect(b()).toEqual(2);
+      return expect(c()).toEqual(3);
+    });
+    it("Breaking dependency", function() {
+      var a, b;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a();
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(1);
+      a(2);
+      expect(a()).toEqual(2);
+      expect(b()).toEqual(2);
+      b(3);
+      expect(a()).toEqual(2);
+      expect(b()).toEqual(3);
+      a(7);
+      expect(a()).toEqual(7);
+      return expect(b()).toEqual(3);
+    });
+    it("Cell with modified single dependency", function() {
+      var a, b;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a() + 10;
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(11);
+      a(2);
+      expect(a()).toEqual(2);
+      return expect(b()).toEqual(12);
+    });
+    it("Cell with simple chain dependency", function() {
+      var a, b, c;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a();
+      });
+      c = _.cell(function() {
+        return b();
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(1);
+      expect(c()).toEqual(1);
+      a(2);
+      expect(a()).toEqual(2);
+      expect(b()).toEqual(2);
+      return expect(c()).toEqual(2);
+    });
+    it("Cell with complex chain dependency", function() {
+      var a, b, c;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a() + 1;
+      });
+      c = _.cell(function() {
+        return b() + 1;
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(2);
+      expect(c()).toEqual(3);
+      a(4);
+      expect(a()).toEqual(4);
+      expect(b()).toEqual(5);
+      return expect(c()).toEqual(6);
+    });
+    it("Cell with multiple dependency", function() {
+      var a, b, c;
+      a = _.cell(1);
+      b = _.cell(2);
+      c = _.cell(function() {
+        return a() + b();
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(2);
+      expect(c()).toEqual(3);
+      a(3);
+      expect(a()).toEqual(3);
+      expect(b()).toEqual(2);
+      expect(c()).toEqual(5);
+      b(4);
+      expect(a()).toEqual(3);
+      expect(b()).toEqual(4);
+      return expect(c()).toEqual(7);
+    });
+    it("Multipath dependencies", function() {
+      var a, b, c;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a() + 1;
+      });
+      c = _.cell(function() {
+        return a() + b();
+      });
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(2);
+      expect(c()).toEqual(3);
+      a(7);
+      expect(a()).toEqual(7);
+      expect(b()).toEqual(8);
+      expect(c()).toEqual(15);
+      b(3);
+      expect(a()).toEqual(7);
+      expect(b()).toEqual(3);
+      expect(c()).toEqual(10);
+      a(4);
+      expect(a()).toEqual(4);
+      expect(b()).toEqual(3);
+      return expect(c()).toEqual(7);
+    });
+    it("avoid redundant multipath triggering", function() {
+      var a, b, c, cCount;
+      cCount = 0;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a() + 1;
+      });
+      c = _.cell(function() {
+        a() + b();
+        return cCount += 1;
+      });
+      a(2);
+      return expect(cCount).toEqual(2);
+    });
+    it("deferred cell with simple single dependency", function() {
+      var a, b;
+      a = b = null;
+      runs(function() {
+        a = _.cell(1);
+        return b = _.cell(function(deferred) {
+          setTimeout((function() {
+            return deferred(function() {
+              return 2 * a();
+            });
+          }), 200);
+          return deferred;
+        });
+      });
+      waitsFor((function() {
+        return b('idle', null);
+      }), 'define - deferred cell with simple single dependency', 500);
+      runs(function() {
+        expect(a()).toEqual(1);
+        return expect(b()).toEqual(2);
+      });
+      runs(function() {
+        return a(2);
+      });
+      waitsFor((function() {
+        return b('idle', null);
+      }), 'update - deferred cell with simple single dependency', 1000);
+      return runs(function() {
+        expect(a()).toEqual(2);
+        return expect(b()).toEqual(4);
+      });
+    });
+    it("deferred multi dependents", function() {
+      var a, b, c;
+      a = b = c = null;
+      runs(function() {
+        a = _.cell(1);
+        b = _.cell(function(deferred) {
+          setTimeout((function() {
+            return deferred(function() {
+              return 2 * a();
+            });
+          }), 100);
+          return deferred;
+        });
+        return c = _.cell(function(deferred) {
+          setTimeout((function() {
+            return deferred(function() {
+              return 1 + b();
+            });
+          }), 300);
+          return deferred;
+        });
+      });
+      waitsFor((function() {
+        return b('idle', null) && c('idle', null);
+      }), 'define - deferred multi dependents', 500);
+      runs(function() {
+        expect(a()).toEqual(1);
+        expect(b()).toEqual(2);
+        return expect(c()).toEqual(3);
+      });
+      runs(function() {
+        return a(2);
+      });
+      waitsFor((function() {
+        return b('idle', null) && c('idle', null);
+      }), 'update - deferred multi dependents', 500);
+      return runs(function() {
+        expect(a()).toEqual(2);
+        expect(b()).toEqual(4);
+        return expect(c()).toEqual(5);
+      });
+    });
+    return it("catch an error", function() {
+      var a, err;
+      err = void 0;
+      try {
+        a = _.cell(function() {
+          throw 'an errror occured';
+        });
+      } catch (_error) {
+        err = _error;
+        expect(a).toBe(void 0);
+        expect(err).toBe('an errror occured');
+      }
+      err = void 0;
+      a = _.cell();
+      a('catch', function(e) {
+        return err = e;
+      });
+      a(function() {
+        throw 'an errror occured';
+      });
+      return expect(err).toBe('an errror occured');
+    });
+  });
+
+  describe("observer", function() {
+    it("basic observer", function() {
+      var a, b, c;
+      a = _.cell(1);
+      expect(a()).toEqual(1);
+      b = null;
+      expect(b).toEqual(null);
+      c = _.observer(function() {
+        return b = a();
+      });
+      expect(b).toEqual(1);
+      a(2);
+      return expect(b).toEqual(2);
+    });
+    it("multi observer", function() {
+      var a, b, c, d, e, f;
+      a = _.cell(1);
+      b = _.cell(function() {
+        return a();
+      });
+      c = _.cell(function() {
+        return a();
+      });
+      d = _.cell(function() {
+        return c();
+      });
+      e = 0;
+      f = _.observer(function() {
+        return e += a() + b() + c() + d();
+      });
+      expect(e).toEqual(4);
+      a(2);
+      return expect(e).toEqual(12);
+    });
+    it("read write observer", function() {
+      var a, b, c;
+      a = _.cell(1);
+      b = _.cell(2);
+      expect(a()).toEqual(1);
+      expect(b()).toEqual(2);
+      c = _.observer(function() {
+        return b(a());
+      });
+      expect(b()).toEqual(1);
+      a(3);
+      expect(a()).toEqual(3);
+      expect(b()).toEqual(3);
+      b(4);
+      expect(a()).toEqual(3);
+      return expect(b()).toEqual(4);
+    });
+    it("another read write observer", function() {
+      var a, b, c, d;
+      a = 0;
+      b = _.cell(1);
+      c = _.cell(2);
+      expect(a).toEqual(0);
+      expect(b()).toEqual(1);
+      expect(c()).toEqual(2);
+      d = _.observer(function() {
+        a += 1;
+        b();
+        return c(3);
+      });
+      expect(a).toEqual(1);
+      expect(b()).toEqual(1);
+      expect(c()).toEqual(3);
+      a = 4;
+      expect(a).toEqual(4);
+      expect(b()).toEqual(1);
+      expect(c()).toEqual(3);
+      b(6);
+      expect(a).toEqual(5);
+      expect(b()).toEqual(6);
+      expect(c()).toEqual(3);
+      c(7);
+      expect(a).toEqual(5);
+      expect(b()).toEqual(6);
+      return expect(c()).toEqual(7);
+    });
+    it("defered multi observer", function() {
+      var a, b, c, d, e, f;
+      a = b = c = d = e = f = null;
+      runs(function() {
+        a = _.cell(1);
+        b = _.cell(function(deferred) {
+          setTimeout((function() {
+            return deferred(function() {
+              return a();
+            });
+          }), 100);
+          return deferred;
+        });
+        c = _.cell(function(deferred) {
+          setTimeout((function() {
+            return deferred(function() {
+              return a();
+            });
+          }), 100);
+          return deferred;
+        });
+        d = _.cell(function() {
+          return c();
+        });
+        e = 0;
+        return f = _.observer(function() {
+          var value;
+          value = a() + b() + c() + d();
+          return e += a('idle', null) && b('idle', null) && c('idle', null) && d('idle', null) ? value : 0;
+        });
+      });
+      waitsFor((function() {
+        return f('ready', null);
+      }), 'define - deferred multi dependents', 500);
+      runs(function() {
+        return expect(e).toEqual(4);
+      });
+      runs(function() {
+        return a(2);
+      });
+      waitsFor((function() {
+        return f('ready', null);
+      }), 'update - deferred multi dependents', 500);
+      return runs(function() {
+        return expect(e).toEqual(12);
+      });
+    });
+    return it("defered read write observer", function() {
+      var a, b, c, d;
+      a = b = c = d = null;
+      runs(function() {
+        a = _.cell(1);
+        b = _.cell(function(deferred) {
+          setTimeout((function() {
+            return deferred(function() {
+              return 2 * a();
+            });
+          }), 100);
+          return deferred;
+        });
+        return c = _.cell(3);
+      });
+      waitsFor((function() {
+        return b('idle', null);
+      }), 'define - defered read write observer', 500);
+      runs(function() {
+        expect(a()).toEqual(1);
+        expect(b()).toEqual(2);
+        return expect(c()).toEqual(3);
+      });
+      runs(function() {
+        return d = _.observer(function() {
+          return c(b());
+        });
+      });
+      waitsFor((function() {
+        return d('ready', null);
+      }), 'define d - defered read write observer', 500);
+      runs(function() {
+        return expect(c()).toEqual(2);
+      });
+      runs(function() {
+        return a(3);
+      });
+      waitsFor((function() {
+        return d('ready', null);
+      }), 'update a - defered read write observer', 500);
+      return runs(function() {
+        expect(a()).toEqual(3);
+        expect(b()).toEqual(6);
+        return expect(c()).toEqual(6);
+      });
+    });
+  });
+
+  describe("cell misc.", function() {
+    it("object setter", function() {
+      var a, b;
+      a = _.cell({});
+      b = _.cell(function() {
+        return "Serialized: " + JSON.stringify(a());
+      });
+      expect(b()).toEqual("Serialized: {}");
+      a()["x"] = 1;
+      expect(JSON.stringify(a())).toEqual('{"x":1}');
+      expect(b()).toEqual("Serialized: {}");
+      a(a());
+      expect(JSON.stringify(a())).toEqual('{"x":1}');
+      expect(b()).toEqual('Serialized: {"x":1}');
+      a(_).set("x", 2);
+      expect(JSON.stringify(a())).toEqual('{"x":2}');
+      expect(b()).toEqual('Serialized: {"x":2}');
+      a(3);
+      expect(a()).toEqual(3);
+      return expect(b()).toEqual('Serialized: 3');
+    });
+    it("basic array push ", function() {
+      var a;
+      a = _.cell([]);
+      a(_).push("x");
+      return expect(JSON.stringify(a())).toEqual('["x"]');
+    });
+    it("array initialized properly", function() {
+      var a;
+      a = _.cell([]);
+      a("push", "x");
+      expect(JSON.stringify(a())).toEqual('["x"]');
+      a(_).push("y");
+      expect(JSON.stringify(a())).toEqual('["x","y"]');
+      a(_).pop();
+      expect(JSON.stringify(a())).toEqual('["x"]');
+      a(_).pop();
+      expect(JSON.stringify(a())).toEqual('[]');
+      a(_).unshift("x");
+      expect(JSON.stringify(a())).toEqual('["x"]');
+      a(_).unshift("y");
+      expect(JSON.stringify(a())).toEqual('["y","x"]');
+      a(_).unshift("z");
+      expect(JSON.stringify(a())).toEqual('["z","y","x"]');
+      a(_).sort();
+      expect(JSON.stringify(a())).toEqual('["x","y","z"]');
+      a(_).reverse();
+      expect(JSON.stringify(a())).toEqual('["z","y","x"]');
+      a(_).splice(1, 1, "w");
+      expect(JSON.stringify(a())).toEqual('["z","w","x"]');
+      a(_).shift();
+      return expect(JSON.stringify(a())).toEqual('["w","x"]');
+    });
+    return it("array methods", function() {
+      var a, b, c, d;
+      a = _.cell([]);
+      b = _.cell(function() {
+        return "Serialized: " + JSON.stringify(a());
+      });
+      expect(JSON.stringify(a())).toEqual('[]');
+      expect(b()).toEqual('Serialized: []');
+      a()[0] = "x";
+      expect(JSON.stringify(a())).toEqual('["x"]');
+      expect(b()).toEqual('Serialized: []');
+      a(a());
+      expect(JSON.stringify(a())).toEqual('["x"]');
+      expect(b()).toEqual('Serialized: ["x"]');
+      a("set", 1, "y");
+      expect(JSON.stringify(a())).toEqual('["x","y"]');
+      expect(b()).toEqual('Serialized: ["x","y"]');
+      a("push", "z");
+      expect(JSON.stringify(a())).toEqual('["x","y","z"]');
+      expect(b()).toEqual('Serialized: ["x","y","z"]');
+      a("unshift", "w");
+      expect(JSON.stringify(a())).toEqual('["w","x","y","z"]');
+      expect(b()).toEqual('Serialized: ["w","x","y","z"]');
+      c = a("shift", null);
+      expect(JSON.stringify(a())).toEqual('["x","y","z"]');
+      expect(b()).toEqual('Serialized: ["x","y","z"]');
+      expect(c).toEqual("w");
+      a("reverse", null);
+      expect(JSON.stringify(a())).toEqual('["z","y","x"]');
+      expect(b()).toEqual('Serialized: ["z","y","x"]');
+      d = a("pop", null);
+      expect(JSON.stringify(a())).toEqual('["z","y"]');
+      expect(b()).toEqual('Serialized: ["z","y"]');
+      a("push", "foo");
+      a("push", "bar");
+      expect(JSON.stringify(a())).toEqual('["z","y","foo","bar"]');
+      expect(b()).toEqual('Serialized: ["z","y","foo","bar"]');
+      d = a("splice", 1, 2);
+      expect(JSON.stringify(d)).toEqual('["y","foo"]');
+      expect(JSON.stringify(a())).toEqual('["z","bar"]');
+      expect(b()).toEqual('Serialized: ["z","bar"]');
+      a("pies");
+      expect(a()).toEqual("pies");
+      return expect(b()).toEqual('Serialized: "pies"');
+    });
+  });
+
   xdescribe('Signal', function() {
     it('Signal is a Signal', function() {
       var a;
@@ -981,7 +1556,7 @@
       a = new Signal(function() {
         throw 'an errror occured';
       });
-      a["catch"](function(e) {
+      a('catch', function(e) {
         return err = e;
       });
       expect(a.value()).toBe(void 0);
@@ -1196,8 +1771,7 @@
       expect(b.value()).toEqual('Serialized: {"x":2}');
       a.value(3);
       expect(a.value()).toEqual(3);
-      expect(b.value()).toEqual('Serialized: 3');
-      return expect(a.set).toEqual(void 0);
+      return expect(b.value()).toEqual('Serialized: 3');
     });
     it("basic array push ", function() {
       var a;
@@ -1274,14 +1848,7 @@
       expect(b.value()).toEqual('Serialized: ["z","bar"]');
       a.value("pies");
       expect(a.value()).toEqual("pies");
-      expect(b.value()).toEqual('Serialized: "pies"');
-      expect(a.pop).toEqual(void 0);
-      expect(a.push).toEqual(void 0);
-      expect(a.shift).toEqual(void 0);
-      expect(a.unshift).toEqual(void 0);
-      expect(a.sort).toEqual(void 0);
-      expect(a.reverse).toEqual(void 0);
-      return expect(a.splice).toEqual(void 0);
+      return expect(b.value()).toEqual('Serialized: "pies"');
     });
   });
 

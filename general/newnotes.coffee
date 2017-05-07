@@ -2847,13 +2847,13 @@ Newnotes = class
                                 <meta charset="utf-8" />
                                 <meta http-equiv="X-UA-Compatible" content="IE=Edge;chrome=1" />
                                 <title>#{@params.where}</title>
-                                <link href="http://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono" rel="stylesheet" type="text/css" />
-                                <link id="prettify-link" href="http://slides.html5rocks.com/src/prettify/prettify.css" rel="stylesheet" disabled />
-                                <link href="http://slides.html5rocks.com/css/moon.css" class="theme" rel="stylesheet" />
-                                <link href="http://slides.html5rocks.com/css/sand.css" class="theme" rel="stylesheet" />
-                                <link href="http://slides.html5rocks.com/css/sea_wave.css" class="theme" rel="stylesheet" />
-                                <link href="http://slides.html5rocks.com/css/default.css" class="theme" rel="stylesheet" media="screen"  />
-                                <link href="http://slides.html5rocks.com/css/common.css" rel="stylesheet" media="screen" />
+                                <link href="https://fonts.googleapis.com/css?family=Droid+Sans|Droid+Sans+Mono" rel="stylesheet" type="text/css" />
+                                <link id="prettify-link" href="/static/vendor/slides/css/prettify.css" rel="stylesheet" type="text/css" />
+                                <link href="/static/vendor/slides/css/moon.css" class="theme" rel="stylesheet" type="text/css" />
+                                <link href="/static/vendor/slides/css/sand.css" class="theme" rel="stylesheet" type="text/css" />
+                                <link href="/static/vendor/slides/css/sea_wave.css" class="theme" rel="stylesheet" type="text/css" />
+                                <link href="/static/vendor/slides/css/default.css" class="theme" rel="stylesheet" type="text/css" media="screen"  />
+                                <link href="/static/vendor/slides/css/common.css" rel="stylesheet" type="text/css" media="screen" />
                                 <style>
                                   .slide li, .slide p {
                                     font-size: 28px;
@@ -2902,7 +2902,7 @@ Newnotes = class
                                       <section class="middle">
                                         <p>This presentation is an HTML5 website</p>
                                         <p>Press <span id="left-init-key" class="key">&rarr;</span> key to advance.</p>
-                                        <p id="disclaimer-message">Having issues seeing the presentation? Read the <a href="http://slides.html5rocks.com/disclaimer.html">disclaimer</a></p>
+                                        <p id="disclaimer-message">Having issues seeing the presentation? Read the <a href="https://cdn.rawgit.com/html5rocks/slides.html5rocks.com/master/disclaimer.html">disclaimer</a></p>
                                       </section>
                                       <aside class="note">
                                         <section>
@@ -3009,8 +3009,8 @@ Newnotes = class
                                 <script>CFInstall.check({ mode: "overlay" });</script>
                                 <![endif]-->
                             
-                                <script src="http://slides.html5rocks.com/src/prettify/prettify.js" onload="prettyPrint();" defer></script>
-                                <script src="http://slides.html5rocks.com/js/utils.js"></script>
+                                <script src="/static/vendor/slides/prettify.js" onload="prettyPrint();" defer></script>
+                                <script src="/static/vendor/slides/utils.js"></script>
                               </body>
                             </html>
                             """

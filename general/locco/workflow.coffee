@@ -40,10 +40,13 @@ Workflow = _.prototype
                         if options.debug then console.log "Message is received:" + evt.data if evt.data isnt ''
 
                         data = JSON.parse evt.data
-                        if data? and data.result isnt undefined and data.id
-                            callback = callbacks[data.id]
-                            callback data.result
-                            delete callbacks[data.id]
+                        if data? 
+                            if data.result isnt undefined and data.id
+                                callback = callbacks[data.id]
+                                callback data.result
+                                delete callbacks[data.id]
+                            else
+                                if data.console?.log? then console.log data.console.log
                         
                     @ws.onopen = =>
                         if options.debug then console.log "Connection opened"

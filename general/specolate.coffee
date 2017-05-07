@@ -121,7 +121,7 @@ class Specolate
                     try { require('#{specolate_filename}'); } catch (_error) {}
                     host.jasmine.getEnv().reporter = reporter;
                     host.jasmine.getEnv().__ = host.__;
-                    host.jasmine.getEnv().execute();
+                    try { host.jasmine.getEnv().execute(); } catch (_error) { process.nextTick(function() {event.emit('end', {count:{failed:1,total:1},log:["", "", _error.toString()]});}) }
                     event;
                     """, context, specolate_filename
             else
@@ -130,7 +130,9 @@ class Specolate
                 host.jasmine.getEnv().execute()
         catch error
             finished = true
-            result = log:['','','', error.stack], count: failed:1, total:1
+            try stack = error.stack
+            catch then stack = error.toString()
+            result = log:['','','', stack], count: failed:1, total:1
             if callback? then callback result else process.nextTick -> event?.emit 'end', result
                             
         return event

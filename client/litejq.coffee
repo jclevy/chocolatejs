@@ -330,9 +330,9 @@ $.websocket = (url, options = {}) ->
 
         return fws
     
-    if options.fallbackOnly or not window.WebSocket then new FallbackSocket(url, options)
+    if options.fallbackOnly or not window.WebSocket then new FallbackSocket(url, options) 
     else new WebSocket(url)
-
+    
 $.Ajax = do ->
     Ajax_default =
         type: "GET"

@@ -107,8 +107,8 @@ exports.getDirContent = (where, __) ->
 #### ensurePathExists
 
 # `ensurePathExists` ensure that a path exists and creates directories if necessary; returns the path
-exports.ensurePathExists = (path, __) ->
-    file_path = (if __?.appdir then __.appdir + '/' + path else path).split('/')
+exports.ensurePathExists = (path) ->
+    file_path = path.split('/')
     file_name = file_path.pop()
     file_pathname = ''
     # Check the existence of every directory in the path
@@ -137,7 +137,7 @@ exports.setFilenameSuffix = (filename, suffix) ->
 
 # `readDirDownSync` recursively read a directory and returns its content
 exports.readDirDownSync = (dir, __) ->
-    dir = (if __?.appdir then __.appdir + '/' + dir else dir)
+    dir = normalize(dir, check_suffix:no)
     results = []
     files = Fs.readdirSync dir
     return results.sort() if files.length is 0
@@ -162,11 +162,10 @@ exports.readDirDownSync = (dir, __) ->
 exports.writeToFile = (path, data, __) ->
     event = new Events.EventEmitter
     
-    path = path.trim()
-    if path is '' then process.nextTick(-> with_error event, 'Warning: empty path in writeToFile') ; return event
+    normalized_path = normalize path, __
+    if normalized_path is '' then process.nextTick(-> with_error event, 'Warning: empty path in writeToFile') ; return event
     
-    normalized_path = normalize path
-    file_pathname = exports.ensurePathExists normalized_path, __
+    file_pathname = exports.ensurePathExists normalized_path
     
     repo = resolve_repo normalized_path, __
 
@@ -194,24 +193,19 @@ exports.writeToFile = (path, data, __) ->
 exports.moveFile = (from, to, __) ->
     event = new Events.EventEmitter
     
-    from = from .trim()
-    to = to.trim()
+    from = normalize from, __
+    to = normalize to, __
     if from is '' then process.nextTick(-> with_error event, 'Warning: empty from in moveFile') ; return event
-    
-    curdir = (if __?.appdir then __.appdir + '/' else '')
-    from = normalize from
-    to =  normalize to if to isnt ''
-    _from = curdir + from
-    
-    repo = resolve_repo _from, __
+
+    repo = resolve_repo from, __
     
     # If file to move exists
-    if Fs.existsSync _from
+    if Fs.existsSync from
         # Read its content
-        Fs.readFile _from, (err, data) ->
+        Fs.readFile from, (err, data) ->
             unless err?
                 # Destroy the original file
-                Fs.unlink _from, (err) ->
+                Fs.unlink from, (err) ->
                     unless err?
                         # Remove it from the Git index
                         git = new Git cwd:repo.cwd
@@ -229,7 +223,7 @@ exports.moveFile = (from, to, __) ->
             else
                 event.emit 'end', err
     else
-        process.nextTick -> event.emit 'end', 'Source file does not exists'
+        process.nextTick -> event.emit 'end', "Source file does not exists: #{from}"
     event
 
 #### removeFile
@@ -237,7 +231,7 @@ exports.moveFile = (from, to, __) ->
 # `removeFile` remove a file
 exports.removeFile = (path, __) ->
     event = new Events.EventEmitter
-    path = (if __?.appdir then __.appdir + '/' else '') + normalize path
+    path = normalize path, __
     
     repo = resolve_repo path, __
     
@@ -265,7 +259,7 @@ exports.removeFile = (path, __) ->
 # `load` load one system file 
 exports.load = (path, __) ->
     event = new Events.EventEmitter
-    Fs.readFile require.resolve('../' + (if __?.appdir then __.appdir + '/' else '') + normalize path), (err, data) ->
+    Fs.readFile require.resolve('../' + normalize path, __), (err, data) ->
         event.emit 'end', data.toString()
     event
 
@@ -401,8 +395,48 @@ exports.logWithTimestamp = ->
 
 #### normalize
 
-# `normalize` adds .coffee extension to the provided `path` if it does not have one
-normalize = (path) -> if Path.extname(path) isnt '' then path else path + '.coffee'
+# `normalize` 
+#  - replace '-' by, or add sysdir value if appdir_relative and region is system
+#  - add __.appdir to the path if region isnt system and not appdir_relative
+#  - add .coffee extension to the provided `path` if it does not have one
+normalize = (path, options, __) ->
+    appdir_relative = options?.appdir_relative
+    check_suffix = options?.check_suffix
+    
+    if arguments.length is 2 and not appdir_relative? and not append_coffee? then __ = options ; options = null
+    
+    appdir_relative ?= no
+    check_suffix ?= yes
+    
+    path = path.trim()
+
+    if __?
+        is_system = no
+        
+        if __.where.trim() is path and __.region is 'system'
+            is_system = yes
+        else
+        if (path.charAt(0) is '/' and path.charAt(1) is '-' and path.charAt(2) is '/') or (path.charAt(0) is '-' and path.charAt(1) is '/')
+            path = path.substr (if path[0] is '-' then 2 else 3)
+            is_system = yes
+        else
+        if (path.substr(0, __.sysdir.length + 2) is '/' + __.sysdir + '/') or (path.substr(0, __.sysdir.length + 1) is __.sysdir + '/')
+            path = path.substr(__.sysdir.length + (if path.charAt(0) is '/' then 2 else 1))
+            is_system = yes
+
+        if is_system
+            if appdir_relative
+                path = __.sysdir + (if path[0] isnt '/' then '/' else '') + path
+        else
+            if not appdir_relative
+                path = __.appdir + (if path[0] isnt '/' then '/' else '') + path
+    else
+        if (path.charAt(0) is '/' and path.charAt(1) is '-' and path.charAt(2) is '/') or (path.charAt(0) is '-' and path.charAt(1) is '/')
+            if appdir_relative then throw "Don't know relative path from sysdir to appdir"
+            else path = path.substr (if path[0] is '-' then 2 else 3)
+
+    if (not check_suffix) or (path is '') or Path.extname(path) isnt '' then path else path + '.coffee'
+
 
 #### resolve
 
@@ -410,7 +444,7 @@ normalize = (path) -> if Path.extname(path) isnt '' then path else path + '.coff
 resolve = (where, __) ->
     where_ = where
     
-    try path = Path.resolve (if __?.appdir then __.appdir + '/' else '') + where
+    try path = Path.resolve normalize where, check_suffix:no, __
     catch error then return {where, path, error}
     
     unless Fs.existsSync path

@@ -26,7 +26,7 @@ define('ace/theme/coffee', ['require', 'exports', 'module' , 'ace/lib/dom'], fun
 exports.isDark = true;
 exports.cssClass = "ace-coffee";
 exports.cssText = ".ace-coffee .ace_gutter {\
-background-color: #34241E;\
+background-color: #262836;\
 background-image: -moz-linear-gradient(left, #34241E, #018100D);\
 background-image: -ms-linear-gradient(left, #34241E, #018100D);\
 background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#34241E), to(#018100D));\
@@ -36,6 +36,10 @@ background-image: linear-gradient(left, #34241E, #018100D);\
 background-repeat: repeat-x;\
 border-right: 1px solid #4d4d4d;\
 text-shadow: 2px 3px 2px #222;\
+-webkit-box-shadow: inset 5px 0 5px #171717;\
+-moz-box-shadow: inset 5px 0 5px #171717;\
+-o-box-shadow: inset 5px 0 5px #171717;\
+box-shadow: inset 5px 0 5px #171717;\
 color: #987;\
 }\
 .ace-coffee .ace_gutter-layer {\
@@ -69,7 +73,7 @@ right: 0;\
 background: #262626;\
 }\
 .ace-coffee .ace_scroller {\
-background-color: #201811;\
+background-color: #1a1c24;\
 -webkit-box-shadow: inset 0 0 15px black;\
 -moz-box-shadow: inset 0 0 15px black;\
 -o-box-shadow: inset 0 0 15px black;\

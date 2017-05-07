@@ -34,6 +34,10 @@ exports.cssText = ".ace-coffee_white .ace_gutter {\
 background: #ebebeb;\
 color: #333;\
 overflow : hidden;\
+-webkit-box-shadow: inset 2px 0 5px #9e9e9e;\
+-moz-box-shadow: inset 2px 0 5px #9e9e9e;\
+-o-box-shadow: inset 2px 0 5px #9e9e9e;\
+box-shadow: inset 2px 0 5px #9e9e9e;\
 }\
 .ace-coffee_white .ace_gutter-layer {\
 width: 100%;\
@@ -61,6 +65,12 @@ color: blue;\
 }\
 .ace-coffee_white .ace_list {\
 color: darkgreen;\
+}\
+.ace-coffee_white .ace_scroller {\
+-webkit-box-shadow: inset -5px 0 5px #dadada;\
+-moz-box-shadow: inset -5px 0 5px #dadada;\
+-o-box-shadow: inset -5px 0 5px #dadada;\
+box-shadow: inset -5px 0 5px #dadada;\
 }\
 .ace-coffee_white .ace_constant.ace_buildin {\
 color: rgb(88, 72, 246);\

@@ -214,7 +214,7 @@
   };
 
   _.stringify = function() {
-    var doit, newline, object, options, ref, tab;
+    var array_as_object, concat, doit, newline, object, options, ref, tab, write;
     if (arguments.length === 0) {
       return void 0;
     }
@@ -226,13 +226,31 @@
     } else {
       tab = newline = '';
     }
-    doit = function(o, level, p) {
-      var indent, k, ni, nit, result, type, v;
-      result = [];
+    array_as_object = false;
+    switch (options.mode) {
+      case 'json':
+        return JSON.stringify(object, null, tab);
+      case 'full':
+        array_as_object = true;
+        break;
+      case 'js':
+    }
+    write = typeof options.write === 'function' ? options.write : function(str) {
+      return str;
+    };
+    concat = function(w1, w2, w3) {
+      if ((w1 != null) && (w2 != null) && (w3 != null)) {
+        return w1 + w2 + w3;
+      } else {
+        return null;
+      }
+    };
+    doit = function(o, level, index) {
+      var chunk, i, indent, k, ni, nit, sep, type, v;
       if (level == null) {
         level = 0;
       }
-      indent = ((function() {
+      indent = tab === '' ? '' : ((function() {
         var m, ref1, results;
         results = [];
         for (m = 0, ref1 = level; 0 <= ref1 ? m < ref1 : m > ref1; 0 <= ref1 ? m++ : m--) {
@@ -243,59 +261,81 @@
       ni = newline + indent;
       nit = ni + tab;
       type = Object.prototype.toString.apply(o);
-      result.push((function() {
-        switch (type) {
-          case '[object Object]':
-            return "{" + nit + (((function() {
-              var ref1, results;
-              results = [];
-              for (k in o) {
-                v = o[k];
-                if (((options.filter == null) || (ref1 = v.constructor, indexOf.call(options.filter, ref1) >= 0)) && (options.own !== true || {}.hasOwnProperty.call(o, k))) {
-                  results.push(k + ':' + doit(v, level + 1));
+      sep = index > 0 ? ',' + nit : '';
+      switch (type) {
+        case '[object Object]':
+          if (o.constructor !== {}.constructor && (o.stringify != null) && typeof o.stringify === 'function') {
+            return write(sep + o.stringify());
+          } else {
+            if (o.constructor !== {}.constructor && options.strict) {
+              throw "_.stringify in strict mode can only accept pure objects";
+            } else {
+              i = 0;
+              return concat(write(sep + ("" + (options.variable && level === 0 ? 'var ' : '{') + nit)), "" + (((function() {
+                var ref1, results;
+                results = [];
+                for (k in o) {
+                  v = o[k];
+                  if (((options.filter == null) || (ref1 = v.constructor, indexOf.call(options.filter, ref1) >= 0)) && (options.own !== true || {}.hasOwnProperty.call(o, k)) && (chunk = write((i++ > 0 ? ',' + nit : '') + (options.variable && level === 0 ? k : "'" + k.toString().replace(/\'/g, "\\'") + "'") + (options.variable && level === 0 ? '=' : ':')) + doit(v, level + 1))) {
+                    results.push(chunk);
+                  }
                 }
-              }
-              return results;
-            })()).join(',' + nit)) + ni + "}";
-          case '[object Array]':
-            return "function () {" + nit + "var a = []; var o = {" + nit + (((function() {
+                return results;
+              })()).join('')), write("" + ni + (options.variable && level === 0 ? ';' : '}')));
+            }
+          }
+          break;
+        case '[object Array]':
+          if (array_as_object) {
+            i = 0;
+            return concat(write(sep + ("function () {" + nit + "var a = []; var o = {" + nit)), "" + (((function() {
               var results;
               results = [];
               for (k in o) {
                 if (!hasProp.call(o, k)) continue;
                 v = o[k];
-                results.push(k + ':' + doit(v, level + 1));
+                if ((chunk = write((i++ > 0 ? ',' + nit : '') + k + ':') + doit(v, level + 1))) {
+                  results.push(chunk);
+                }
               }
               return results;
-            })()).join(',' + nit)) + "};" + nit + "for (var k in o) {a[k] = o[k];} return a; }()";
-          case '[object Boolean]':
-            return o;
-          case '[object Number]':
-            return o;
-          case '[object Date]':
-            return "new Date(" + (o.valueOf()) + ")";
-          case '[object Function]':
-            return o.toString();
-          case '[object Math]':
-            return 'Math';
-          case '[object String]':
-            return "'" + (o.replace(/\'/g, '\\\'')) + "'";
-          case '[object Undefined]':
-            return 'void 0';
-          case '[object Null]':
-            return 'null';
-          case '[object Buffer]':
-          case '[object SlowBuffer]':
-            if (o.length === 16) {
-              return _.Uuid.unparse(o);
-            } else {
-              return o.toString();
-            }
-        }
-      })());
-      return result;
+            })()).join('')), write("};" + nit + "for (var k in o) {a[k] = o[k];} return a; }()"));
+          } else {
+            return concat(write(sep + ("[" + nit)), "" + (((function() {
+              var len, m, results;
+              results = [];
+              for (i = m = 0, len = o.length; m < len; i = ++m) {
+                v = o[i];
+                if ((chunk = doit(v, level + 1, i)) != null) {
+                  results.push(chunk);
+                }
+              }
+              return results;
+            })()).join('')), write(ni + "]"));
+          }
+          break;
+        case '[object Boolean]':
+          return write(sep + o);
+        case '[object Number]':
+          return write(sep + o);
+        case '[object Date]':
+          return write(sep + ("new Date(" + (o.valueOf()) + ")"));
+        case '[object Function]':
+          return write(sep + o.toString());
+        case '[object Math]':
+          return write(sep + 'Math');
+        case '[object String]':
+          return write(sep + ("'" + (o.replace(/\'/g, '\\\'')) + "'"));
+        case '[object Undefined]':
+          return write(sep + 'void 0');
+        case '[object Null]':
+          return write(sep + 'null');
+        case '[object Buffer]':
+        case '[object SlowBuffer]':
+          return write(sep + (o.length === 16 ? _.Uuid.unparse(o) : o.toString()));
+      }
     };
-    return doit(object).join(', ');
+    return doit(object);
   };
 
   _.parse = function(str) {
@@ -530,10 +570,49 @@
     return _.extend(object, defaults, false);
   };
 
-  _.Signal = Signal = _.prototype({
+  _.cell = function(def, options) {
+    var signal;
+    signal = new Signal(def, options);
+    return function(def) {
+      var method;
+      if (def != null) {
+        if (arguments.length > 1) {
+          method = Array.prototype.splice.call(arguments, 0, 1);
+          return signal[method].apply(signal, arguments);
+        } else {
+          if (def === _) {
+            return signal;
+          } else {
+            return signal.value.call(signal, def);
+          }
+        }
+      } else {
+        return signal.value.call(signal);
+      }
+    };
+  };
+
+  _.observer = function(def) {
+    var observer;
+    observer = new Observer(def);
+    return function(def) {
+      var method;
+      if (arguments.length > 1) {
+        method = Array.prototype.splice.call(arguments, 0, 1);
+        return observer[method].apply(observer, arguments);
+      } else {
+        return observer.observe(def);
+      }
+    };
+  };
+
+  _.Signal = _.Cell = Signal = _.prototype({
     adopt: {
-      type: "SIGNAL",
-      arrayMethods: ["pop", "push", "reverse", "shift", "sort", "splice", "unshift"],
+      type: 0x0100,
+      idle: 0x0001,
+      initialized: 0x0002,
+      object: 0x0004,
+      array: 0x0008,
 
       /* Events on evalutate
           value   REPLACE - ALL
@@ -593,7 +672,7 @@
         },
         reverse: {
           type: 'Sort',
-          what: 'all'
+          what: 'All'
         },
         shift: {
           type: 'Remove',
@@ -602,7 +681,7 @@
         },
         sort: {
           type: 'Sort',
-          what: 'all'
+          what: 'All'
         },
         splice: {
           type: 'Remove',
@@ -628,18 +707,19 @@
           stack = Signal.dependencyStack;
           Signal.dependencyStack = [this.signal];
           this.signal._value = fn();
-          this.signal._initialized = true;
-          this.signal._idle = true;
+          this.signal.flags |= Signal.idle | Signal.initialized;
           Signal.dependencyStack = stack;
           this.count += -1;
-          this.signal.propagate(this, this.observerList);
-          ref = this.signal.observers;
-          results = [];
-          for (m = 0, len = ref.length; m < len; m++) {
-            observer = ref[m];
-            results.push(observer.notify(true));
+          this.signal.propagate(this.observerList, this);
+          if (this.signal.observers != null) {
+            ref = this.signal.observers;
+            results = [];
+            for (m = 0, len = ref.length; m < len; m++) {
+              observer = ref[m];
+              results.push(observer.notify(true));
+            }
+            return results;
           }
-          return results;
         },
         one: function() {
           return this.count += 1;
@@ -649,10 +729,10 @@
         }
       })
     },
-    constructor: function(definition, helpers) {
-      var fn1, helper, name, ref;
+    constructor: function(definition, options1) {
+      var fn1, helper, name, ref, ref1;
       this.definition = definition;
-      this.helpers = helpers;
+      this.options = options1;
       ref = this.helpers;
       fn1 = function(helper, name, self) {
         return self.helpers[name] = function() {
@@ -663,30 +743,97 @@
         helper = ref[name];
         fn1(helper, name, this);
       }
-      this._value = null;
-      this._initialized = false;
-      this._idle = true;
-      this.dependencies = [];
-      this.dependencyType = Signal.type;
-      this.dependents = [];
-      this.observers = [];
-      this.dependentTargets = [];
-      return this.evaluate(new Signal.Defer(this));
-    },
-    evaluate: function(defer, observerList) {
-      var aa, deferred, dependency, dependentIndex, e, fn1, len, len1, len2, len3, len4, m, methodName, observer, q, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, result, type, u, w;
-      this._value = this.definition;
-      this._idle = true;
-      this._error = null;
-      ref = this.dependencies;
-      for (m = 0, len = ref.length; m < len; m++) {
-        dependency = ref[m];
-        dependentIndex = dependency.dependents.indexOf(this);
-        dependency.dependents.splice(dependentIndex, 1);
+      if (((ref1 = this.options) != null ? ref1.id : void 0) != null) {
+        this.globalize('uuid', function() {
+          return _.Uuid();
+        });
       }
-      this.dependencies = [];
+      this._value = null;
+      this.flags = Signal.type | Signal.idle;
+      this.dependencies = void 0;
+      this.dependents = void 0;
+      this.observers = void 0;
+      this.dependentTargets = void 0;
+      return this.evaluate();
+    },
+    globalize: function(property, builder) {
+      var globalize, globalized;
+      globalized = {};
+      globalize = function(current) {
+        var item, name, pos, ref, ref1, ref2, ref3, type, value;
+        if (current[property] == null) {
+          item = current.value;
+          type = _.type(item);
+          current[property] = builder();
+        }
+        switch (type) {
+          case _.Type.Object:
+          case _.Type.Array:
+            switch (type) {
+              case _.Type.Object:
+                for (name in item) {
+                  value = item[name];
+                  if (!(name !== '_' && globalized[(ref = value._) != null ? (ref1 = ref._) != null ? ref1.uuid : void 0 : void 0] !== true)) {
+                    continue;
+                  }
+                  globalize({
+                    item: value,
+                    name: name,
+                    parent: item
+                  });
+                  if (_.isObject(value)) {
+                    globalized[value._._.uuid] = true;
+                  }
+                }
+                break;
+              case _.Type.Array:
+                for (name in item) {
+                  value = item[name];
+                  if (!(name !== '_' && globalized[(ref2 = value._) != null ? (ref3 = ref2._) != null ? ref3.uuid : void 0 : void 0] !== true)) {
+                    continue;
+                  }
+                  if ((pos = parseInt(name)).toString() !== name) {
+                    pos = null;
+                  }
+                  globalize({
+                    item: value,
+                    name: (pos != null ? void 0 : name),
+                    parent: {
+                      item: item
+                    }
+                  });
+                  if (_.isObject(value)) {
+                    globalized[value._._.uuid] = true;
+                  }
+                }
+            }
+        }
+      };
+      globalize(this);
+    },
+    evaluate: function(observerList, defer) {
+      var deferred, dependency, dependentIndex, e, len, len1, len2, m, observer, p, q, ref, ref1, ref2, ref3, result, type;
+      this._value = this.definition;
+      this.error = null;
+      this.flags |= Signal.idle;
+      this.flags &= ~Signal.object & ~Signal.array;
+      if (this.dependencies != null) {
+        ref = this.dependencies;
+        for (m = 0, len = ref.length; m < len; m++) {
+          dependency = ref[m];
+          if (!(dependency.dependents != null)) {
+            continue;
+          }
+          dependentIndex = dependency.dependents.indexOf(this);
+          dependency.dependents.splice(dependentIndex, 1);
+        }
+      }
+      this.dependencies = void 0;
       switch (type = _.type(this.definition)) {
         case _.Type.Function:
+          if (defer == null) {
+            defer = new Signal.Defer(this, observerList);
+          }
           Signal.dependencyStack.push(this);
           try {
             deferred = (function(signal) {
@@ -703,24 +850,25 @@
             } catch (_error) {
               e = _error;
               result = void 0;
-              this._error = e;
+              this.error = e;
               if (this._catch != null) {
                 this._catch(e);
-                this._error = null;
+                this.error = null;
               }
             }
             if (result === deferred) {
-              this._idle = false;
+              this.flags &= ~Signal.idle;
               defer.one();
-              ref1 = this.observers;
-              for (q = 0, len1 = ref1.length; q < len1; q++) {
-                observer = ref1[q];
-                observer.notify(false);
+              if (this.observers != null) {
+                ref1 = this.observers;
+                for (p = 0, len1 = ref1.length; p < len1; p++) {
+                  observer = ref1[p];
+                  observer.notify(false);
+                }
               }
             } else {
               this._value = result;
-              this._initialized = true;
-              this._idle = true;
+              this.flags |= Signal.idle | Signal.initialized;
             }
           } finally {
             Signal.dependencyStack.pop();
@@ -728,86 +876,128 @@
           break;
         case _.Type.Object:
         case _.Type.Array:
-          if (this.set == null) {
-            this.set = (ref2 = (ref3 = this.helpers) != null ? ref3.set : void 0) != null ? ref2 : (function(_this) {
-              return function(key, value) {
-                if (arguments.length === 1) {
-                  _this.definition = key;
-                } else {
-                  _this.definition[key] = value;
-                }
-                return _this.value(_this.definition);
-              };
-            })(this);
-            this["delete"] = (ref4 = (ref5 = this.helpers) != null ? ref5["delete"] : void 0) != null ? ref4 : (function(_this) {
-              return function(key) {
-                delete _this.definition[key];
-                return _this.value(_this.definition);
-              };
-            })(this);
-            if (type === _.Type.Array) {
-              ref6 = Signal.arrayMethods;
-              fn1 = (function(_this) {
-                return function(methodName) {
-                  var ref7, ref8;
-                  return _this[methodName] = (ref7 = (ref8 = _this.helpers) != null ? ref8[methodName] : void 0) != null ? ref7 : function() {
-                    var output;
-                    output = _this.definition[methodName].apply(_this.definition, arguments);
-                    _this.value(_this.definition);
-                    return output;
-                  };
-                };
-              })(this);
-              for (u = 0, len2 = ref6.length; u < len2; u++) {
-                methodName = ref6[u];
-                fn1(methodName);
-              }
-            }
-          }
-          break;
-        default:
-          if (this.set != null) {
-            delete this.set;
-            delete this["delete"];
-            ref7 = Signal.arrayMethods;
-            for (w = 0, len3 = ref7.length; w < len3; w++) {
-              methodName = ref7[w];
-              delete this[methodName];
-            }
-          }
+          this.flags |= type === _.Type.Object ? Signal.object : Signal.array;
       }
-      if (observerList != null) {
-        ref8 = this.observers;
-        for (aa = 0, len4 = ref8.length; aa < len4; aa++) {
-          observer = ref8[aa];
+      if ((observerList != null) && (this.observers != null)) {
+        ref2 = this.observers;
+        for (q = 0, len2 = ref2.length; q < len2; q++) {
+          observer = ref2[q];
           if ((observer != null) && (observerList.indexOf(observer)) < 0) {
             observerList.push(observer);
           }
         }
       }
       if (!((deferred != null) && result === deferred)) {
-        return this.propagate(defer, observerList);
+        this.propagate(observerList, defer);
       }
+      return (ref3 = defer != null ? defer.idle() : void 0) != null ? ref3 : true;
+    },
+    set: function(key, value, trigger) {
+      if (arguments.length === 1) {
+        this.definition = key;
+      } else if (this.flags & (Signal.object | Signal.array)) {
+        this.definition[key] = value;
+      }
+      if (trigger !== false) {
+        return this.value(this.definition);
+      }
+    },
+    get: function() {
+      return this.value();
+    },
+    "delete": function(key, trigger) {
+      if (this.flags & (Signal.object | Signal.array)) {
+        delete this.definition[key];
+      }
+      if (trigger !== false) {
+        return this.value(this.definition);
+      }
+    },
+    pop: function() {
+      var o;
+      if (!(this.flags & Signal.array)) {
+        return;
+      }
+      o = this.definition.pop.apply(this.definition, arguments);
+      this.value(this.definition);
+      return o;
+    },
+    push: function() {
+      var o;
+      if (!(this.flags & Signal.array)) {
+        return;
+      }
+      o = this.definition.push.apply(this.definition, arguments);
+      this.value(this.definition);
+      return o;
+    },
+    reverse: function() {
+      var o;
+      if (!(this.flags & Signal.array)) {
+        return;
+      }
+      o = this.definition.reverse.apply(this.definition, arguments);
+      this.value(this.definition);
+      return o;
+    },
+    shift: function() {
+      var o;
+      if (!(this.flags & Signal.array)) {
+        return;
+      }
+      o = this.definition.shift.apply(this.definition, arguments);
+      this.value(this.definition);
+      return o;
+    },
+    sort: function() {
+      var o;
+      if (!(this.flags & Signal.array)) {
+        return;
+      }
+      o = this.definition.sort.apply(this.definition, arguments);
+      this.value(this.definition);
+      return o;
+    },
+    splice: function() {
+      var o;
+      if (!(this.flags & Signal.array)) {
+        return;
+      }
+      o = this.definition.splice.apply(this.definition, arguments);
+      this.value(this.definition);
+      return o;
+    },
+    unshift: function() {
+      var o;
+      if (!(this.flags & Signal.array)) {
+        return;
+      }
+      o = this.definition.unshift.apply(this.definition, arguments);
+      this.value(this.definition);
+      return o;
     },
     "catch": function(report) {
       this._catch = report;
-      if (this._error != null) {
-        this._catch(this._error);
-        return this._error = null;
+      if (this.error != null) {
+        this._catch(this.error);
+        return this.error = null;
       }
     },
     idle: function() {
-      return this._idle;
+      return this.flags & Signal.idle;
     },
-    propagate: function(defer, observerList) {
+    propagate: function(observerList, defer) {
       var dependent, len, m, ref, results;
+      if (this.dependents == null) {
+        return;
+      }
       this.dependentTargets = this.dependents.slice(0);
       ref = this.dependents.slice(0);
       results = [];
       for (m = 0, len = ref.length; m < len; m++) {
         dependent = ref[m];
         if ((dependent != null) && this.dependentTargets.indexOf(dependent) >= 0) {
-          results.push(dependent.evaluate(defer, observerList));
+          results.push(dependent.evaluate(observerList, defer));
         } else {
           results.push(void 0);
         }
@@ -815,13 +1005,11 @@
       return results;
     },
     value: function(newDefinition) {
-      var defer, dependent, len, m, observer, observerList, ref, targetDependentIndex;
+      var dependent, len, m, observer, observerList, ref, targetDependentIndex;
       if (newDefinition !== void 0) {
         this.definition = newDefinition;
         observerList = [];
-        defer = new Signal.Defer(this, observerList);
-        this.evaluate(defer, observerList);
-        if (defer.idle()) {
+        if (this.evaluate(observerList)) {
           ref = observerList.slice(0);
           for (m = 0, len = ref.length; m < len; m++) {
             observer = ref[m];
@@ -831,18 +1019,30 @@
         return this._value;
       } else {
         dependent = Signal.dependencyStack[Signal.dependencyStack.length - 1];
-        if ((dependent != null) && dependent.dependencyType === Signal.type) {
+        if ((dependent != null) && dependent.flags & Signal.type) {
+          if (this.dependents == null) {
+            this.dependents = [];
+          }
           if (this.dependents.indexOf(dependent) < 0) {
             this.dependents.push(dependent);
           }
+          if (dependent.dependencies == null) {
+            dependent.dependencies = [];
+          }
           if (dependent.dependencies.indexOf(this) < 0) {
             dependent.dependencies.push(this);
+          }
+          if (this.dependentTargets == null) {
+            this.dependentTargets = [];
           }
           targetDependentIndex = this.dependentTargets.indexOf(dependent);
           if (targetDependentIndex >= 0) {
             this.dependentTargets[targetDependentIndex] = null;
           }
-        } else if ((dependent != null) && dependent.dependencyType === Observer.type) {
+        } else if ((dependent != null) && dependent.flags & Observer.type) {
+          if (this.observers == null) {
+            this.observers = [];
+          }
           if (this.observers.indexOf(dependent) < 0) {
             this.observers.push(dependent);
           }
@@ -857,20 +1057,23 @@
 
   _.Observer = Observer = _.prototype({
     adopt: {
-      type: "OBSERVER"
+      type: 0x0200
     },
     constructor: function(report) {
       this.observees = [];
-      this.dependencyType = Observer.type;
+      this.flags = Observer.type;
       return this.observe(report);
     },
     observe: function(report) {
-      var len, len1, m, observee, observerIndex, q, ref, ref1;
+      var len, len1, m, observee, observerIndex, p, ref, ref1;
       this.report = report;
       this._ready = true;
       ref = this.observees;
       for (m = 0, len = ref.length; m < len; m++) {
         observee = ref[m];
+        if (!(observee.observers != null)) {
+          continue;
+        }
         observerIndex = observee.observers.indexOf(this);
         observee.observers.splice(dependentIndex, 1);
       }
@@ -885,8 +1088,8 @@
       }
       this._ready = true;
       ref1 = this.observees;
-      for (q = 0, len1 = ref1.length; q < len1; q++) {
-        observee = ref1[q];
+      for (p = 0, len1 = ref1.length; p < len1; p++) {
+        observee = ref1[p];
         if (!observee.idle()) {
           this._ready = false;
           break;

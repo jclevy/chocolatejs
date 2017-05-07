@@ -33,7 +33,7 @@ exports.enter = (__) ->
             .chocomilk code {
                 font-size: 12px;
                 padding: 0 0.2em;
-                border: 1px solid #421;
+                border: 1px solid #262836;
                 background: rgb(248, 248, 248);
                 display: inline-block;
                 -webkit-box-shadow: 0 0 4px rgb(92, 75, 68);
@@ -137,41 +137,41 @@ exports.enter = (__) ->
                 color: green;
             }
             
+            #toggle-login.checking {
+                color: yellow;
+            }
+            
             #input-login {
                 line-height: 2em;
             }
 
             /* darkTheme */
             body.darkTheme {
-                background-color:#4D3B33;
-                color:#DBCCB6;
+                background-color:#1a1c24;
+                color:#eaeaea;
+            }
+            .darkTheme #header > .panel {
+                border-bottom: 1px solid #171717;
             }
             .darkTheme .header, .darkTheme .footer {
-                background-color: #392C26;
-                color: #DBCCB6;
+                background-color: #323244;
+                color: #eaeaea;
+                border-top: 1px solid #080808;
             }
             .darkTheme a, .darkTheme select {
-                color:#DBCCB6;
+                color:#eaeaea;
                 font-weight: normal;
             }
             .darkTheme .sizer {
                 line-height: 2em;
-                border-top: 2px solid rgb(78, 61, 48);
-                border-right: 3px solid rgb(44, 35, 28);
-                border-bottom: 3px solid #241505;
-                border-left: 3px solid rgb(49, 37, 28);
+                border-left: 2px solid #262836;
                 margin: 1px;
-                outline: 1px solid #241505;
+                outline: 1px solid #262836;
                 border-bottom-left-radius: 8px;
                 border-top-right-radius: 9px;
             }
             .darkTheme .chocoblack {
-                background-color: #241A15;
-                border: 1px solid #080401;
-                -webkit-box-shadow: inset 0 0 15px #080401;
-                -moz-box-shadow: inset 0 0 15px #080401;
-                -o-box-shadow: inset 0 0 15px #080401;
-                box-shadow: inset 0 0 15px #080401;           
+                background-color: #1a1c24;
             }
             .darkTheme .round.frame {
                 padding: 6px 6px;
@@ -186,25 +186,25 @@ exports.enter = (__) ->
                 border-style:none;
             }
             .darkTheme .frame.white.round, .darkTheme .frame.chocomilk.round {
-                -webkit-box-shadow: inset 0 0 20px #080401;
-                -moz-box-shadow: inset 0 0 20px #080401;
-                -o-box-shadow: inset 0 0 20px #080401;
-                box-shadow: inset 0 0 20px #080401;    
+                -webkit-box-shadow: inset 0 0 20px #080706;
+                -moz-box-shadow: inset 0 0 20px #080706;
+                -o-box-shadow: inset 0 0 20px #080706;
+                box-shadow: inset 0 0 20px #080706;    
             }
             .darkTheme .white {
-                border: 2px solid rgba(255, 204, 0, 0.3);
+                border: 2px solid rgba(119, 110, 73, 0.3);
             }
             .darkTheme .grey {
                 background-color: #191919;
                 border: 2px solid #202020;
             }
             .darkTheme #source_select {
-                background-color: #4D3B33;
-                color: #DBCCB6;
+                background-color: #4c433e;
+                color: #eaeaea;
             }
             .darkTheme #source_close {
-                border-color: #DBCCB6;
-                color: #DBCCB6;
+                border-color: #eaeaea;
+                color: #eaeaea;
             }
             
             /* lightTheme */
@@ -666,8 +666,8 @@ exports.enter = (__) ->
                         if step isnt current_steps[i]
                             current_steps = current_steps[0...i] if i>0
                             for j in [i...steps.length-1]
-                                content.push "<div style='margin-top:4px;margin-left:#{j*8}px;'>#{steps[j]}</div>"
                                 current_steps[j] = steps[j]
+                                content.push "<div style='margin-top:4px;margin-left:#{j*8}px;'><a href='#' onclick=\"javascript:_ide.goto_dir('#{current_steps.join('/')}');\">#{steps[j]}</a></div>"
                     line = """<div style='margin-left:#{(steps.length-1)*8}px;'>"""
                     line += """<a href="#" onclick="javascript:_ide.close_file('#{item}');">x</a>&nbsp;"""
                     line += """<a href="#" onclick="javascript:_ide.save_file('#{item}');">*</a>&nbsp;""" if sources.codes[item].modified
@@ -691,7 +691,7 @@ exports.enter = (__) ->
                 content = []
                 for item in codes
                     if_selected = if sources.current is item then ' selected="selected"' else ''
-                    content.push "<option value='#{item}'#{if_selected}>/#{item}</option>"
+                    content.push "<option value='#{item}'#{if_selected}>/#{item + if sources.codes[item].modified then '*' else ''}</option>"
                 
                 selector = document.id('source_select').set 'html', content
                 selector[(if content.length > 0 then 'remove' else 'add') + 'Class'] 'hidden'
@@ -703,19 +703,35 @@ exports.enter = (__) ->
                 no
             
             _ide.switch_login = (switched) ->
+                if not switched? 
+                    document.id("toggle-login").removeClass('logged').addClass 'checking'
+                else
+                    document.id("toggle-login").removeClass 'checking'
                     document.id("toggle-login")["#{if switched is on then 'add' else 'remove'}Class"] 'logged'
                     document.id("input-login")["#{if switched is on then 'add' else 'remove'}Class"]('hidden').set 'value', ''
-                    
-            _ide.check_connected = ->
+                
+            _ide.check_connected = (timeout = 0) ->
+                if timeout > 0 then _ide.switch_login()
+                start = Date.now()
                 new Request
                     url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/studio?connected&how=raw'
                     noCache: yes
+                    timeout: timeout
                     onSuccess: (data) ->
                         _ide.switch_login if data is "connected" then on else off
                     onFailure: (xhr) ->
-                        _ide.switch_login on
+                        if timeout > 0
+                            _ide.check_online timeout - (Date.now() - start) - 1000, 1000
+                        else
+                            _ide.switch_login off
+                    onTimeout: () ->
+                        _ide.switch_login off
                 .get()
 
+            _ide.check_online = (timeout = 10000, delay = 1500) ->
+                count = 0
+                timer = setInterval ( -> count += delay ; if count < timeout then _ide.check_connected delay else clearInterval timer), delay
+            
             _ide.register_key = ->
                 new Request 
                     data: key:document.id("input-login").value
@@ -772,6 +788,8 @@ exports.enter = (__) ->
                 doc = _ide.create_session file, path
                 item = sources.available[path] ? name:_ide.get_basename(path), extension:_ide.get_extension(path), modifiedDate:sources.searched[path]?.modifiedDate ? 0, has_spec_file:false
                 sources[if is_spec then 'specs' else 'codes'][path] = { path, doc, from_history:from_history ? false, modified:from_history ? false, modifiedDate:item.modifiedDate, has_spec_file:item.has_spec_file }
+                _ide.save_sources_opened()
+                doc
                 
             _ide.display_code_file = (path, overwrite) ->
                 _ide.toggleMainDisplay 'main'
@@ -871,9 +889,13 @@ exports.enter = (__) ->
                             _ide.goto_dir cur_dir, ->
                                 _ide.open_file "#{cur_dir}/#{filename}"
                                 _ide.display_message translate "File #{cur_dir}/#{filename} was created"
+
                         onFailure: (xhr) ->
                             _ide.display_message "Error with _ide.create_file() : #{xhr.status}"
                     .get()
+                    _ide.check_online()
+                    return
+                    
                     
             _ide.upload_file = (step) -> 
                 cur_dir = _ide.get_current_dir()
@@ -913,6 +935,8 @@ exports.enter = (__) ->
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.move_file.move_one() : #{xhr.status}"
                     .get()
+                    _ide.check_online()
+                    return
 
                 if confirm translate("Current file is /#{sources.current}") + '\n\n' + translate "Confirm that you want to move this file to /#{cur_dir}"
                     source = sources.current
@@ -938,6 +962,8 @@ exports.enter = (__) ->
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.rename_file.rename_one() : #{xhr.status}"
                     .get()
+                    _ide.check_online()
+                    return
 
                 if filename = prompt translate("Current file is /#{sources.current}") + '\n\n' + translate "Enter a new filename"
                     if _ide.get_extension(filename) is '' then filename += '.coffee'
@@ -964,6 +990,8 @@ exports.enter = (__) ->
                         onSuccess: (responseText) -> callback?()
                         onFailure: (xhr) -> _ide.display_message "Error with _ide.delete_file.delete_one() : #{xhr.status}"
                     .get()
+                    _ide.check_online()
+                    return
                     
                 if confirm translate("Current file is /#{sources.current}") + '\n\n' + translate "Confirm that you want to DELETE this file"
                     source = sources.current
@@ -975,8 +1003,8 @@ exports.enter = (__) ->
                         _ide.goto_dir cur_dir, ->
                             _ide.display_message translate "File /#{cur_dir}/#{filename} was deleted"
 
-            _ide.open_file = (path, with_spec_file) ->
-                if sources.isOpening then return
+            _ide.open_file = (path, with_spec_file, callback) ->
+                if sources.isOpening then return no
                 unless path? then path = document.id("source_select").getSelected().get("value")[0]
                 if path.substr(0,2) is './' then path = path.substr 2
                 if sources.codes[path]? and not with_spec_file then _ide.display_code_file path; return;
@@ -985,12 +1013,13 @@ exports.enter = (__) ->
                 new Request
                     url: '/' + (if sofkey? then '!/' + sofkey else '') + path + '?how=raw'
                     onSuccess: ->
-                        _ide.load_file path, @response.text
+                        doc = _ide.load_file path, @response.text
                         
                         on_spec_loaded = (code_path, loaded_path, text) ->
                             _ide.load_file loaded_path, text
                             _ide.display_code_file code_path
                             sources.isOpening = false
+                            callback?()
 
                         sources.isOpening = true
                         spec_path = _ide.get_spec_filename path
@@ -1002,12 +1031,12 @@ exports.enter = (__) ->
                                 onFailure: (xhr) -> sources.isOpening = false ; _ide.display_message "Error with _ide.open_file.spec_file(#{path}) : #{xhr.status}"
                             .get()
                         else on_spec_loaded path, spec_path, ''
-                            
-
                         
                     onFailure: (xhr) -> sources.isOpening = false ; _ide.display_message "Error with _ide.open_file(#{path}) : #{xhr.status}"
                 .get()
-                                    
+                
+                yes
+                
             _ide.will_close_file = (path) ->
                 ask = (path) ->
                     confirm translate "File '#{path}' was modified.\n\nChanges will be lost.\nDo you confirm you want to continue ?"
@@ -1031,6 +1060,7 @@ exports.enter = (__) ->
                     _ide.display_code_file if files.length > 0 then files[files.length-1] else ''
                         
                 _ide.on_file_status_changed()
+                _ide.save_sources_opened()
                 yes
                 
             _ide.save_file = (path) ->
@@ -1056,9 +1086,12 @@ exports.enter = (__) ->
                             _ide.get_file_git_history sources.current
                             _ide.on_file_status_changed is_spec
                             _ide.display_message translate "File #{path} was saved"
+                            _ide.save_sources_opened()
                         onFailure: (xhr) ->
                             _ide.display_message "Error with _ide.save_file(#{path}) : #{xhr.status}"
                     myRequest.post data
+                    _ide.check_online()
+                return
                     
             _ide.save_spec_file = ->
                 _ide.save_file _ide.get_spec_filename sources.current
@@ -1780,7 +1813,11 @@ exports.enter = (__) ->
                             result = _ide.error_message error
                             #debug_editor.setValue error.stack + '\n\ndebugged : \n' + debugged + '\n\ncompiled : \n' + compiled
                     else
-                        result = eval orig_compiled
+                        try
+                            result = eval orig_compiled
+                        catch e
+                            error = e
+                            result = _ide.error_message error
                         
                 document.id('experiment-run-panel').set 'text', result
             
@@ -1876,6 +1913,9 @@ exports.enter = (__) ->
                 
                 setTimeout _ide.keep_uptodate, _ide.refresh_rate
                     
+            _ide.save_sources_opened = ->
+                localStorage.setItem 'studio_sources_opened', JSON.stringify({path, has_spec_file:sources.codes[path].has_spec_file, modifiedDate:sources.codes[path].modifiedDate} for path in sources.opened)
+                
             window.addEvent 'domready', ->
                 Request.implement processScripts: (text) -> text
                 
@@ -2052,7 +2092,24 @@ exports.enter = (__) ->
                         win: "Ctrl-S",mac: "Command-S"
                     exec: -> _ide.save_spec_file()
 
-                _ide.goto_dir '.'
+                _ide.goto_dir '.', ->
+                    saved_sources = JSON.parse localStorage.getItem 'studio_sources_opened'
+                    
+                    try_open = (source, count) ->
+                        sources.available[source.path] = { name:_ide.get_basename(source.path), extension:_ide.get_extension(source.path), modifiedDate:source.modifiedDate, has_spec_file:source.has_spec_file }
+                        
+                        is_opening = _ide.open_file source.path, source.has_spec_file, ->
+                            _ide.get_file_modified_date source.path, (modifiedDate) -> sources.codes[source.path].modifiedDate = modifiedDate
+
+                        unless is_opening
+                            count ?= 0
+                            if count < 50 then count += 1; setTimeout (-> try_open source, count), 100
+                        
+                    if saved_sources?.length > 0 
+                        for source in saved_sources then try_open source
+                    
+                    return
+                
 
 exports.connected = -> 'connected'
 

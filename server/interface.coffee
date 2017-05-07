@@ -31,8 +31,13 @@ exports.exchange = (bin, send) ->
 
     config = require('./config')(datadir)
     where = where.replace(/\.\.[\/]*/g, '')
+    
+    console_ = 
+        log: -> 
+            console.log.apply console, arguments
+            try websocket?.send JSON.stringify console:log:(if arguments.length is 1 then arguments[0] else arguments)
 
-    context = {space, workflow, request, response, where, what, params, websocket, session, sysdir, appdir, datadir, config}
+    context = {space, workflow, request, response, region, where, what, params, websocket, session, sysdir, appdir, datadir, config, console:console_}
 
     config = config.clone()
     
@@ -236,7 +241,8 @@ exports.exchange = (bin, send) ->
     # `exchangeClassic` is an interface with classic files (coffeescript or javascript)
     exchangeClassic = () ->
         required = '../' + (if region is 'system' or appdir is '.' then '' else appdir + '/' ) + where
-        __ = if region is 'system' or appdir is '.' then undefined else context
+        #__ = if region is 'system' or appdir is '.' then undefined else context
+        __ = context
         
         what_is_public = no
 
@@ -355,7 +361,7 @@ exports.exchange = (bin, send) ->
                 # Take care of the `eval` and `do` actions
             when 'do', 'eval'
                 if so is 'eval'
-                    args = [(if how is 'raw' then 'json' else 'html'), required, context]
+                    args = [(if how is 'raw' then 'json' else 'html'), Path.resolve(__dirname + '/' + required), context]
                     required = '../general/specolate'
                     action = 'inspect'
                     node_module = require required 

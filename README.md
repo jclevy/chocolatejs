@@ -63,80 +63,90 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.22 - (2017-03-07)**
+**Chocolate v0.0.23 - (2017-05-07)**
 --------------
 
 NEW FEATURES
 
- - in `data/app.config.json`, `log` parameters are added :
-    - `inFile` (true or false) tells Chcolate to redirect log functions output to `data/chocolate.log` file
-    - `timestamp` (true or false) tells Chcolate to add a timestamp to every Console output
+ - added `general/lateDB`: a very simple database system.
+  
+    `lateDB` provides you an in-memory javascript space that you can modify with an `update` method
 
-            "log": {
-                "inFile": true,
-                "timestamp": true
-            }
+            db.update('key': { op: func, data: some_data });
+            
+    i.e. (in Coffeescript):
     
-    - `rewrite` an array of rewrite rules :
+            db.update 'result':
+                op: (data) -> (@log ?= []).push data
+                data: "done"
     
-        `rule`: a regular expression  
-        `replace`: a string to replace what will be found by the regular expression
+    or in Javascript:
     
-            "rewrite": [
-                {"rule": "/(.+)_(.+)_(.+)_(.+)", "replace":"/?Library=$1&Book=$2&Chapter=$3&Verse=$4"}
-            ]
+            db.update({
+              'result': {
+                op: function(data) {
+                  return (this.log != null ? this.log : this.log = []).push(data);
+                },
+                data: "done"
+              }
+            });
+    
+    will store in the database
+    
+            {result:{log:['done']}}
+    
+    `result` is the key parameter which defines a `section`/`table`/`bucket` name, in which you want to store some data
+    It contains an `op` field which provides a function to execute on `this` location, and a `data` field which should contain the `data` to provide to the `op` function.
+    
+    What the `update` service do is that it records the `op` method and the `data` provided in a `log.db` file which will be reloaded and executed next time your app will be restarted.
+    
+    Your `op` and `data` should rather not produce object oriented data (using the prototyping chain), unless those objets provides a `stringify` method which should write a javascript code in the `log.db` file that will re-create the oject.
+    
+    And voilà, that's bascially all...
+
+ - in `server/interface`:
+   - the `__` context parameter sent to invoked module services now contains:
+     - a `websocket` that can be used to send some message to the client when a websocket connection has been established (i.e. when `locco Workspace` is running client-side)
+     - a `console` object with a `log` method that will route the log message to the default `console` and to the client through the `websocket` that may be present in the `context` object
 
 UPDATES
 
- - in `app.config.json`'s `proxy` section, you can now specify:
-  - a domain port redirection
+ - in `locco/chocodash`: 
+  - `_.cell` and `_.observe` are added as functional equivalent to object oriented _.Signal and _.Observer
+  - removed `helpers` option from `_.Signal` service
+  - `_.stringify` 
+      - has now  3 optional modes:
+         - `json` :  returns a JSON stringification
+         - `js` :  (which is default mode) returns a javascript string to recreate the given object
+         - `full` : same as `js` mode, but treats `Array` objects as full object and stringifies values by keys instead of by indexes
+      - has a `write` option to define a function that will receive every chunk of string generated during the stringify operation,  
+        It can be used to store those string to a file or the send them to a stream. By default it should return the given string.
+      - has a `strict` option to tell wether `_.stringify` accepts a user typed object. If not it throws an error.
 
-            "proxy": {
-                "lestencrypt": true,
-                "redirect": {
-                    "mydomain.com": "mydomain.fr"
-                }
-            }
-    
-      will redirect mydomain.net requests to mydomain.com port
+ - in `server/studio`:
+  - list of opened files is now saved in `localStorage`. Those files are reload automaticaly next tile `studio` is opened
+  - in `opened files panel`, you can now click on directory entries to go directly there
+  - the login toggle button will now display a yellow color when the app is restarting
+  - the `dark`theme is now more grey and not brown anymore.
+  - a `*` symbol is now also added to the file name displayed in the editor's file selector when the file was modified 
 
-  - a domain for the proxy service itself:
-
-            "proxy": {
-                "lestencrypt": true,
-                "proxy_domain": {
-                    "proxy.mydomain.com"
-                }
-            }
-            
-  - to log proxy events:
-
-            "proxy": {
-                "log": true,
-            }
-
- - in `server/monitor`, you can now specify a user to run your `monitor` and app processes.  
-
-        coffee monitor --user myappuser 
-
-   NOTE: this will only work if you start `server/monitor` with a privileged account
-   
- - in `server/interface`:
-   - now provides the HTTP response object to the called service in the `__` context parameter
-   - does not return anymore the `props` property as an alias to the `bin` property in `Interface.Reaction` response to a web request, which was an unnecessary duplicate. When using an `Interface.Actor` clientside, it puts back the `props` property as an alias to the `bin` property.
-
- - in `server/studio`, search service does not give results from `node_modules` subdirectories anymore
- - in `data/app.config.json` the`display_errors` parameter is renamed `displayErrors`
- - `http-proxy` node-module upgraded to v1.16.2
- - `logConsoleAndErrors` does not have a `timestamp` parameter anymore as it is managed by the`app.config.json` `timestamp` parameter
+ - in `server/monitor`:
+  - the restart service now throttle the requests to 1 per second to avoid unnecessary restarts when few files are generated/rebuilt on a save
 
 FIXED BUGS
 
- - in `server/studio`, search/grep service was somehow broken
- - in `server/workflow`, 
-  - send a response when a proxy error occurs and don't create unnecessary proxy handlers
-  - `http` redirection to `https` now includes the requested url
- - in `server/file` `logConsoleAndErrors` service was broken. It should work now. `unlogConsoleAndErrors` was added.
+ - in `server/studio`
+  - errors were not properly displayed in lab execution panel
+  - `Specolate` service was crashing when an error was occuring in server side tested code due to a relative pathname of the tested file
+ 
+ - in `general/chocokup`
+  - a `box`, `panel`, `header` or `footer` followed by a string was not displaying that string in the produced html
+
+ - in `server/workflow`, better management of `region` to define a system command
+ 
+ - in `server/file`, reorganized code, normalize, resolve and region management (system and app)
+
+ - in `general/newnotes`, put needed resource files for `present` service, inside `/static/vendor/slides`
 
 See history in **CHANGELOG.md** file
 
