@@ -1,3 +1,23 @@
+## v0.0.24 - (2017-05-17)
+
+--------------
+
+NEW FEATURES
+
+ - `chocolatejs` can now handle proxying websockets
+
+UPDATES
+
+ - better console.log redirection if using `log.inFile` parameter in `data/app.config.json` config file
+ - updated README.md with LateDB section
+ - updated microtime to 2.1.3
+ - updated ws to 2.3.1
+
+FIXED BUGS
+
+ - in `general/interface`, the review method was missing the `actor` property in its `this` context
+ - in `server/workflow`, an empty json string result was not handled correctly
+
 ## v0.0.23 - (2017-05-07)
 
 --------------

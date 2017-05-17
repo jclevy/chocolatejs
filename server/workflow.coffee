@@ -423,9 +423,11 @@ class World
         cert ?= if config.letsencrypt?.published is on then 'fullchain.pem' else 'certificate.pem'
         
         LetsEncrypt = if config.letsencrypt? then require('letsencrypt') else null
+        
+        to_proxy_damain = (request) -> no
 
         middleware = do ->
-            middleware = https:[], http:[]
+            middleware = https:[], http:[], ws:[], wss:[]
             
             if config.letsencrypt? then do ->
                 middleware.http.push (args) ->
@@ -473,6 +475,22 @@ class World
                         proxy.on 'proxyRes', (proxyRes, request, response) ->
                             console.log 'proxyRes event:', 'host:' + request.headers.host, 'ip:' + request.connection?.remoteAddress, (k + ':' + (if k is 'headers' then JSON.stringify(v) else v) for k,v of proxyRes when k in ['headers', 'statusCode']).join ', '
 
+                    to_proxy_damain = 
+                        (request) -> 
+                            proxy_infos = proxies[request.headers.host]
+                            not proxy_infos? or proxy_infos.host is config.proxy.proxy_domain
+                    
+                    middleware[if config.http_only then 'ws' else 'wss'].push (args) ->
+                        {request, socket, header} = args
+                        proxy_infos = proxies[request.headers.host]
+                        if proxy_infos? and config.proxy.proxy_domain is proxy_infos.host
+                            if config.proxy.log
+                                console.log 'proxyWs event:', 'host:' + request.headers.host, 'ip:' + request.connection?.remoteAddress, (k + ':' + v for k,v of request when k in ['method', 'url']).join ', '
+                            return yes
+                        unless proxy_infos?.port? then return yes
+                        proxy.ws request, socket, header, { target: "#{if config.http_only then 'http' else 'https'}://127.0.0.1:#{proxy_infos.port}", secure:false }
+                        no
+                        
                     middleware[if config.http_only then 'http' else 'https'].push (args) ->
                         {request, response} = args
                         proxy_infos = proxies[request.headers.host]
@@ -482,6 +500,7 @@ class World
                             return yes
                         unless proxy_infos?.port? then response.end('') ; return no 
                         proxy.web request, response, { target: "#{if config.http_only then 'http' else 'https'}://127.0.0.1:#{proxy_infos.port}", secure:false }                        
+                        no
 
             middleware
         
@@ -681,7 +700,16 @@ class World
             catch err
                 response.writeHead 200, { "Content-Type": "text/plain" }
                 response.end 'error : ' + err.stack
-                
+        
+        # Handle web sockets and middleware to proxy web sockets requests
+        
+        server.on 'upgrade', (request, socket, header) ->
+            if config.proxy? and not to_proxy_damain request
+                for func in middleware[if config.http_only then 'ws' else 'wss'] then unless func({request, socket, header}) then return
+            else
+                ws_server.handleUpgrade request, socket, header, (client) ->
+                    ws_server.emit('connection', client, request);
+        
         # Start our web server
         server.listen unless config.http_only then port_https else port_http
 
@@ -694,7 +722,7 @@ class World
                 response.end ''
             .listen port_http
 
-        new WebSocket.Server({server}).on 'connection', (ws) ->
+        ws_server = new WebSocket.Server({noServer:on}).on 'connection', (ws) ->
             websockets.register ws
             
             ws.on 'close', -> websockets.unregister ws
@@ -705,7 +733,7 @@ class World
                 bin.how = how = 'json'
 
                 Interface.exchange bin, (result) ->
-                    feedback = "{\"result\":#{result.body}, \"id\":#{message.id}}"
+                    feedback = "{\"result\":#{if result.body.trim() is '' then 'null' else result.body}, \"id\":#{message.id}}"
                     ws.send feedback if result.body? and result.body isnt ''
         
         return

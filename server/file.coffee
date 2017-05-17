@@ -360,13 +360,19 @@ exports.logConsoleAndErrors = (path) ->
     write_stream = Fs.createWriteStream(path, {'flags': 'a'})
     
     log = (chunk) ->
-        write_stream.write = switch 
+        chunk_ = switch 
             when typeof chunk is 'string' then chunk
             when Buffer.isBuffer chunk then chunk.toString 'binary'
             else chunk.toString()
         
-    process.stdout.write = ((write) -> (chunk, encoding, fd) -> log chunk ; write.apply process.stdout, arguments ; return)(process.stdout.write)
-    process.stderr.write = ((write) -> (chunk, encoding, fd) -> log chunk ; write.apply process.stderr, arguments ; return)(process.stderr.write)
+        write_stream.write chunk_
+        
+        arguments[0] = chunk_
+        arguments
+        
+        
+    process.stdout.write = ((write) -> (chunk, encoding, fd) -> args = log.apply null, arguments ; write.apply process.stdout, args ; return)(process.stdout.write)
+    process.stderr.write = ((write) -> (chunk, encoding, fd) -> args = log.apply null, arguments ; write.apply process.stderr, args ; return)(process.stderr.write)
     return
     
 exports.unlogConsoleAndErrors = ->

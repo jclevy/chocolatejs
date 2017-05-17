@@ -39,7 +39,7 @@ Interface = _.prototype
                 when _.Type.String then @observe (html) => $(@update).html html; return
     
     review: (bin, reaction, end) ->
-        self = {bin, props:bin, document:@document, 'interface':@}
+        self = {bin, props:bin, document:@document, 'interface':@, actor:@actor}
         check =
             # `defaults` ensure default values are set on an object
             defaults: (object, defaults) =>

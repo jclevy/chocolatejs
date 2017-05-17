@@ -25,6 +25,8 @@ It includes :
 
  - **Locco** -- the Chocolate protocol : so, what, where, how...
 
+ - **LateDB** -- a kind of database running in-memory and logged to disk
+
  - **Chocokup** -- a 100% pure CoffeeScript templating language that helps build web user interfaces (based on Coffeekup)
 
  - **Chocodown** -- Chocokup-aware port of Markdown (based on Showdown)
@@ -47,8 +49,6 @@ It includes :
 
  - **Chocoss** -- a Css framework
 
- - **ChocoDB** -- a kind of nosql database running on SQLite
-
  -  **NewNotes** -- a promising note taking tool
 
 Chocolate integrates:
@@ -63,6 +63,25 @@ Chocolate integrates:
 
 ## Version
 
+**Chocolate v0.0.24 - (2017-05-17)**
+--------------
+
+NEW FEATURES
+
+ - `chocolatejs` can now handle proxying websockets
+
+UPDATES
+
+ - updated README.md with LateDB section
+ - updated microtime to 2.1.3
+ - updated ws to 2.3.1
+
+FIXED BUGS
+
+ - in `general/interface`, the review method was missing the `actor` property in its `this` context
+ - in `server/workflow`, an empty json string result was not handled correctly
+ - 
+ 
 **Chocolate v0.0.23 - (2017-05-07)**
 --------------
 
@@ -169,7 +188,7 @@ See history in **CHANGELOG.md** file
    - [Spec, Doc, Lab, Help and Notes panels](#Choco-Studio-panels)
  - [The Lab](#Choco-Lab)
  - [How to write Modules](#Choco-WriteModules)
- - [ChocoDB](#Choco-DB)
+ - [LateDB](#Late-DB)
  - [Chocodash](#Choco-Dash)
    - [Javascript type management](#Choco-Dash-Type)
    - [Better than Class with Prototypes](#Choco-Dash-Prototype)
@@ -741,74 +760,41 @@ Instead of a javascript function you can call a Locco Interface:
 
 ---
 
-## <a name="Choco-DB"></a> ChocoDB [⌂](#Choco-Summary) 
+## <a name="Choco-DB"></a> LateDB [⌂](#Choco-Summary) 
 
-ChocoDB is intended to be *a kind of* nosql database running on SQLite.
-
-Currently, you can use it to store javascript objects in database and retrive them by id.
-Functions, Dates and circular references can also be saved and retrieved.
-
-A query language is on its way...
-
-Here is an example taken from the /server/reserve spec file:
-
+`lateDB` provides you an in-memory javascript space that you can modify with an `update` method
         
-        var _ = require 'chocolate/general/chocodash'
-        var Sample;
-        
-        Sample = (function() {
-          function _Class(title, uuid) {
-            this.title = title;
-            this.uuid = uuid != null ? uuid : _.Uuid();
-            this.list = [10, 11, 12, 13];
-            this.list.extended = 'an extension';
-            this.items = [
-              {
-                one: 123,
-                two: 345
+            db.update('key': { op: func, data: some_data });
+    
+    i.e. (in Coffeescript):
+    
+            db.update 'result':
+                op: (data) -> (@log ?= []).push data
+                data: "done"
+    
+    or in Javascript:
+    
+            db.update({
+              'result': {
+                op: function(data) {
+                  return (this.log != null ? this.log : this.log = []).push(data);
+                },
+                data: "done"
               }
-            ];
-            this.values = {
-              boolean: true,
-              number: 1.23
-            };
-            this.struct = {
-              object: {
-                name: 'object in struct',
-                value: 'ok'
-              }
-            };
-            this.test_func = {
-              add: function(x, y) {
-                return x + y;
-              }
-            };
-            this.date = {
-              creation: new Date(),
-              modified: new Date()
-            };
-          }
-        
-          return _Class;
-        
-        })();
-        
-        var sample = new Sample('test');
-        var sub_uuid = _.Uuid();
-        sample.struct.object.uuid = sub_uuid;
-        
-        var chocodb = new Reserve.Space();
-        chocodb.write(sample, function() {
-          chocodb.read(sample.uuid, function (error, data) {
-            // data.title === 'test';
-            // data.values.boolean === true;
-            // data.date.creation.toString() === sample.date.creation.toString()
-        
-            chocodb.read(sub_uuid, function (error, data) {
-                // data.object.name === 'object in struct';
             });
-          });
-        });
+    
+    will store in the database
+    
+            {result:{log:['done']}}
+    
+    `result` is the key parameter which defines a `section`/`table`/`bucket` name, in which you want to store some data
+    It contains an `op` field which provides a function to execute on `this` location, and a `data` field which should contain the `data` to provide to the `op` function.
+    
+    What the `update` service do is that it records the `op` method and the `data` provided in a `log.db` file which will be reloaded and executed next time your app will be restarted.
+    
+    Your `op` and `data` should rather not produce object oriented data (using the prototyping chain), unless those objets provides a `stringify` method which should write a javascript code in the `log.db` file that will re-create the oject.
+    
+    And voilà, that's bascially all...
 
 &nbsp;
 

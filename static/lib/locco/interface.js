@@ -78,7 +78,8 @@
         bin: bin,
         props: bin,
         document: this.document,
-        'interface': this
+        'interface': this,
+        actor: this.actor
       };
       check = {
         defaults: (function(_this) {
