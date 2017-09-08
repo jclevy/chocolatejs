@@ -634,7 +634,7 @@ exports.enter = (__) ->
                 
                 help_selector = document.id('help-selector')
                 help_selector.empty()
-                help_selector.adopt new Element 'option', selected:(if path is help_path then on else off), value: help_path, text: help.name for own help_path, help of frames.help
+                (help_selector.adopt new Element 'option', selected:(if path is help_path then on else off), value: help_path, text: help.name) for own help_path, help of frames.help
                 document.id('help-selector-panel')[(if help_selector.length <= 1 then 'add' else 'remove') + 'Class'] 'hidden'
                 
             _ide.select_help_panel = (is_on_click) ->
@@ -763,7 +763,7 @@ exports.enter = (__) ->
                         for item in directory when item.name[0] isnt '.' # and (item.isDir or item.extension in ['.coffee', '.litcoffee', '.css', '.js', '.json', '.html', '.txt', '.markdown', '.md'])
                             unless _ide.is_spec_file item.name
                                 content.push ('<div>' + """<a href="#" onclick="javascript:#{if item.isDir then '_ide.goto_dir' else '_ide.open_file'}('#{(if new_dir isnt '.' then (new_dir + '/') else '') + item.name}');">#{item.name}</a>""" + '</div>')
-                            else sources.available[rel_new_dir + item.name.replace '.spec', ''].has_spec_file = true
+                            else sources.available[rel_new_dir + item.name.replace '.spec', '']?.has_spec_file = true
                             sources.available[rel_new_dir + item.name] = { name:item.name, extension:item.extension, modifiedDate:item.modifiedDate, has_spec_file:false } if item.isFile
                         document.id('dir_content').set 'html', content
                         document.id('current_dir').set 'text', if new_dir isnt '.' then new_dir else ''

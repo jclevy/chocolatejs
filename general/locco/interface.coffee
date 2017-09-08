@@ -39,7 +39,7 @@ Interface = _.prototype
                 when _.Type.String then @observe (html) => $(@update).html html; return
     
     review: (bin, reaction, end) ->
-        self = {bin, props:bin, document:@document, 'interface':@, actor:@actor}
+        self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
         check =
             # `defaults` ensure default values are set on an object
             defaults: (object, defaults) =>
@@ -88,7 +88,7 @@ Interface = _.prototype
                     actor[service].submit(@bin).subscribe (reaction) => @respond reaction.bin
                     respond.later
                         
-                { bin, props:bin, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit }
+                { bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit }
                 
             run (end) -> 
                 end.with @review bin, reaction, end
@@ -162,7 +162,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                     
                     check_interfaces = (bin) ->
                         local_kups = []
-                        for name, service of bin 
+                        for name, service of bin
                             if service instanceof Interface.Web
                                 unless not service?.defaults? or service in checked
                                     checked.push service
@@ -179,12 +179,13 @@ Interface.Web = _.prototype inherit:Interface, use: ->
     
                                 service_id = _.Uuid().replace /\-/g, '_'
                                 service_kup = new Function 'args', """
-                                    var interface = this.interface, bin = this.bin, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;
+                                    var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;
                                     try {this.interface = bin#{if scope.length > 0 then '.' + scope.join('.') else ''}.#{name};} 
                                     catch (error) { try {this.interface = bin.#{name};} catch (error) {}; };
-                                    this.actor = this.interface != null ? this.interface.actor : null;
+                                    this.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;
                                     this.keys = [];
                                     this.props = this.bin = {__:bin.__};
+                                    this.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};
                                     bin_cp = function(b_, _b) {
                                       var done = false, k, v;
                                       for (k in _b) {
@@ -203,7 +204,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                                         #{declare_kups.join ';\n'};
                                         with (this.locals) {(#{(service.render?.overriden ? service.render).toString()}).call(this, this.bin);}
                                     }
-                                    this.bin = bin; this.interface = interface, this.actor = actor;
+                                    this.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;
                                     """
     
                                 reaction.kups ?= {}
@@ -248,7 +249,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                     """
                 else render_code
                 
-                options = {bin, props:bin, document:@document, Interface, 'interface':@, actor:@actor, kups}
+                options = {bin, props:bin, space:bin?.__?.space, document:@document, Interface, 'interface':@, actor:@actor, kups}
                 options.theme = bin.theme if bin.theme?
                 options.with_coffee = bin.with_coffee if bin.with_coffee?
                 options.manifest = bin.manifest if bin.manifest?

@@ -336,7 +336,7 @@ $.websocket = (url, options = {}) ->
 $.Ajax = do ->
     Ajax_default =
         type: "GET"
-        mime: "json"
+        mime: "guess"
 
     Ajax_mime_types =
         script: "text/javascript, application/javascript"
@@ -345,6 +345,7 @@ $.Ajax = do ->
         xml: "application/xml, text/xml"
         html: "text/html"
         text: "text/plain"
+        guess: "application/xml, text/xml, application/json, application/json-late, text/javascript, application/javascript, text/plain, text/html"
 
     Ajax_jsonp_id = 0
     
@@ -410,7 +411,7 @@ $.Ajax = do ->
 
     $.post = (url, data, success, dataType) -> _xhrForm("POST", url, data, success, dataType)
 
-    $.getJSON = $.getJson = (url, data, success) -> $.get url, data, success, Ajax_default.mime
+    $.getJSON = $.getJson = (url, data, success) -> $.get url, data, success, 'json'
 
     $.getScript = (url, success) -> $.get url, undefined, success, "script"
 
@@ -468,7 +469,7 @@ $.Ajax = do ->
         response = xhr.responseText
         if response
             switch settings.dataType 
-                when Ajax_default.mime
+                when 'json'
                     try
                         response = JSON.parse(response)
                     catch error

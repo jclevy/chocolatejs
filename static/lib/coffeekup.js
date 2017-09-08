@@ -238,12 +238,12 @@
     };
     id = function(db, value) {
       var ids, j, key, len;
-      if (value == null) {
+      if (typeof db === 'string') {
         value = db;
         db = null;
       }
-      if (typeof value === "string") {
-        ids = {};
+      if (typeof value === 'string') {
+        ids = db != null ? db : {};
         for (j = 0, len = arguments.length; j < len; j++) {
           key = arguments[j];
           ids[key] = id();

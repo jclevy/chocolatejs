@@ -16,12 +16,7 @@ Actor = _.prototype
             
                 return undefined if uuid? and __.session.frozen? and not __.session.frozen[uuid]?
                 
-                publisher = new _.Publisher
-                
-                __.space.read uuid, (frozen) ->
-                    publisher.notify frozen
-                    
-                publisher
+                __.space.select uuid
 
     constructor: (options) ->
         

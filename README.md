@@ -63,109 +63,71 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.24 - (2017-05-17)**
+**Chocolate v0.0.25-pre - (2017-09-08)**
 --------------
 
 NEW FEATURES
 
- - `chocolatejs` can now handle proxying websockets
+ - added relational-like services in `lateDB`, with insert, join and query capabilities
+
+        db.tables.create 'colors'
+        db.tables.insert 'colors', id:1, name:'white'
+        db.tables.insert 'colors', id:2, name:'black'
+        
+        db.tables.create 'brands'
+        db.tables.insert 'brands', id:1, name:'Mercedes'
+        
+        db.tables.create 'cars'
+        db.tables.insert 'cars', id:1, name:'SLK 200', color_id:1, brand_id:1
+        db.tables.insert 'cars', id:2, name:'SL 600', color_id:2, brand_id:1
+        
+        lines = db.tables.query
+            select: 'cars.brands(*)'
+            sort:['name']
+        
+        lines = db.tables.query 'Car',
+            filter: (line, keys, tableName) -> 
+                line.name.indexOf('SL') isnt 0
+
+ - added basic gzip compression support (`"compression": true`, in app.config.json file) on https(s) responses for text/plain, text/html, text/javascript and application/json requests accepting gzip response
+
 
 UPDATES
+ - updated LateDB section in README.md
+ - updated Locco Interface section in README.md
 
- - updated README.md with LateDB section
- - updated microtime to 2.1.3
- - updated ws to 2.3.1
+ - in `general/latedb`: 
+   - the `load` function is made synchronous so that data is made available immediately
+   - added an alternative `update` usage to copy an object in the database
+    
+            db.update
+                'key 1': 'data 1'
+                'key 2': 'data 2'
+                , (data) -> for k,v of data then @[k] = v
+        
+ - in `server\reserve`:
+   - breaking changes in usage that provide lateDB's services through `reserve`'s services
+   - a `constants` service is now available as a `space` property
+     - this service requires a `data/constant` js or coffee file that returns an object
+ - in `general/locco/interface`: 
+   - client-side Interface.Web `actor`'s property initialized to main `actor` when this interface does not already belong to an actor
+   - `space` is a new property available in `Interface`'s `this` object alognside `bin/props`, that gives access `space`'s lateDB services (`db` and `constants`)
+ - in `general/chocodash`: `_.prototype` service now accepts `use` an object instead of a function to add some definitions in the prototype
+ - in `server/monitor` set `process.env.HOME = @appdir ; process.env.USER = @user` if an user is specified when starting the app (`--user`)
+ - in `client/litejq`, default datatype for `$.get` is now `guess` that will accept `xml, json, script, text, html`
+ - updated coffee-script to 1.12.6
+ - updated back ws to 0.8.1
+ - breaking changes in `server/reserve` usage
+ - removed sqlite3 from Chocolate's dependencies
 
 FIXED BUGS
 
- - in `general/interface`, the review method was missing the `actor` property in its `this` context
- - in `server/workflow`, an empty json string result was not handled correctly
- - 
- 
-**Chocolate v0.0.23 - (2017-05-07)**
---------------
+ - in `server/monitor`: `build_lib_package` was not working anymore due to a recent change in `normalize` impacting `readDirDownSync`
+ - in `general/locco/interface`: `props` and `keys` were lost in sub-interfaces but `bin` was not lost
+ - in `server/file` : 
+  - `moveFile` was normalizing destination path before giving it to `writeToFile`
+  - convert to string results returned by the `grep` command as it may be Buffer instead of String
 
-NEW FEATURES
-
- - added `general/lateDB`: a very simple database system.
-  
-    `lateDB` provides you an in-memory javascript space that you can modify with an `update` method
-
-            db.update('key': { op: func, data: some_data });
-            
-    i.e. (in Coffeescript):
-    
-            db.update 'result':
-                op: (data) -> (@log ?= []).push data
-                data: "done"
-    
-    or in Javascript:
-    
-            db.update({
-              'result': {
-                op: function(data) {
-                  return (this.log != null ? this.log : this.log = []).push(data);
-                },
-                data: "done"
-              }
-            });
-    
-    will store in the database
-    
-            {result:{log:['done']}}
-    
-    `result` is the key parameter which defines a `section`/`table`/`bucket` name, in which you want to store some data
-    It contains an `op` field which provides a function to execute on `this` location, and a `data` field which should contain the `data` to provide to the `op` function.
-    
-    What the `update` service do is that it records the `op` method and the `data` provided in a `log.db` file which will be reloaded and executed next time your app will be restarted.
-    
-    Your `op` and `data` should rather not produce object oriented data (using the prototyping chain), unless those objets provides a `stringify` method which should write a javascript code in the `log.db` file that will re-create the oject.
-    
-    And voilà, that's bascially all...
-
- - in `server/interface`:
-   - the `__` context parameter sent to invoked module services now contains:
-     - a `websocket` that can be used to send some message to the client when a websocket connection has been established (i.e. when `locco Workspace` is running client-side)
-     - a `console` object with a `log` method that will route the log message to the default `console` and to the client through the `websocket` that may be present in the `context` object
-
-UPDATES
-
- - in `locco/chocodash`: 
-  - `_.cell` and `_.observe` are added as functional equivalent to object oriented _.Signal and _.Observer
-  - removed `helpers` option from `_.Signal` service
-  - `_.stringify` 
-      - has now  3 optional modes:
-         - `json` :  returns a JSON stringification
-         - `js` :  (which is default mode) returns a javascript string to recreate the given object
-         - `full` : same as `js` mode, but treats `Array` objects as full object and stringifies values by keys instead of by indexes
-      - has a `write` option to define a function that will receive every chunk of string generated during the stringify operation,  
-        It can be used to store those string to a file or the send them to a stream. By default it should return the given string.
-      - has a `strict` option to tell wether `_.stringify` accepts a user typed object. If not it throws an error.
-
- - in `server/studio`:
-  - list of opened files is now saved in `localStorage`. Those files are reload automaticaly next tile `studio` is opened
-  - in `opened files panel`, you can now click on directory entries to go directly there
-  - the login toggle button will now display a yellow color when the app is restarting
-  - the `dark`theme is now more grey and not brown anymore.
-  - a `*` symbol is now also added to the file name displayed in the editor's file selector when the file was modified 
-
- - in `server/monitor`:
-  - the restart service now throttle the requests to 1 per second to avoid unnecessary restarts when few files are generated/rebuilt on a save
-
-FIXED BUGS
-
- - in `server/studio`
-  - errors were not properly displayed in lab execution panel
-  - `Specolate` service was crashing when an error was occuring in server side tested code due to a relative pathname of the tested file
- 
- - in `general/chocokup`
-  - a `box`, `panel`, `header` or `footer` followed by a string was not displaying that string in the produced html
-
- - in `server/workflow`, better management of `region` to define a system command
- 
- - in `server/file`, reorganized code, normalize, resolve and region management (system and app)
-
- - in `general/newnotes`, put needed resource files for `present` service, inside `/static/vendor/slides`
 
 See history in **CHANGELOG.md** file
 
@@ -760,41 +722,372 @@ Instead of a javascript function you can call a Locco Interface:
 
 ---
 
-## <a name="Choco-DB"></a> LateDB [⌂](#Choco-Summary) 
+## <a name="Late-DB"></a> LateDB [⌂](#Choco-Summary) 
 
 `lateDB` provides you an in-memory javascript space that you can modify with an `update` method
+
+        var lateDB = require('chocolate/general/latedb');
+        db = lateDB();
+
+### lateDB.update with one key, one data and one operation
+
+        db.update('key': { op: func, data: some_data });
+
+i.e. (in Coffeescript):
+
+        db.update 'result':
+            op: (data) -> (@log ?= []).push data
+            data: "done"
+
+or in Javascript:
+
+        db.update({
+          'result': {
+            op: function(data) {
+              return (this.log != null ? this.log : this.log = []).push(data);
+            },
+            data: "done"
+          }
+        });
+
+will store in the database
+
+        {result:{log:['done']}}
+
+`result` is the key parameter which defines a `section`/`table`/`bucket` name, in which you want to store some data
+It contains an `op` field which provides a function to execute on `this` location, and a `data` field which should contain the `data` to provide to the `op` function.
+
+What the `update` service do is that it records the `op` method and the `data` provided in a `log.db` file which will be reloaded and executed next time your app will be restarted.
+
+Your `op` and `data` should rather not produce object oriented data (using the prototyping chain), unless those objets provides a `stringify` method which should write a javascript code in the `log.db` file that will re-create the oject.
+
+### lateDB.update (many key/data pairs and one operation)
+
+        db.update({ 'key 1': 'data 1', 'key 2': 'data 2' }, func);
+
+i.e. (in Coffeescript):
+
+        db.update
+            'key 1': 'data 1'
+            'key 2': 'data 2'
+            , (data) -> for k,v of data then @[k] = v
+
+i.e (in Javascript):
+
+        db.update({
+          'key 1': 'data 1',
+          'key 2': 'data 2'
+        }, function(data) {
+          var k, v;
+          for (k in data) {
+            v = data[k];
+            this[k] = v;
+          }
+        });    
+
+will basicaly copy an object in the database
+
+        {"key 1": "data 1", "key 2", "data 2"}
+
+### lateDB.update (many key/operation pairs and one data)
+
+        db.update({ data_key_1: 'data value 1', 'data_key_2': 'data value 2' }, {key_1: func_1, key_2:func_2});
+
+i.e. (in Coffeescript):
+
+        db.update {name:'doe', firstname:'john'},
+            'UpperCase': (data) -> for k, v of data then @[k] = v.toString().toUpperCase()
+            'TwoLetters': (data) -> for k, v of data then @[k] = v.toString().substr(0,2)
+
+i.e (in Javascript):
+
+        db.update({
+          name: 'doe',
+          firstname: 'john'
+        }, {
+          'UpperCase': function(data) {
+            var k, v;
+            for (k in data) {
+              v = data[k];
+              this[k] = v.toString().toUpperCase();
+            }
+          },
+          'TwoLetters': function(data) {
+            var k, v;
+            for (k in data) {
+              v = data[k];
+              this[k] = v.toString().substr(0, 2);
+            }
+          }
+        });    
+
+will put an object in the database in two different places with two different functions
+
+        {
+            "UpperCase": {name:'DOE', firstname:'JOHN'},
+            "TwoLetters": {name:'do', firstname:'jo'}
+        }
         
-            db.update('key': { op: func, data: some_data });
+And voilà, that's bascially all...
+
+Oh, there is one thing more...
+
+## LateDB().tables
+
+LateDB provides relational-like services with insert, join and query capabilities:
+
+### count tables
+
+        db.tables.count()
     
-    i.e. (in Coffeescript):
+### create table
+
+The table's name uses the plural form of the entity's name. You can specify both, separated by a slash `/`. 
+If you just provide one name, it will be used as the table's name, it will be supposed to be of plural form, and it's last letter will be removed to form the corrsponding entity's name.
+
+In the following line, the table's name will be `category` and the corresponding entity's name will be `category`
+
+        db.tables.create 'categories/category'
+        table = db "tables.categories"
+        expect(table.entity_name).toBe('category')
+        expect(table.alias).toBe('Category_')
+
+In the following line, the table's name will be `colors` and the corresponding entity's name will be `color`
+
+        db.tables.create 'colors'
+        table = db "tables.colors"
+        expect(table.entity_name).toBe('color')
+        expect(table.alias).toBe('Color_')
+
+        db.tables.create 'brands'
+        table = db "tables.brands"
+        expect(table.entity_name).toBe('brand')
+        
+        db.tables.create 'cars'
+        table = db "tables.cars"
+        expect(table.entity_name).toBe('car')
+
+### insert data
+
+Primary key has to be called `id`
+
+        db.tables.insert 'colors', id:1, name:'white'
+        db.tables.insert 'colors', id:2, name:'black'
+        db.tables.insert 'colors', id:3, name:'red'
+        
+        expect(db('tables.colors')[0].id).toBe 1
+        expect(db('tables.colors')[2].name).toBe 'red'
+
+        db.tables.insert 'brands', id:1, name:'Mercedes'
+        db.tables.insert 'brands', id:2, name:'BMW'
+        db.tables.insert 'brands', id:3, name:'Toyota'
+        db.tables.insert 'brands', id:4, name:'Honda'
+
+        expect(db('tables.brands')[1].id).toBe 2
+        expect(db('tables.brands')[3].name).toBe 'Honda'
+
+Primary key `ìd` can be given by LateDB
+
+        id = db.tables.id 'colors'
+        db.tables.insert 'colors', id:id, name:'grey'
+
+        expect(db('tables.colors').lines[id].name).toBe 'grey'
+        
+### automatic index creation
+
+        expect(db('tables.colors').index.id[1].id).toBe 1
+        expect(db('tables.colors').index.id[3].name).toBe 'red'
+        
+### insert data with foreign keys
+
+Foreign keys' name have to end with `_id` and use the sigular version of the table's name which is it's corresponding entity's name.
+
+        db.tables.insert 'cars', id:1, name:'SLK 200', color_id:1, brand_id:1
+        db.tables.insert 'cars', id:2, name:'SL 600', color_id:2, brand_id:1
+        db.tables.insert 'cars', id:3, name:'BMW Série 2 Cabriolet', color_id:2, brand_id:2
+        db.tables.insert 'cars', id:4, name:'BMW Série 3 Berline', color_id:3, brand_id:2
+        db.tables.insert 'cars', id:5, name:'Toyota Prius', color_id:1, brand_id:3
+        db.tables.insert 'cars', id:6, name:'Toyota Aygo', color_id:3, brand_id:3
+        db.tables.insert 'cars', id:7, name:'Honda Accord', color_id:2, brand_id:4
+        db.tables.insert 'cars', id:8, name:'Honda Jazz', color_id:1, brand_id:4
+
+        expect(db('tables.cars')[3].id).toBe 4
+        expect(db('tables.cars')[4].name).toBe 'Toyota Prius'
+        expect(db('tables.cars')[7].color_id).toBe 1
+
+### query a table
+
+You can directly query using the table's name and sort cars in reverse order
+
+        lines = db.tables.query 'cars', sort: ['name':-1]
+
+        expect(lines.length).toBe 8
+        expect(lines[4].name).toBe 'Honda Jazz'
+
+### query a table and filter using a function
+
+        lines = db.tables.query 'cars', (o) -> o.name is 'Honda Jazz'
+
+        expect(lines.length).toBe 1
+        expect(lines[0].id).toBe 8
+
+### register a query to use it later
+
+You register a query by giving it a name and a definition. 
+The name is composed by three parts:  Entity-name\_Number-of-parameters\_Query-name
+
+The third part, the query name, is optional. If no table is specified in the query definition, the Entity_name is used to specify the table name.
+
+In the following example, we register a query on entity `Color` with no parameter and no definition. So it will retrieve all lines in `colors` table.
+
+        db.tables.register 'Color_0':{}
+        lines = db.tables.query 'Color'
+        
+        expect(lines.length).toBe 3
+        expect(lines[2].name).toBe 'red'
     
-            db.update 'result':
-                op: (data) -> (@log ?= []).push data
-                data: "done"
+### register a query with a `filter` using an indexed foreign key field
+
+When you query a registered query, you have to provide the entity name, an array containing the paramters and an optional query name.
+
+        lines = db.tables.query 'Car', [1], 'byColor'
+        
+In the following example, we query the `cars` table with one parameter named `color` in the `keys` array which will receive the value `1`, and will target the `color_id` field in the `cars` table:
+
+        db.tables.register 
+            'Car_1_byColor': 
+                filter: 
+                    keys: ['color']
+                    clauses: ['color'] 
+        lines = db.tables.query 'Car', [1], 'byColor'
+        
+        expect(lines.length).toBe 3
+        expect(lines[1].name).toBe 'Toyota Prius'
+        
+Specifying `color` in the `clauses` array tells the query service to look for the value `1` in the following fields wether they exist or not:
+
+ - the indexed foreign key `color_id`
+ - the indexed field `color`
+ - the non indexed field `color`
+
+So you can query a non indexed field in the same way:
+
+        db.tables.register 
+            'Car_1_byName': 
+                filter: 
+                    keys: ['name']
+                    clauses: ['name']
+        lines = db.tables.query 'Car', ['SL 600'], 'byName'
+        
+        expect(lines.length).toBe 1
+        expect(lines[0].id).toBe 2
+
+### query directly without registration with `entity name` and `keys`
+
+You can provide directly the query definition instead of the name of a previously registered query:
+
+        lines = db.tables.query 'Car', [2],
+            filter: 
+                keys: ['brand']
+                clauses: ['brand'] 
+
+        expect(lines.length).toBe 2
+        expect(lines[1].name).toBe 'BMW Série 3 Berline'
+
+### query and sort results
+
+        lines = db.tables.query 'Car', sort: ['name']
+
+        expect(lines.length).toBe 8
+        expect(lines[4].name).toBe 'SL 600'
+
+### query and sort cars in reverse order'
+
+        lines = db.tables.query 'Car', sort: ['name':-1]
+
+        expect(lines.length).toBe 8
+        expect(lines[4].name).toBe 'Honda Jazz'
+
+### query with a join and sort cars on multiple fields
+
+Use the `select` clause in the query definition to define a join between tables.
+
+Simply put a dot between tables' name to define a n-1 relationship: 
+
+        cars.brands
+        
+will join `cars` and `brands` on 
     
-    or in Javascript:
+        cars.brand_id = brands.id 
+        
+This will work if the `cars` table has a `brand_id` field.
+
+You can also specify which field you want to take in each table. Simply put the fileds' name in parenthesis just after the table's name.
+If you don't specify fields' name, no field will be selected. To select all fields, put a star `*`
+
+If the same field name is selected in two different tables the second one will have prepended it's table's name and a dot.
+
+        lines = db.tables.query
+            select: 'cars(*).brands(name)'
+            sort: ['brands.name', 'name':-1]
+
+        expect(lines.length).toBe 8
+        expect(lines[4].name).toBe 'SLK 200'
+
+### query by using an operator in the filter's clauses
+
+Currently, you can only use the `ìs` and `isnt` operators.
+
+        lines = db.tables.query 'Car', [2],
+            filter: 
+                keys: ['brand']
+                clauses:['brand', {field:'color_id', oper:'isnt', value:2}]
+
+        expect(lines.length).toBe 1
+        expect(lines[0].name).toBe 'BMW Série 3 Berline'
+
+### query by using a user defined function as a filter
+
+The filter function you provide will receive three parameters: the `line` to accept or not, the `keys` received as the query parameters and the line's table name. The function shoul return `true` if the line is accepted or `no` if it is rejected.
+
+        lines = db.tables.query 'Car',
+            filter: (line, keys, tableName) -> 
+                line.name.indexOf('SL') isnt 0
+
+        expect(lines.length).toBe 6
+        expect(lines[0].name).toBe 'BMW Série 2 Cabriolet'
+
+
+### query with a join and select fields using a function
+
+When you want to define a n -> 1 join, you have to put the table on the right side of the relationship inside brackets `[]`
+
+In the following example
+
+        colors.[cars]
+        
+will join `colors` and `cars` on 
     
-            db.update({
-              'result': {
-                op: function(data) {
-                  return (this.log != null ? this.log : this.log = []).push(data);
-                },
-                data: "done"
-              }
-            });
-    
-    will store in the database
-    
-            {result:{log:['done']}}
-    
-    `result` is the key parameter which defines a `section`/`table`/`bucket` name, in which you want to store some data
-    It contains an `op` field which provides a function to execute on `this` location, and a `data` field which should contain the `data` to provide to the `op` function.
-    
-    What the `update` service do is that it records the `op` method and the `data` provided in a `log.db` file which will be reloaded and executed next time your app will be restarted.
-    
-    Your `op` and `data` should rather not produce object oriented data (using the prototyping chain), unless those objets provides a `stringify` method which should write a javascript code in the `log.db` file that will re-create the oject.
-    
-    And voilà, that's bascially all...
+        colors.id = cars.color_id 
+
+In this example, no field is specified in the select clause, but the `map.add` clause defines a function that receives an `output` object and an `input` object. You just have to copy what you need from the `input` to the `output`.
+In the `input` object, every field is prefixed by its corresponding table's name.
+
+        lines = db.tables.query 'Car',
+            select: 'colors.[cars].brands'
+            filter:
+                clauses: [field:'colors.id', oper:'is', value:2]
+            map:
+                add: (o, i) ->
+                    o.id = i['cars.id']
+                    o.name = i['cars.name']
+                    o.brand = i['brands.name']
+
+        expect(lines.length).toBe 3
+        expect(lines[0].name).toBe 'SL 600'
+        expect(lines[2].brand).toBe 'Honda'
+
+There is also a `map.remove` clause that can be used to remove fields from the selected ones (i.e. if you use the star `*` in the `select` clause.
 
 &nbsp;
 
@@ -1483,6 +1776,8 @@ That interface can embed other `Interface.Web` modules:
                 else
                     login_panel @bin.login_panel.bin
 
+If you want to declare, in the `defaults` section, an object that contains cyclical cross references, you have to create it with the `new` keyword or to put it in an array. 
+This way the `Interface.Web` will not look endlessly inside your `defaults` section for `Interface.Web` objects.
 
 &nbsp;
 

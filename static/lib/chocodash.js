@@ -70,11 +70,31 @@
       };
       return {
         use: function() {
-          var len, m, o, ref;
+          var len, len1, m, o, oo, p, ref;
           ref = flatten.apply(null, arguments);
           for (m = 0, len = ref.length; m < len; m++) {
             o = ref[m];
-            o.call(this.prototype);
+            switch (_.type(o)) {
+              case _.Type.Function:
+                o.call(this.prototype);
+                break;
+              case _.Type.Array:
+                for (p = 0, len1 = o.length; p < len1; p++) {
+                  oo = o[p];
+                  for (k in oo) {
+                    if (!hasProp.call(oo, k)) continue;
+                    v = oo[k];
+                    this.prototype[k] = v;
+                  }
+                }
+                break;
+              default:
+                for (k in o) {
+                  if (!hasProp.call(o, k)) continue;
+                  v = o[k];
+                  this.prototype[k] = v;
+                }
+            }
           }
           return this;
         },

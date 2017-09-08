@@ -137,7 +137,7 @@ exports.setFilenameSuffix = (filename, suffix) ->
 
 # `readDirDownSync` recursively read a directory and returns its content
 exports.readDirDownSync = (dir, __) ->
-    dir = normalize(dir, check_suffix:no)
+    dir = normalize(dir, check_suffix:no, __)
     results = []
     files = Fs.readdirSync dir
     return results.sort() if files.length is 0
@@ -194,7 +194,6 @@ exports.moveFile = (from, to, __) ->
     event = new Events.EventEmitter
     
     from = normalize from, __
-    to = normalize to, __
     if from is '' then process.nextTick(-> with_error event, 'Warning: empty from in moveFile') ; return event
 
     repo = resolve_repo from, __
@@ -283,7 +282,7 @@ exports.grep = (pattern, with_case, show_details, __) ->
     grep.stderr.on 'data', (data) ->
     grep.on 'exit', (code) ->
         results = results.map (item) ->
-            [path, stamp] = item.split ' '
+            [path, stamp] = item.toString().split ' '
             (Path.relative (__?.appdir ? '.'), path) + ' ' + stamp
         event.emit 'end', results.join ''
 
@@ -409,7 +408,7 @@ normalize = (path, options, __) ->
     appdir_relative = options?.appdir_relative
     check_suffix = options?.check_suffix
     
-    if arguments.length is 2 and not appdir_relative? and not append_coffee? then __ = options ; options = null
+    if arguments.length is 2 and not appdir_relative? and not check_suffix? then __ = options ; options = null
     
     appdir_relative ?= no
     check_suffix ?= yes

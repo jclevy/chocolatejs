@@ -71,7 +71,7 @@ monitor_server = new class
         @user ?=  args[3]
         @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}/data"
         
-        if @user? then process.setuid @user
+        if @user? then process.setuid @user ; process.env.HOME = @appdir ; process.env.USER = @user
         
         self = this
 
@@ -228,14 +228,15 @@ monitor_server = new class
                                 if (i = path.lastIndexOf '.') >= 0 then path[0...i] else path
                             if name(a) > name(b) then 1 else if name(a) < name(b) then -1 else 0
                         
+                        
                         files = File.readDirDownSync static_lib_dirname
                         files = (file.substr(static_lib_dirname.length + 1) for file in files)
-
+                        
                         for own filename of bundle.known_files then put filename
                         for filename in files.sort(sort) when bundle.known_files[filename] is undefined and filename.indexOf(bundle.prefix) is 0 and filename.indexOf('.spec') is -1 and filename isnt bundle.filename then put filename
-                            
-                        Fs.writeFileSync static_lib_dirname + '/' + bundle.filename, bundle_file   
                         
+                        Fs.writeFileSync static_lib_dirname + '/' + bundle.filename, bundle_file   
+                    
                     if command? then do (file, file_base, file_js_name, add_js_file_to_git) ->
                         self.compile_process[file] = Child_process.spawn command, params, cwd:curdir
                         self.compile_process[file].addListener 'exit', (code) ->

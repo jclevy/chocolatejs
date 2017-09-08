@@ -18,6 +18,8 @@ Reserve = require './reserve'
 Workflow = require '../general/locco/workflow'
 QueryString = require './querystring'
 Url = require 'url'
+Readable = require('stream').Readable
+Zlib = require('zlib')
 _ = require '../general/chocodash'
 
 #### Workflow sessions management
@@ -465,7 +467,7 @@ class World
 
                     proxy.on 'error', (err, request, response) ->
                         console.log  'Proxy ' + err + ' - Message:' + request.url + ' - Headers: ' + ((k + ':' + v for k,v of request.headers when k in ['host', 'user-agent']).join ', ') + '\n\n'
-                        response.writeHead 500, {"Content-Type": if config.displayErrors then "application/json" else "text/plain"}
+                        if response.writeHead? then response.writeHead 500, {"Content-Type": if config.displayErrors then "application/json" else "text/plain"}
                         response.end if config.displayErrors then JSON.stringify err else ""
 
                     if config.proxy.log
@@ -608,14 +610,24 @@ class World
             
             {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket}
 
-        exchange = (bin, response) ->
+        exchange = (bin, request, response) ->
             Interface.exchange bin, (result) ->
                 if response.finished then return
                 # We will send back a cookie with an id and an expiration date
                 result.headers['Set-Cookie'] = 'bsid=' + bin.session.id + ';path=/;secure;httponly;expires=' + bin.session.expires.toUTCString()
                 # And here is our response to the requestor
-                response.writeHead result.status, result.headers
-                response.end result.body
+                
+                if config.compression is on and result.status is 200 and result.headers['Content-Type']?.split(';')[0] in ['text/plain', 'text/html', 'text/javascript', 'application/json', 'application/json-late'] and
+                    request.headers['accept-encoding']?.split(',').indexOf('gzip') >= 0
+                        result.headers ?= {}
+                        result.headers['Content-Encoding'] = 'gzip'
+                        response.writeHead result.status, result.headers
+                        read = new Readable() ; read._read = ->
+                        read.push result.body ; read.push null
+                        read.pipe(Zlib.createGzip()).pipe response
+                else
+                    response.writeHead result.status, result.headers
+                    response.end result.body
 
         upgrade = do ->
             
@@ -694,7 +706,7 @@ class World
                 bin = extract request
                 bin.response = response
                 # We call the Interface service to make an exchange between the requestor and the place specified in `where`
-                exchange bin, response
+                exchange bin, request, response
 
             # If we have an error, we send it back as is.
             catch err

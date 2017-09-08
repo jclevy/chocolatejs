@@ -297,7 +297,7 @@ class Chocokup
 
         all_tags = options?.all_tags ? true
         format = options?.format ? false
-        data = { params:@params, format, all_tags, hardcode:helpers, document, 'interface':_interface, actor:_interface?.actor, locals, bin, props:bin, __ }
+        data = { params:@params, format, all_tags, hardcode:helpers, document, 'interface':_interface, actor:_interface?.actor, locals, bin, props:bin, space:bin?.__?.space, __ }
         __.title @title
         __.content Coffeekup.render @content, data
         __.body Coffeekup.render @body_template, data

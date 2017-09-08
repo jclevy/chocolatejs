@@ -1,6 +1,6 @@
 _ = require '../general/chocodash'
 
-xdescribe 'prototype', ->
+describe 'prototype', ->
     Document = _.prototype()
     DocWithCons = DocWithInst = null
     doc = null
@@ -30,6 +30,46 @@ xdescribe 'prototype', ->
         expect(doc.add 1,1).toBe 2
         expect(doc.sub 1,1).toBe 0
     
+    it 'allows a Prototype to use some functions from an object', ->
+        Document.use
+            addition: (a,b) -> @add a,b
+            substraction: (a,b) -> @sub a,b
+    
+        doc = new Document
+        expect(doc.addition 1,1).toBe 2
+        expect(doc.substraction 1,1).toBe 0
+
+    it 'allows a Prototype to use some functions from many objects', ->
+        Trigo =
+            sin: (r) -> Math.sin r
+            cos: (r) -> Math.cos r
+        Rect =
+            area: (x,y) -> x * y
+            perimeter: (x,y) -> (x + y) * 2
+            
+        Document.use Trigo, Rect
+
+        doc = new Document
+        expect(doc.sin 1).toBe 0.8414709848078965
+        expect(doc.cos 0).toBe 1
+        expect(doc.area 2,3).toBe 6
+        expect(doc.perimeter 2,3).toBe 10
+
+    it 'allows a Prototype to use some functions from an array of objects', ->
+        Trigo =
+            sin: (r) -> Math.sin r
+            cos: (r) -> Math.cos r
+        Rect =
+            area: (x,y) -> x * y
+            perimeter: (x,y) -> (x + y) * 2
+        
+        o = new (_.prototype use:[Trigo, Rect])
+        expect(o.sin 1).toBe 0.8414709848078965
+        expect(o.cos 0).toBe 1
+        expect(o.area 2,3).toBe 6
+        expect(o.perimeter 2,3).toBe 10
+        
+        
     CopiedDocument = null
     cop = null
     
@@ -360,7 +400,7 @@ xdescribe 'Actors', ->
         
 {Signal, Observer, Publisher} = _
 
-describe 'cell', ->
+xdescribe 'cell', ->
 
   it 'cell is a cell', ->
     a = _.cell 1
@@ -584,7 +624,7 @@ describe 'cell', ->
       a -> throw 'an errror occured'
       expect(err).toBe 'an errror occured'
 
-describe "observer", ->
+xdescribe "observer", ->
   it "basic observer", ->
     a = _.cell 1
     expect(a()).toEqual 1
@@ -699,7 +739,7 @@ describe "observer", ->
         expect(b()).toEqual 6
         expect(c()).toEqual 6
 
-describe "cell misc.", ->
+xdescribe "cell misc.", ->
   it "object setter", ->
     a = _.cell {}
     b = _.cell -> "Serialized: " + JSON.stringify(a())

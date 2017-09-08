@@ -104,7 +104,11 @@ _.prototype = (options, more) ->
             args
         
         use: ->
-            for o in flatten arguments... then o.call @::
+            for o in flatten arguments... 
+                switch _.type o 
+                    when _.Type.Function then o.call @::
+                    when _.Type.Array then for oo in o then @::[k] = v for own k,v of oo
+                    else @::[k] = v for own k,v of o
             @
 
         adopt: -> 

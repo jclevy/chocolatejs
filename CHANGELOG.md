@@ -1,3 +1,70 @@
+## v0.0.25 - (2017-09-08)
+
+--------------
+
+NEW FEATURES
+
+ - added relational-like services in `lateDB`, with insert, join and query capabilities
+
+        db.tables.create 'colors'
+        db.tables.insert 'colors', id:1, name:'white'
+        db.tables.insert 'colors', id:2, name:'black'
+        
+        db.tables.create 'brands'
+        db.tables.insert 'brands', id:1, name:'Mercedes'
+        
+        db.tables.create 'cars'
+        db.tables.insert 'cars', id:1, name:'SLK 200', color_id:1, brand_id:1
+        db.tables.insert 'cars', id:2, name:'SL 600', color_id:2, brand_id:1
+        
+        lines = db.tables.query
+            select: 'cars.brands(*)'
+            sort:['name']
+        
+        lines = db.tables.query 'Car',
+            filter: (line, keys, tableName) -> 
+                line.name.indexOf('SL') isnt 0
+
+ - added basic gzip compression support (`"compression": true`, in app.config.json file) on https(s) responses for text/plain, text/html, text/javascript and application/json requests accepting gzip response
+
+
+UPDATES
+ - updated LateDB section in README.md
+ - updated Locco Interface section in README.md
+
+ - in `general/latedb`: 
+   - the `load` function is made synchronous so that data is made available immediately
+   - added an alternative `update` usage to copy an object in the database
+    
+            db.update
+                'key 1': 'data 1'
+                'key 2': 'data 2'
+                , (data) -> for k,v of data then @[k] = v
+        
+ - in `server\reserve`:
+   - breaking changes in usage that provide lateDB's services through `reserve`'s services
+   - a `constants` service is now available as a `space` property
+     - this service requires a `data/constant` js or coffee file that returns an object
+ - in `general/locco/interface`: 
+   - client-side Interface.Web `actor`'s property initialized to main `actor` when this interface does not already belong to an actor
+   - `space` is a new property available in `Interface`'s `this` object alognside `bin/props`, that gives access `space`'s lateDB services (`db` and `constants`)
+ - in `general/chocodash`: `_.prototype` service now accepts `use` an object instead of a function to add some definitions in the prototype
+ - in `server/monitor` set `process.env.HOME = @appdir ; process.env.USER = @user` if an user is specified when starting the app (`--user`)
+ - in `client/litejq`, default datatype for `$.get` is now `guess` that will accept `xml, json, script, text, html`
+ - updated coffee-script to 1.12.6
+ - updated back ws to 0.8.1
+ - breaking changes in `server/reserve` usage
+ - removed sqlite3 from Chocolate's dependencies
+
+FIXED BUGS
+
+ - in `server/monitor`: `build_lib_package` was not working anymore due to a recent change in `normalize` impacting `readDirDownSync`
+ - in `general/locco/interface`: `props` and `keys` were lost in sub-interfaces but `bin` was not lost
+ - in `server/file` : 
+  - `moveFile` was normalizing destination path before giving it to `writeToFile`
+  - convert to string results returned by the `grep` command as it may be Buffer instead of String
+
+
 ## v0.0.24 - (2017-05-17)
 
 --------------

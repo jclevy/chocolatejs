@@ -213,10 +213,10 @@ skeleton = (__data = {}) ->
     __ck.render_tag(name, idclass, attrs, contents)
 
   id = (db, value) ->
-    unless value? then value = db ; db = null
+    if typeof db is 'string' then value = db ; db = null
     
-    if typeof value is "string"
-      ids = {}
+    if typeof value is 'string'
+      ids = db ? {}
       for key in arguments then ids[key] = id()
       return ids
     

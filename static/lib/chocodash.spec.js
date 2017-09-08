@@ -4,7 +4,7 @@
 
   _ = require('../general/chocodash');
 
-  xdescribe('prototype', function() {
+  describe('prototype', function() {
     var CopiedDocument, DocWithCons, DocWithInst, Document, InheritedDocument, cop, doc, inh;
     Document = _.prototype();
     DocWithCons = DocWithInst = null;
@@ -48,6 +48,70 @@
       doc = new Document;
       expect(doc.add(1, 1)).toBe(2);
       return expect(doc.sub(1, 1)).toBe(0);
+    });
+    it('allows a Prototype to use some functions from an object', function() {
+      Document.use({
+        addition: function(a, b) {
+          return this.add(a, b);
+        },
+        substraction: function(a, b) {
+          return this.sub(a, b);
+        }
+      });
+      doc = new Document;
+      expect(doc.addition(1, 1)).toBe(2);
+      return expect(doc.substraction(1, 1)).toBe(0);
+    });
+    it('allows a Prototype to use some functions from many objects', function() {
+      var Rect, Trigo;
+      Trigo = {
+        sin: function(r) {
+          return Math.sin(r);
+        },
+        cos: function(r) {
+          return Math.cos(r);
+        }
+      };
+      Rect = {
+        area: function(x, y) {
+          return x * y;
+        },
+        perimeter: function(x, y) {
+          return (x + y) * 2;
+        }
+      };
+      Document.use(Trigo, Rect);
+      doc = new Document;
+      expect(doc.sin(1)).toBe(0.8414709848078965);
+      expect(doc.cos(0)).toBe(1);
+      expect(doc.area(2, 3)).toBe(6);
+      return expect(doc.perimeter(2, 3)).toBe(10);
+    });
+    it('allows a Prototype to use some functions from an array of objects', function() {
+      var Rect, Trigo, o;
+      Trigo = {
+        sin: function(r) {
+          return Math.sin(r);
+        },
+        cos: function(r) {
+          return Math.cos(r);
+        }
+      };
+      Rect = {
+        area: function(x, y) {
+          return x * y;
+        },
+        perimeter: function(x, y) {
+          return (x + y) * 2;
+        }
+      };
+      o = new (_.prototype({
+        use: [Trigo, Rect]
+      }));
+      expect(o.sin(1)).toBe(0.8414709848078965);
+      expect(o.cos(0)).toBe(1);
+      expect(o.area(2, 3)).toBe(6);
+      return expect(o.perimeter(2, 3)).toBe(10);
     });
     CopiedDocument = null;
     cop = null;
@@ -699,7 +763,7 @@
 
   Signal = _.Signal, Observer = _.Observer, Publisher = _.Publisher;
 
-  describe('cell', function() {
+  xdescribe('cell', function() {
     it('cell is a cell', function() {
       var a;
       a = _.cell(1);
@@ -999,7 +1063,7 @@
     });
   });
 
-  describe("observer", function() {
+  xdescribe("observer", function() {
     it("basic observer", function() {
       var a, b, c;
       a = _.cell(1);
@@ -1174,7 +1238,7 @@
     });
   });
 
-  describe("cell misc.", function() {
+  xdescribe("cell misc.", function() {
     it("object setter", function() {
       var a, b;
       a = _.cell({});
