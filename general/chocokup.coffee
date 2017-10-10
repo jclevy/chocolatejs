@@ -239,6 +239,7 @@ class Chocokup
         if @params?.bin? 
             bin[k] = v for k,v of @params.bin 
             delete @params.bin
+            delete @params.props
         
         __ = do ->
             _panel_index = 1
@@ -287,9 +288,9 @@ class Chocokup
 
         helpers[k] = v for k,v of Chocokup.registered_kups
         
-        if @params?['interface']?
-            _interface = @params.interface
-            delete @params.interface
+        if @params?['self']?
+            self = @params.self
+            delete @params.self
 
         if @params?.document?
             document = @params.document
@@ -297,7 +298,7 @@ class Chocokup
 
         all_tags = options?.all_tags ? true
         format = options?.format ? false
-        data = { params:@params, format, all_tags, hardcode:helpers, document, 'interface':_interface, actor:_interface?.actor, locals, bin, props:bin, space:bin?.__?.space, __ }
+        data = { params:@params, format, all_tags, hardcode:helpers, document, self, actor:self?.actor, locals, bin, props:bin, space:bin?.__?.space, __ }
         __.title @title
         __.content Coffeekup.render @content, data
         __.body Coffeekup.render @body_template, data

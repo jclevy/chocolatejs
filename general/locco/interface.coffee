@@ -84,8 +84,12 @@ Interface = _.prototype
                 respond = (o) -> @reaction.props = @reaction.bin = o ; end()
                 respond.later = end.later
                 
-                transmit = (actor, service) ->
-                    actor[service].submit(@bin).subscribe (reaction) => @respond reaction.bin
+                transmit = (actor, service, bin = {}) ->
+                    if typeof service isnt 'string'
+                        interface_ = actor ; bin = service ; service = ''
+                    else
+                        interface_ = actor[service]
+                    interface_.submit(_.extend @bin, bin).subscribe (reaction) => @respond reaction.bin
                     respond.later
                         
                 { bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit }
@@ -159,6 +163,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                     
                     scope = []
                     checked = []
+                    checked_kups = {}
                     
                     check_interfaces = (bin) ->
                         local_kups = []
@@ -170,10 +175,10 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                                     if typeof defaults is 'function' then defaults = defaults()
                                     scope_ = scope
                                     scope = []
-                                    kups = check_interfaces defaults
+                                    kups = checked_kups[service] = check_interfaces defaults
                                     scope = scope_
                                 else 
-                                    kups = []
+                                    kups = checked_kups[service] ? []
     
                                 declare_kups = get_declare_kups kups
     
@@ -242,14 +247,23 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                 declare_kups = get_declare_kups local_kups
 
                 chocokup_code = if declare_kups.length > 0 then new Function 'args', """
-                        this.keys = [];
-                        if (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}
+                        this.self.keys = [];
+                        if (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.self.bin[k] = args[k]; this.self.keys.push(k); }}}
                         #{declare_kups.join ';\n'};
-                        with (this.locals) {return (#{render_code.toString()}).apply(this, arguments);}
+                        with (this.locals) {return (#{render_code.toString()}).apply(this.self, arguments);}
                     """
                 else render_code
                 
-                options = {bin, props:bin, space:bin?.__?.space, document:@document, Interface, 'interface':@, actor:@actor, kups}
+                transmit = (actor, service, bin_ = {}) ->
+                    if typeof service isnt 'string'
+                        interface_ = actor ; bin_ = service ; service = ''
+                    else
+                        interface_ = actor[service]
+                    interface_.call options, _.extend bin, bin_
+                
+                if @transmit? then @transmit = transmit
+
+                options = {bin, props:bin, space:bin?.__?.space, document:@document, Interface, 'self':@, actor:@actor, kups, transmit}
                 options.theme = bin.theme if bin.theme?
                 options.with_coffee = bin.with_coffee if bin.with_coffee?
                 options.manifest = bin.manifest if bin.manifest?

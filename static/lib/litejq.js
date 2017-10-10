@@ -438,7 +438,9 @@
       error: function() {},
       context: null,
       dataType: Ajax_default.mime,
-      headers: {},
+      headers: {
+        'x-requested-with': 'XMLHttpRequest'
+      },
       xhr: function() {
         return new window.XMLHttpRequest();
       },

@@ -363,7 +363,8 @@ _.serialize = _.flow = (options, fn) ->
             result = undefer().call self, next
             switch result
                 when next then async = on
-    
+            result
+
     next.later = next
     next.with = (result) -> if result isnt next.later then next() else next.later
 

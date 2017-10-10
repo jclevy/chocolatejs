@@ -1090,7 +1090,7 @@
       };
     })();
     db.tables = (function() {
-      var History, Index, IndexTable, Iterator, List, QueryIterator, Table, TransientTable, _helpers, _query_defs, alter, count, create, delete_, entity, exists, extend, id, init, insert, list, query, table_module, update;
+      var History, Index, IndexTable, Iterator, List, QueryIterator, Table, TransientTable, _helpers, _query_defs, alter, count, create, delete_, entity, exists, extend, get, id, init, insert, list, query, table_module, update;
       Table = table_module = log.module('Table');
       if (Table == null) {
         Table = function() {
@@ -1505,16 +1505,19 @@
         return entity_name = entity_name.join('_');
       };
       list = function() {
-        var k, results, tables;
+        var k, tables;
         tables = db('tables');
         if (tables == null) {
           return [];
         }
-        results = [];
-        for (k in tables) {
-          results.push(k);
-        }
-        return results;
+        return ((function() {
+          var results;
+          results = [];
+          for (k in tables) {
+            results.push(k);
+          }
+          return results;
+        })()).sort();
       };
       create = function(name, options) {
         var alias, entity_name, part, ref;
@@ -1680,6 +1683,14 @@
           return this.id = id + 1;
         });
         return id;
+      };
+      get = function(table_name, id) {
+        var table;
+        table = db("tables." + table_name);
+        if (!((table != null) && Object.prototype.toString.call(table) === '[object Object]')) {
+          throw "can not get an item from non-existing table '" + table_name + "'";
+        }
+        return table.lines[id];
       };
       QueryIterator = (function() {
         function _Class(table1) {
@@ -2214,6 +2225,7 @@
         update: update,
         "delete": delete_,
         id: id,
+        get: get,
         query: query
       };
     })();

@@ -460,7 +460,7 @@ class World
                         redirect_port = if redirect_domain? then proxies[redirect_domain].port else null
                             
                         proxies[domain] = host:redirect_domain ? domain, port:redirect_port ? domain_port
-                        domain_port += 10 unless redirect_port? 
+                        domain_port += 10 unless redirect_port?
                 
                     HttpProxy = require 'http-proxy'
                     proxy = HttpProxy.createProxyServer {}
@@ -566,9 +566,14 @@ class World
             
             # `params` will contains the parameters extracted from the query part of the request
             params = {}
+            only_values = true
+            # check if we have only values and no key name in query
             for param, param_index in query.list when param.key not in keywords
-                param_key = if param.value != '' then param.key else '__' + param_index
-                param_value = decodeURI(if param.value isnt '' then param.value else param.key)
+                if param.value != '' then only_values = false ; break
+            # read keys and/or values in query
+            for param, param_index in query.list when param.key not in keywords
+                param_key = if param.value is '' and only_values then '__' + param_index else param.key
+                param_value = decodeURI(if param.value is '' and only_values then param.key else param.value)
                 unless params[param_key]?
                     params[param_key] = param_value
                 else
@@ -623,7 +628,9 @@ class World
                         result.headers['Content-Encoding'] = 'gzip'
                         response.writeHead result.status, result.headers
                         read = new Readable() ; read._read = ->
-                        read.push result.body ; read.push null
+                        chunk = result.body
+                        chunk = chunk.toString() unless Buffer.isBuffer chunk
+                        read.push chunk ; read.push null
                         read.pipe(Zlib.createGzip()).pipe response
                 else
                     response.writeHead result.status, result.headers
@@ -745,8 +752,9 @@ class World
                 bin.how = how = 'json'
 
                 Interface.exchange bin, (result) ->
+                    result.body ?= ''
                     feedback = "{\"result\":#{if result.body.trim() is '' then 'null' else result.body}, \"id\":#{message.id}}"
-                    ws.send feedback if result.body? and result.body isnt ''
+                    ws.send feedback
         
         return
 

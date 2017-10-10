@@ -356,7 +356,7 @@ $.Ajax = do ->
         error: ->
         context: null
         dataType: Ajax_default.mime
-        headers: {}
+        headers: {'x-requested-with':'XMLHttpRequest'}
         xhr: -> new window.XMLHttpRequest()
         crossDomain: false
         timeout: 0

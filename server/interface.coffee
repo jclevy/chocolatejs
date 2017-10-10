@@ -329,7 +329,7 @@ exports.exchange = (bin, send) ->
                                     count += 1 for name, file of files
                                     for name, file of files
                                         from = if __?.appdir? then Path.relative __.appdir, file.path else file.path
-                                        if Path.extname from is '' 
+                                        if Path.extname(from) is '' 
                                             Fs.renameSync from, from = from + '.tmp'
                                         to = unless err? then where else ''
                                         event = File.moveFile from, File.setFilenameSuffix(to, if sent > 0 then "_#{sent}" else ''), __

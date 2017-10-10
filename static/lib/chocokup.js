@@ -351,7 +351,7 @@
     };
 
     Chocokup.prototype.render = function(options) {
-      var __, _interface, all_tags, bin, data, document, format, helper_ext, helpers, j, k, len, locals, ref, ref1, ref10, ref11, ref12, ref13, ref14, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, v;
+      var __, all_tags, bin, data, document, format, helper_ext, helpers, j, k, len, locals, ref, ref1, ref10, ref11, ref12, ref13, ref14, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, self, v;
       locals = (ref = options != null ? options.locals : void 0) != null ? ref : {};
       if (((ref1 = this.params) != null ? ref1.locals : void 0) != null) {
         ref2 = this.params.locals;
@@ -377,6 +377,7 @@
           bin[k] = v;
         }
         delete this.params.bin;
+        delete this.params.props;
       }
       __ = (function() {
         var _body, _content, _head, _main_body_done, _orientation, _panel_index, _proportion, _title, body, content, head, main_body_done, orientation, panel_index, proportion, reset, title;
@@ -482,9 +483,9 @@
         v = ref9[k];
         helpers[k] = v;
       }
-      if (((ref10 = this.params) != null ? ref10['interface'] : void 0) != null) {
-        _interface = this.params["interface"];
-        delete this.params["interface"];
+      if (((ref10 = this.params) != null ? ref10['self'] : void 0) != null) {
+        self = this.params.self;
+        delete this.params.self;
       }
       if (((ref11 = this.params) != null ? ref11.document : void 0) != null) {
         document = this.params.document;
@@ -498,8 +499,8 @@
         all_tags: all_tags,
         hardcode: helpers,
         document: document,
-        'interface': _interface,
-        actor: _interface != null ? _interface.actor : void 0,
+        self: self,
+        actor: self != null ? self.actor : void 0,
         locals: locals,
         bin: bin,
         props: bin,

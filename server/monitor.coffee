@@ -24,6 +24,7 @@ monitor_server = new class
     logging: yes
     config: null
     user: null
+    group: null
 
     "log": (msg) ->
         Debugate.log "Time:#{Date.now()}: " + msg if @logging
@@ -53,7 +54,7 @@ monitor_server = new class
             self.kill(@debug_process.pid) if @debug_process?
         
         @throttled_restart()
-        
+
     "start": ->
         process.chdir __dirname + '/..'
         args = []
@@ -64,21 +65,23 @@ monitor_server = new class
                 when "--port" then @port = kv[1]
                 when "--memory" then @memory = kv[1]
                 when "--user" then @user = kv[1]
+                when "--group" then @group = kv[1]
                 else args.push kv[0] unless kv[1]?
         @appdir ?=  args[0]
         @port ?=  args[1]
         @memory ?=  args[2]
         @user ?=  args[3]
+        @group ?=  args[4]
         @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}/data"
         
-        if @user? then process.setuid @user ; process.env.HOME = @appdir ; process.env.USER = @user
+        if @user? then process.setgid @group ? @user ; process.setuid @user ; process.env.HOME = @appdir ; process.env.USER = @user
         
         self = this
 
         @config = require('./config')(@datadir, reload:on).clone()
         if @config.letsencrypt?
             hostname = @config.letsencrypt.domains[0] if @config.letsencrypt.domains?
-            @cert_suffix = '/letsencrypt/live/' + hostname + '/privkey.pem'
+            @cert_suffix = '/letsencrypt/live/' + hostname + '/privkey.pem' if hostname?
         
         process.on 'uncaughtException', (err) ->
             console.error((err && err.stack) ? new Date() + '\n' + err.stack + '\n\n' : err);
@@ -89,7 +92,18 @@ monitor_server = new class
         this.watchFiles()
 
         if @config.debug
-            @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', @config.debug_port ? "8081"])
+            hostname = @config.letsencrypt.domains[0] if @config.letsencrypt?.domains?
+            dir = @datadir + if hostname? and @config.letsencrypt?.published is on then '/letsencrypt/live/' + hostname else ''
+            key = @config.key
+            key ?= if @config.letsencrypt?.published is on then 'privkey.pem' else 'privatekey.pem'
+            cert = @config.cert
+            cert ?= if @config.letsencrypt?.published is on then 'fullchain.pem' else 'certificate.pem'
+            
+            debug_ssl = unless @config.http_only then  ['--ssl-key', dir + '/' + key, '--ssl-cert', dir + '/' + cert] else []
+            
+            console.log "debug_ssl:" + debug_ssl
+            
+            @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', @config.debug_port ? "8081"].concat debug_ssl)
 
         args = []
         args.push @appdir if @appdir?

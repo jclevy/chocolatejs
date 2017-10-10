@@ -63,71 +63,55 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.25-pre - (2017-09-08)**
+**Chocolate v0.0.26 - (2017-10-10)**
 --------------
 
 NEW FEATURES
 
- - added relational-like services in `lateDB`, with insert, join and query capabilities
-
-        db.tables.create 'colors'
-        db.tables.insert 'colors', id:1, name:'white'
-        db.tables.insert 'colors', id:2, name:'black'
-        
-        db.tables.create 'brands'
-        db.tables.insert 'brands', id:1, name:'Mercedes'
-        
-        db.tables.create 'cars'
-        db.tables.insert 'cars', id:1, name:'SLK 200', color_id:1, brand_id:1
-        db.tables.insert 'cars', id:2, name:'SL 600', color_id:2, brand_id:1
-        
-        lines = db.tables.query
-            select: 'cars.brands(*)'
-            sort:['name']
-        
-        lines = db.tables.query 'Car',
-            filter: (line, keys, tableName) -> 
-                line.name.indexOf('SL') isnt 0
-
- - added basic gzip compression support (`"compression": true`, in app.config.json file) on https(s) responses for text/plain, text/html, text/javascript and application/json requests accepting gzip response
-
+ - `studio`:
+  - you can now open and execute a module in another tab window by pressing the ↗ button (next to the close button)
+  - a module's tab, that was opened from `studio`, will be automatically reloaded every time a file is saved from the studio's editor
+  - you can now start and stop the debugger directly from the UI using the ▣ button!
 
 UPDATES
- - updated LateDB section in README.md
- - updated Locco Interface section in README.md
 
- - in `general/latedb`: 
-   - the `load` function is made synchronous so that data is made available immediately
-   - added an alternative `update` usage to copy an object in the database
-    
-            db.update
-                'key 1': 'data 1'
-                'key 2': 'data 2'
-                , (data) -> for k,v of data then @[k] = v
+ - `general/latedb`:
+  - Table's list now returns an alphabetically ordered list
+  - `db.tables.get`: you can now get a line in a table by its primary key (usually an `id`)
+
+            line = db.tables.get 'table_name', id
         
- - in `server\reserve`:
-   - breaking changes in usage that provide lateDB's services through `reserve`'s services
-   - a `constants` service is now available as a `space` property
-     - this service requires a `data/constant` js or coffee file that returns an object
- - in `general/locco/interface`: 
-   - client-side Interface.Web `actor`'s property initialized to main `actor` when this interface does not already belong to an actor
-   - `space` is a new property available in `Interface`'s `this` object alognside `bin/props`, that gives access `space`'s lateDB services (`db` and `constants`)
- - in `general/chocodash`: `_.prototype` service now accepts `use` an object instead of a function to add some definitions in the prototype
- - in `server/monitor` set `process.env.HOME = @appdir ; process.env.USER = @user` if an user is specified when starting the app (`--user`)
- - in `client/litejq`, default datatype for `$.get` is now `guess` that will accept `xml, json, script, text, html`
- - updated coffee-script to 1.12.6
- - updated back ws to 0.8.1
- - breaking changes in `server/reserve` usage
- - removed sqlite3 from Chocolate's dependencies
+ - `general/coffeekup`: 
+  - `id.ids` service now has an optional `db` parameter, if you need to share an ids collection between separate interfaces
+ - `general/loco/interface`: 
+  - `Interface.submit` `transmit` service now allows to pass some more data to add to the `Interface`'s `props`
+  - `render` function, in `Interface` objects, can transmit the request it received to another `Interface` or `Interface.Web` `render` function:
+  
+            render : ->
+                @transmit module, 'function_name', optional_props
+        
+        or
+        
+            render : ->
+                @transmit function, optional_props
+
+ - `server/monitor`: 
+  - you can now specify a `group` to run the process with. if you specify a `user` but no `group` then the `user` will also be used as a `group`
+  - the debugger is now started using the same protocol than the app (https or http depending on the `http_only` option available in `app.config.json`)
+
+ - `server.studio`: 
+  - wrap mode and invisible characters buttons moved on the toolbar 
+  - main studio panel is now blurred when you are logged off
+ 
+ - updated formidable to v1.0.17
 
 FIXED BUGS
 
- - in `server/monitor`: `build_lib_package` was not working anymore due to a recent change in `normalize` impacting `readDirDownSync`
- - in `general/locco/interface`: `props` and `keys` were lost in sub-interfaces but `bin` was not lost
- - in `server/file` : 
-  - `moveFile` was normalizing destination path before giving it to `writeToFile`
-  - convert to string results returned by the `grep` command as it may be Buffer instead of String
-
+ - `general/locco/interface`: fixed sub-sub-interfaces that where not properly declared if used in many places
+ - `client/litejq`: Ajax header was missing `'x-requested-with':'XMLHttpRequest'`
+ - `server/workflow`: compressed response was only working with string or buffer response. Now response is converted to string if response isn't string or Buffer.
+ - `general/chocokup`: in `render`, this.params.props was not deleted and thus always transfered to sub kups
+ - `server/interface`: upload using `Formidable` had a bug and was not compatible with Node's new versions
 
 See history in **CHANGELOG.md** file
 

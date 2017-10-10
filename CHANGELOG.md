@@ -1,3 +1,54 @@
+## v0.0.26 - (2017-10-10)
+
+--------------
+
+NEW FEATURES
+
+ - `studio`:
+  - you can now open and execute a module in another tab window by pressing the ↗ button (next to the close button)
+  - a module's tab, that was opened from `studio`, will be automatically reloaded every time a file is saved from the studio's editor
+  - you can now start and stop the debugger directly from the UI using the ▣ button!
+
+UPDATES
+
+ - `general/latedb`:
+  - Table's list now returns an alphabetically ordered list
+  - `db.tables.get`: you can now get a line in a table by its primary key (usually an `id`)
+
+            line = db.tables.get 'table_name', id
+        
+ - `general/coffeekup`: 
+  - `id.ids` service now has an optional `db` parameter, if you need to share an ids collection between separate interfaces
+ - `general/loco/interface`: 
+  - `Interface.submit` `transmit` service now allows to pass some more data to add to the `Interface`'s `props`
+  - `render` function, in `Interface` objects, can transmit the request it received to another `Interface` or `Interface.Web` `render` function:
+  
+            render : ->
+                @transmit module, 'function_name', optional_props
+        
+        or
+        
+            render : ->
+                @transmit function, optional_props
+
+ - `server/monitor`: 
+  - you can now specify a `group` to run the process with. if you specify a `user` but no `group` then the `user` will also be used as a `group`
+  - the debugger is now started using the same protocol than the app (https or http depending on the `http_only` option available in `app.config.json`)
+
+ - `server.studio`: 
+  - wrap mode and invisible characters buttons moved on the toolbar 
+  - main studio panel is now blurred when you are logged off
+ 
+ - updated formidable to v1.0.17
+
+FIXED BUGS
+
+ - `general/locco/interface`: fixed sub-sub-interfaces that where not properly declared if used in many places
+ - `client/litejq`: Ajax header was missing `'x-requested-with':'XMLHttpRequest'`
+ - `server/workflow`: compressed response was only working with string or buffer response. Now response is converted to string if response isn't string or Buffer.
+ - `general/chocokup`: in `render`, this.params.props was not deleted and thus always transfered to sub kups
+ - `server/interface`: upload using `Formidable` had a bug and was not compatible with Node's new versions
+
 ## v0.0.25 - (2017-09-08)
 
 --------------

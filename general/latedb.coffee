@@ -943,7 +943,7 @@ lateDB = (name, path) ->
         list = ->
             tables = db 'tables'
             return [] unless tables?
-            k for k of tables
+            (k for k of tables).sort()
         
         # create a table in lateDB
         # name: 
@@ -1052,6 +1052,12 @@ lateDB = (name, path) ->
             
             id
 
+        get = (table_name, id) ->
+            table = db("tables.#{table_name}")
+            throw "can not get an item from non-existing table '#{table_name}'" unless table? and Object.prototype.toString.call(table) is '[object Object]'
+            
+            table.lines[id]
+            
         QueryIterator = class
             constructor: (@table) -> @iterator = Iterator @table
             iterator: null
@@ -1354,7 +1360,7 @@ lateDB = (name, path) ->
         
         if count() > 0 then init()
                         
-        {init, count, list, exists, create, alter, insert, update, delete:delete_, id, query}
+        {init, count, list, exists, create, alter, insert, update, delete:delete_, id, get, query}
 
     db.cells = do ->
         

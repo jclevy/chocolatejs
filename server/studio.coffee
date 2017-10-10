@@ -2,6 +2,7 @@
 
 Chocokup = require '../general/chocokup'
 Doccolate = require '../general/doccolate'
+Interface = require '../general/locco/interface'
 
 exports.interface = (__) ->
     exports.enter(__)
@@ -28,6 +29,13 @@ exports.enter = (__) ->
             }
             li.selected {
                 background-color:rgba(0,0,0,0.1);
+            }
+            .blurred {
+                -webkit-filter: blur(3px);
+                -moz-filter: blur(3px);
+                -o-filter: blur(3px);
+                -ms-filter: blur(3px);
+                filter: blur(3px);
             }
             .chocoblack code,
             .chocomilk code {
@@ -123,7 +131,7 @@ exports.enter = (__) ->
                 border: none;
                 vertical-align: middle;
             }
-            #source_close {
+            #source_close, #source_exec {
                 border: 1px solid;
                 padding: 0px 3px;
                 cursor:pointer;
@@ -137,8 +145,28 @@ exports.enter = (__) ->
                 color: green;
             }
             
-            #toggle-login.checking {
+            #toggle-login.checking, #toggle-debug.checking {
                 color: yellow;
+
+                animation: blink-animation 1s steps(5, start) infinite;
+                -webkit-animation: blink-animation 1s steps(5, start) infinite;
+            }
+            @keyframes blink-animation {
+                to {
+                    visibility: hidden;
+                }
+            }
+            @-webkit-keyframes blink-animation {
+                to {
+                    visibility: hidden;
+                }
+            }
+            #toggle-debug {
+                color: green;
+            }
+            
+            #toggle-debug.debugging {
+                color: red;
             }
             
             #input-login {
@@ -202,7 +230,7 @@ exports.enter = (__) ->
                 background-color: #4c433e;
                 color: #eaeaea;
             }
-            .darkTheme #source_close {
+            .darkTheme #source_close, .darkTheme #source_exec {
                 border-color: #eaeaea;
                 color: #eaeaea;
             }
@@ -237,7 +265,7 @@ exports.enter = (__) ->
                 background-color: #FBFBFB;
                 color: #0E0E0E;
             }
-            .lightTheme #source_close {
+            .lightTheme #source_close, .lightTheme #source_exec {
                 border-color: #424242;
                 color: #424242;
             }
@@ -329,18 +357,23 @@ exports.enter = (__) ->
             panel ->
                 header '#header', ->
                     panel proportion:'served', ->
-                        panel -> span '#.choco_title.float-margin-left', 'Chocolate.js'
+                        panel -> 
+                            span '#.choco_title.float-margin-left', 'Chocolate.js'
                         panel -> 
                             select '#source_select.hidden', onchange:'_ide.open_file()', ''
-                            span '.float-right', -> span '#source_close.hidden', onclick:'_ide.close_file()', 'x'
+                            span '.float-right', -> 
+                                span '#source_exec.hidden', onclick:'_ide.exec_file()', '↗'
+                                text '&nbsp;&nbsp;'
+                                span '#source_close.hidden', onclick:'_ide.close_file()', 'x'
+                            a '#switch-wrap.float-margin-right', title:'Switch wrap mode', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchWrap();", -> '↩'
+                            a '#switch-invisible.float-margin-right', title:'Switch invisible caracters display', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchInvisible();", -> '...'
                         panel ->
-                            a '#toggle-login.float-margin-right', title:'Login/Logoff', style:'font-size: 15pt;text-decoration: none;', href:"#", onclick:"_ide.toggleLogin();", -> '•'
                             input '#input-login.float-margin-right.hidden', type:'password', onchange:'_ide.register_key()', ''
+                            a '#toggle-login.float-margin-right', title:'Login/Logoff', style:'font-size: 15pt;text-decoration: none;', href:"#", onclick:"_ide.toggleLogin();", -> '•'
+                            a '#toggle-debug.float-margin-right', title:'Debug/Run', style:'font-size: 13pt;text-decoration: none;', href:"#", onclick:"_ide.toggleDebug();", -> '▣'
                             a '#toggle-fullscreen.float-margin-right', title:'Switch fullscreen', style:'font-size: 15pt;text-decoration: none;', href:"#", onclick:"_ide.toggleFullscreen();", -> '«»'
                             a '#switch-panel.float-margin-right', title:'Switch side by side display', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchScreens();", -> '|||'
                             a '#switch-theme.float-margin-right', title:'Switch theme', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchTheme();", -> '□'
-                            a '#switch-wrap.float-margin-right', title:'Switch wrap mode', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchWrap();", -> '↩'
-                            a '#switch-invisible.float-margin-right', title:'Switch invisible caracters display', style:'font-size: 9pt;text-decoration: none;', href:"#", onclick:"_ide.switchInvisible();", -> '...'
                 body ->
                     panel '#main-panel', proportion:'served', ->
                         panel ->
@@ -705,12 +738,29 @@ exports.enter = (__) ->
             _ide.switch_login = (switched) ->
                 if not switched? 
                     document.id("toggle-login").removeClass('logged').addClass 'checking'
+                    document.id("toggle-debug").addClass 'checking'
                 else
                     document.id("toggle-login").removeClass 'checking'
+                    document.id("toggle-debug").removeClass 'checking'
                     document.id("toggle-login")["#{if switched is on then 'add' else 'remove'}Class"] 'logged'
-                    document.id("input-login")["#{if switched is on then 'add' else 'remove'}Class"]('hidden').set 'value', ''
-                
+                    document.id("main-panel")["#{if switched is off then 'add' else 'remove'}Class"] 'blurred'
+            
+            _ide.sync_exec_windows = (count) ->
+                for path, window_ of _ide.exec_file.paths when window_?
+                    if count > 0
+                        window_.document.body.innerHTML = """
+                            <table style="font-size:120pt; width:100%; height:100%; text-align:center; vertical-align:middle">
+                              <tr>
+                                <td>#{count}</td>
+                              </tr>
+                            </table>
+                            """
+                    else
+                        if window_.closed then delete _ide.exec_file.paths[path]
+                        else _ide.exec_file path
+                    
             _ide.check_connected = (timeout = 0) ->
+                try_reconnect = not _ide.check_online.connected
                 if timeout > 0 then _ide.switch_login()
                 start = Date.now()
                 new Request
@@ -718,19 +768,27 @@ exports.enter = (__) ->
                     noCache: yes
                     timeout: timeout
                     onSuccess: (data) ->
-                        _ide.switch_login if data is "connected" then on else off
+                        _ide.switch_login (_ide.check_online.connected = if data is "connected" then on else off)
+                        _ide.sync_exec_windows() if try_reconnect and _ide.check_online.connected
                     onFailure: (xhr) ->
-                        if timeout > 0
-                            _ide.check_online timeout - (Date.now() - start) - 1000, 1000
-                        else
-                            _ide.switch_login off
+                        unless timeout > 0
+                            _ide.switch_login (_ide.check_online.connected = off)
                     onTimeout: () ->
-                        _ide.switch_login off
+                        _ide.switch_login (_ide.check_online.connected = off)
                 .get()
 
-            _ide.check_online = (timeout = 10000, delay = 1500) ->
+            _ide.check_online = (timeout = 15000, delay = 1500) ->
                 count = 0
-                timer = setInterval ( -> count += delay ; if count < timeout then _ide.check_connected delay else clearInterval timer), delay
+                index = 0
+                _ide.check_online.connected = off
+                timer = setInterval ( -> 
+                    index++
+                    count += delay
+                    if count < timeout and (index <= 1 or _ide.check_online.connected isnt yes) 
+                        _ide.sync_exec_windows(index) ; _ide.check_connected delay 
+                    else 
+                        clearInterval timer
+                ), delay
             
             _ide.register_key = ->
                 new Request 
@@ -739,6 +797,8 @@ exports.enter = (__) ->
                     url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/interface?register_key&how=raw'
                     onSuccess: (data) =>
                         _ide.check_connected()
+                        document.id("input-login").addClass('hidden').set 'value', ''
+
                     onFailure: (xhr) ->
                 .post()
 
@@ -750,7 +810,25 @@ exports.enter = (__) ->
                         _ide.check_connected()
                     onFailure: (xhr) ->
                 .post()
+            
+            _ide.debug = (onoff) ->
+                new Request.JSON
+                    noCache: yes
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/config?debug&' + onoff
+                    onSuccess: ({protocol, port}) ->
+                        if onoff
+                            document.id("toggle-debug").addClass 'debugging'
+                        else
+                            document.id("toggle-debug").removeClass 'debugging'
+                            _ide.check_online()
 
+                        if onoff
+                            _ide.debug.window = window.open "#{protocol}://#{window.location.hostname}:#{port}/debug?port=5858"
+                        else
+                            _ide.debug.window.close()
+                    onFailure: (xhr) ->
+                .get()
+                
             _ide.goto_dir = (new_dir, callback) ->
                 parent_dir = if (tmp_ = new_dir.split('/')[0...-1].join('/')) is '' then '.' else tmp_
                 new Request.JSON
@@ -795,6 +873,7 @@ exports.enter = (__) ->
                 _ide.toggleMainDisplay 'main'
                 
                 editor.setSession if path is '' then _ide.create_session '' else sources.codes[path].doc
+                document.id('source_exec')[(if path is '' then 'add' else 'remove') + 'Class'] 'hidden'
                 document.id('source_close')[(if path is '' then 'add' else 'remove') + 'Class'] 'hidden'
                 sources.current = path
 
@@ -1037,6 +1116,15 @@ exports.enter = (__) ->
                 
                 yes
                 
+            _ide.exec_file = (path) ->
+                unless path? then path = document.id("source_select").getSelected().get("value")[0]
+                _ide.exec_file.paths ?= {}
+                
+                if not _ide.exec_file.paths[path]? or _ide.exec_file.paths[path].closed is yes
+                    _ide.exec_file.paths[path] = window.open '/' + path
+                else
+                    _ide.exec_file.paths[path].location.reload()
+                    
             _ide.will_close_file = (path) ->
                 ask = (path) ->
                     confirm translate "File '#{path}' was modified.\n\nChanges will be lost.\nDo you confirm you want to continue ?"
@@ -1223,7 +1311,11 @@ exports.enter = (__) ->
                 specolate_editor.resize on
 
             _ide.toggleLogin = ->
-                if document.id("toggle-login").hasClass 'logged' then _ide.logoff() else document.id("input-login").removeClass 'hidden'
+                if document.id("toggle-login").hasClass 'logged' then _ide.logoff()
+                document.id("input-login").removeClass('hidden').set 'value', ''
+            
+            _ide.toggleDebug = ->
+                _ide.debug(not document.id("toggle-debug").hasClass 'debugging')
                 
             _ide.toggleFullscreen = ->
                 document.id('main-panel').toggleClass 'fullscreen'

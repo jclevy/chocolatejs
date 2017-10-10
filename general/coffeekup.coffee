@@ -105,6 +105,8 @@ skeleton = (__data = {}) ->
   # Internal CoffeeKup stuff.
   __ck =
     buffer: []
+
+    ids: null
       
     esc: (txt) ->
       if __data.autoescape then h(txt) else String(txt)
@@ -223,8 +225,8 @@ skeleton = (__data = {}) ->
     __data.id(parseInt value) if value? and typeof value is "number"
     '_' + __data.id()
         
-  id.ids = ->
-    _ids = {}
+  id.ids = (db) ->
+    _ids = db ? {}
     ids = (value) -> 
         unless value? then return _ids
         _ids[value] ? _ids[value] = id()
@@ -238,8 +240,8 @@ skeleton = (__data = {}) ->
         """
     ids
 
-  id.classes = -> 
-    _classes = {}
+  id.classes = (db) -> 
+    _classes = db ? {}
     classes = (value) -> 
         unless value? then return _classes
         _ids[value] ? _ids[value] = value.substr(0,id.classes.size ? 0) + '_' + id()
@@ -252,7 +254,7 @@ skeleton = (__data = {}) ->
         })
         """
     classes
-  
+
   totext = (func) ->
     temp_buffer = []
     old_buffer = __ck.buffer
