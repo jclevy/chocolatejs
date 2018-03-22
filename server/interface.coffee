@@ -194,6 +194,9 @@ exports.exchange = (bin, send) ->
                                 when '.ttf' then "font/ttf"
                                 when '.html', '.md', '.markdown', '.cd', '.chocodown' then "text/html"
                                 when '.pdf' then  "application/pdf"
+                                when '.gif' then  "image/gif"
+                                when '.png' then  "image/png"
+                                when '.jpg', '.jpeg' then  "image/jpeg"
                             
                             respondStatic 200, headers, switch extension
                                 when '.md', '.markdown', '.cd', '.chocodown' 
@@ -203,24 +206,22 @@ exports.exchange = (bin, send) ->
                                     catch error
                                         'Error loading ' + where + ': ' + error
                                 else file
-                        
-            check_in_appdir = ->
-                appdir_ = appdir ? '.' 
-                required = Path.resolve appdir_ + '/' +  where
-                if required.indexOf(Path.resolve(appdir_) + '/static') is 0
-                    return Fs.exists required, (exists) ->
-                        if exists then returns required
-                        else returns_empty()
-                        
-                returns_empty()
             
-            required = Path.resolve where
-            if required.indexOf(Path.resolve __dirname + '/../static') is 0
-                Fs.exists required, (exists) ->
-                    if exists then returns required 
-                    else check_in_appdir()
-            else check_in_appdir()
-    
+            dirs = []
+            # check in appdir
+            dirs.push dir:(appdir ? '.') + '/'
+            # check in extensions dirs
+            if config.extensions? then for extension, mounting_point of config.extensions
+                dirs.push {dir:(appdir ? '.') + "/node_modules/#{extension}/", mounting_point}
+            # check in sysdir
+            dirs.push dir:__dirname + '/../'
+            
+            for {dir, mounting_point} in dirs
+                required = Path.resolve dir + (unless mounting_point? and mounting_point isnt '' then where else where.replace(mounting_point + '/', ''))
+                if where.indexOf('static/' + (unless mounting_point? then '' else mounting_point)) is 0
+                    if Fs.existsSync required then returns required ; return
+            returns_empty()
+            
     # `canExchange` check if current user has rights to operate exchange
     canExchange = () ->
         return hasSofkey() or (so is 'go' and where is 'ping') or (where is 'server/interface' and so is 'do' and what in ['register_key', 'forget_key'])
@@ -233,18 +234,32 @@ exports.exchange = (bin, send) ->
     # `canExchangeClassic` checks if a file can be required at the specified path
     # so that a classic exchange can occur
     canExchangeClassic = (path) ->
-        return yes if hasSofkey() and so is 'move'
-        try require.resolve '../' + (if appdir is '.' then '' else appdir + '/' ) + path 
-        catch error then return no
-        yes
+        result =
+            required: '../' + (if region is 'system' or appdir is '.' then '' else appdir + '/' ) + path
+            found: yes
+            
+        return result if hasSofkey() and so is 'move'
+        try require.resolve result.required
+        catch error
+            result.found = no
+            if config.extensions? then for extension, mounting_point of config.extensions
+                if (path.indexOf(mounting_point) is 0) or (path.indexOf('client/' + mounting_point) is 0) or (path.indexOf('general/' + mounting_point) is 0) or (path.indexOf('server/' + mounting_point) is 0)
+                    result.required = '../' + (if appdir is '.' then '' else appdir + '/' ) + "node_modules/#{extension}/" + (if mounting_point is '' then path else path.replace(mounting_point + '/', ''))
+                    try require.resolve result.required
+                    catch error then continue
+                    result.found = yes
+                    result.extension = extension
+                    break
+        result
 
     # `exchangeClassic` is an interface with classic files (coffeescript or javascript)
-    exchangeClassic = () ->
-        required = '../' + (if region is 'system' or appdir is '.' then '' else appdir + '/' ) + where
+    exchangeClassic = (required, extension) ->
+        required ?= '../' + (if region is 'system' or appdir is '.' then '' else appdir + '/' ) + where
         #__ = if region is 'system' or appdir is '.' then undefined else context
         __ = context
         
         what_is_public = no
+        so_is_go_public = no
 
         switch so
             # if so is 'do' and what is public then authorize access  
@@ -257,6 +272,7 @@ exports.exchange = (bin, send) ->
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
                 if how is 'web' and where isnt 'ping'
+                    so_is_go_public = yes
                     {method, args, self, klass, property, error} = getMethodInfo { required }
                     unless error
                         if method? then so = 'do' ; what = undefined ; what_is_public = yes
@@ -265,7 +281,7 @@ exports.exchange = (bin, send) ->
                         return if has500 error
                         if method? # TODO - should implement security checking
                             so = 'do' ; what = 'interface'
-        
+
         unless (so is 'do' and (what is 'interface' or what_is_public)) or canExchange() then respond ''; return
 
         switch so
@@ -372,6 +388,19 @@ exports.exchange = (bin, send) ->
                     if '__' in expected_args then params['__'] = context
                     args = []
                     
+                    if so_is_go_public and region is 'app' and self instanceof Interface and config.masterInterfaces?
+                        for masterInterface in config.masterInterfaces
+                            valid_directory = no
+                            if _.type(masterInterface.directory) is _.Type.Array
+                                for directory in masterInterface.directory
+                                    if where.indexOf(directory + '/') is 0 then valid_directory = yes ; break
+                            else if masterInterface.directory? is false or masterInterface.directory is '' or where.indexOf(masterInterface.directory + '/') is 0 then valid_directory = yes
+                            
+                            if valid_directory
+                                params[masterInterface.prop] = self
+                                self = require((if masterInterface.extension? then masterInterface.extension + '/' else '') + masterInterface.where)[masterInterface.what]
+                                method = self.submit
+        
                     if expected_args[0] is '{__}'
                         bin = {__:context}
                         bin[k] = v for k, v of params when k isnt '__'
@@ -400,9 +429,10 @@ exports.exchange = (bin, send) ->
     exchangeSimple = () ->
         path = if where is '' and so isnt 'move' then where = 'default' else where
 
-        if canExchangeClassic path
+        result = canExchangeClassic path
+        if result.found
             where = path
-            try exchangeClassic() catch err then hasSofkey() and has500(err) or respond ''
+            try exchangeClassic(result.required, result.extension) catch err then hasSofkey() and has500(err) or respond ''
         else if region is 'app' and config.defaultExchange?
             old_params = params
             params_ = __0:where, __1:what

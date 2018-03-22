@@ -345,8 +345,16 @@
     };
 
     Chocokup.unregister = function(name) {
-      if (Chocokup.registered_kups != null) {
-        return delete Chocokup.registered_kups[name];
+      var k;
+      if (Chocokup.registered_kups == null) {
+        return;
+      }
+      if (name != null) {
+        delete Chocokup.registered_kups[name];
+      } else {
+        for (k in Chocokup.registered_kups) {
+          delete Chocokup.registered_kups[k];
+        }
       }
     };
 

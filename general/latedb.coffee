@@ -815,7 +815,7 @@ lateDB = (name, path) ->
                     if table.lines?
                         @index++
                         @current = if @current? then @current.next else table.list.first
-                        @current.line
+                        @current?.line
                     else
                         @current = table[@index++]
             }
@@ -867,18 +867,18 @@ lateDB = (name, path) ->
                     
                     if (joined_table = tables[joined_table_name])?
                         unless joined_table.index? then Index.create joined_table, yes
-                        joined_line = joined_table.index.id[value]
-                        joined_line_join_table = joined_line[table.name + '_joins'] ?= IndexTable()
-                        IndexTable.insert joined_line_join_table, line
-
-                        # add index infos in `joins` tables
-                        joined_line_join_table.index ?= {}
-                        for k, v of line when k in ['id', 'idx'] or k[-3..] in ['_id', 'Idx'] 
-                            joined_line_join_table.index[k] ?= {}
-                            index_in_joined_table = joined_line_join_table.index[k][v] ?= IndexTable()
-                            IndexTable.insert index_in_joined_table, line
-
-                        line[joined_table_name + '_ref'] = joined_line
+                        if (joined_line = joined_table.index.id[value])?
+                            joined_line_join_table = joined_line[table.name + '_joins'] ?= IndexTable()
+                            IndexTable.insert joined_line_join_table, line
+    
+                            # add index infos in `joins` tables
+                            joined_line_join_table.index ?= {}
+                            for k, v of line when k in ['id', 'idx'] or k[-3..] in ['_id', 'Idx'] 
+                                joined_line_join_table.index[k] ?= {}
+                                index_in_joined_table = joined_line_join_table.index[k][v] ?= IndexTable()
+                                IndexTable.insert index_in_joined_table, line
+    
+                            line[joined_table_name + '_ref'] = joined_line
             return
 
         Index.delete_line_cross_refs = (table, line) ->
@@ -1059,7 +1059,14 @@ lateDB = (name, path) ->
             table.lines[id]
             
         QueryIterator = class
-            constructor: (@table) -> @iterator = Iterator @table
+            constructor: (@table) -> 
+                if @table?
+                    @iterator = Iterator @table
+                else
+                    @iterator = Iterator []
+                    @continue = no
+                    
+                    
             iterator: null
             filtered: no
             continue: yes

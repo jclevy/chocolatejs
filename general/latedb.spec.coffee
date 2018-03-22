@@ -305,6 +305,20 @@ describe 'lateDB', ->
         expect(lines.length).toBe 8
         expect(lines[4].name).toBe 'SL 600'
 
+    it 'can try to query (with table\'s name) a non-existing table', ->
+        lines = db.tables.query 'bikes'
+
+        expect(lines.length).toBe 0
+
+    it 'can try to query (with table\'s name) an existing but empty table', ->
+        db.tables.create 'nulls'
+        table = db "tables.nulls"
+        expect(table.entity_name).toBe('null')
+        
+        lines = db.tables.query 'nulls'
+
+        expect(lines.length).toBe 0
+
     it 'can directly query (with table\'s name) and sort cars in reverse order', ->
         lines = db.tables.query 'cars', sort: ['name':-1]
 

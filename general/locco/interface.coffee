@@ -3,16 +3,20 @@ Chocokup = require '../../general/chocokup'
 
 # Interface
 #  defaults: {} or ->
+#  use: {} or ->
 #  locks: [] or ->
 #  check: ->
 #  steps: ->
 #  render : ->
 Interface = _.prototype
 
-    constructor: (defaults, service) ->
+    constructor: (defaults, use, service) ->
+        if not service? then service = use ; use = undefined
         if not service? then service = defaults ; defaults = undefined
+            
         service = render:service if typeof service is 'function'
         service.defaults = defaults if service? and defaults?
+        service.use = use if service? and use?
         
         if service?
             if service.defaults?
@@ -21,12 +25,15 @@ Interface = _.prototype
             if service.locks?
                 if typeof service.locks is 'function' then @locks = service.locks 
                 else @locks = (@locks ?= []).concat service.locks 
+            if service.use?
+                if typeof service.use is 'function' then @use = service.use 
+                else @use = _.defaults @use, service.use
             @check = service.check if service.check?
             @steps = service.steps if service.steps?
             
             @render = service.action if service.action? # 'action' is synonym to 'render'
             
-            @[name] = item for name, item of service when name not in ['defaults', 'locks', 'check', 'steps'] # service, actor, document, update...
+            @[name] = item for name, item of service when name not in ['defaults', 'use', 'locks', 'check', 'steps'] # service, actor, document, update...
             
         return
     
@@ -41,7 +48,7 @@ Interface = _.prototype
     review: (bin, reaction, end) ->
         self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
         check =
-            # `defaults` ensure default values are set on an object
+            # `defaults` ensure default values are set in the bin/props passed to the interface
             defaults: (object, defaults) =>
                 if typeof defaults is 'function' then defaults = defaults.call self, object
                 
@@ -52,6 +59,18 @@ Interface = _.prototype
                     o
                    
                 set object, defaults
+        
+            # `use` ensure required values are set to a specific value in the bin/props passed to the interface
+            use: (object, required) =>
+                if typeof required is 'function' then required = required.call self, object
+                
+                set = (o, d) ->
+                    for own dk,dv of d
+                        if (_.isBasicObject(o[dk]) or o[dk] instanceof Interface.Web.Global) and (_.isBasicObject(dv) or dv instanceof Interface.Web.Global) then set o[dk], dv
+                        else o[dk] = dv
+                    o
+                   
+                set object, required
         
             # `locks` ensure keys are provided for every present lock (a lock is a uid or an object id and key fields)
             locks: (keys, locks) =>
@@ -68,6 +87,7 @@ Interface = _.prototype
         reaction.certified ?= yes
 
         check.defaults bin, @defaults if @defaults?
+        check.use bin, @use if @use?
         if reaction.certified then reaction.certified = check.locks bin.__?.session?.keys, @locks if @locks?
         if reaction.certified then reaction.certified = check.values bin, @check if @check?
         
@@ -81,7 +101,7 @@ Interface = _.prototype
         
         _.flow self:@, (run) ->
             getSelf = (end) ->
-                respond = (o) -> @reaction.props = @reaction.bin = o ; end()
+                respond = (o) -> reaction.props = reaction.bin = o ; end()
                 respond.later = end.later
                 
                 transmit = (actor, service, bin = {}) ->
@@ -169,13 +189,24 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                         local_kups = []
                         for name, service of bin
                             if service instanceof Interface.Web
-                                unless not service?.defaults? or service in checked
+                                if service?.defaults? and service not in checked
                                     checked.push service
                                     defaults = service.defaults
-                                    if typeof defaults is 'function' then defaults = defaults()
+                                    self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
+                                    if typeof defaults is 'function' then defaults = defaults.call self, bin
                                     scope_ = scope
                                     scope = []
-                                    kups = checked_kups[service] = check_interfaces defaults
+                                    kups = checked_kups[service] = check_interfaces.call this, defaults
+                                    scope = scope_
+                                else 
+                                if service?.use? and service not in checked
+                                    checked.push service
+                                    use = service.use
+                                    self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
+                                    if typeof use is 'function' then use = use.call self, bin
+                                    scope_ = scope
+                                    scope = []
+                                    kups = checked_kups[service] = check_interfaces.call this, use
                                     scope = scope_
                                 else 
                                     kups = checked_kups[service] ? []
@@ -220,13 +251,13 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                                 if name isnt '__' and (_.isBasicObject(service) or service instanceof Interface.Web.Global)
                                     scope.push name
                                     checked.push service
-                                    local_kups = local_kups.concat check_interfaces service
+                                    local_kups = local_kups.concat check_interfaces.call this, service
                                     scope.pop()
     
                         return local_kups
      
                     checked.push bin
-                    reaction.local_kups = check_interfaces bin
+                    reaction.local_kups = check_interfaces.call this, bin
                 end()
         
         end

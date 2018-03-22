@@ -2,7 +2,6 @@
 
 Chocokup = require '../general/chocokup'
 Doccolate = require '../general/doccolate'
-Interface = require '../general/locco/interface'
 
 exports.interface = (__) ->
     exports.enter(__)
@@ -341,6 +340,7 @@ exports.enter = (__) ->
         script src:"/static/vendor/ace/mode-javascript.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-json.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-css.js", type:"text/javascript", charset:"utf-8"
+        script src:"/static/vendor/ace/mode-scss.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-text.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-html.js", type:"text/javascript", charset:"utf-8"
         script src:"/static/vendor/ace/mode-markdown.js", type:"text/javascript", charset:"utf-8"
@@ -697,7 +697,7 @@ exports.enter = (__) ->
                     steps = item.split '/'
                     for step, i in steps when i < steps.length-1
                         if step isnt current_steps[i]
-                            current_steps = current_steps[0...i] if i>0
+                            current_steps = current_steps[0...i]
                             for j in [i...steps.length-1]
                                 current_steps[j] = steps[j]
                                 content.push "<div style='margin-top:4px;margin-left:#{j*8}px;'><a href='#' onclick=\"javascript:_ide.goto_dir('#{current_steps.join('/')}');\">#{steps[j]}</a></div>"
@@ -774,10 +774,11 @@ exports.enter = (__) ->
                         unless timeout > 0
                             _ide.switch_login (_ide.check_online.connected = off)
                     onTimeout: () ->
-                        _ide.switch_login (_ide.check_online.connected = off)
+                        unless timeout > 0
+                            _ide.switch_login (_ide.check_online.connected = off)
                 .get()
 
-            _ide.check_online = (timeout = 15000, delay = 1500) ->
+            _ide.check_online = (timeout = 30000, delay = 1500) ->
                 count = 0
                 index = 0
                 _ide.check_online.connected = off
@@ -915,6 +916,7 @@ exports.enter = (__) ->
                     when '.js' then 'javascript'
                     when '.json' then 'json'
                     when '.css' then 'css'
+                    when '.scss' then 'scss'
                     when '.html' then 'html'
                     when '.txt' then 'text'
                     when '.markdown', '.md', '.chocodown', '.cd', '.litcoffee' then 'markdown'

@@ -205,7 +205,7 @@
       };
       this["interface"] = new Interface.Web({
         defaults: function() {
-          var basename, end, filename, i, j, ref, ref1, ref2, ref3, ref4, ref5, ref6, start;
+          var basename, end, filename, i, j, ref, ref1, ref2, ref3, ref4, ref5, start;
           if ((filename = (ref = this.actor.options) != null ? ref.filename : void 0) != null) {
             start = end = null;
             for (i = j = 0, ref1 = filename.length; 0 <= ref1 ? j < ref1 : j > ref1; i = 0 <= ref1 ? ++j : --j) {
@@ -232,9 +232,14 @@
             options: this.actor.options,
             name: (ref3 = (ref4 = (ref5 = this.actor.options) != null ? ref5.name : void 0) != null ? ref4 : basename) != null ? ref3 : '',
             theme: 'writer',
-            manifest: (basename != null ? basename : '/') + "?manifest&how=manifest",
+            manifest: (basename != null ? basename : '/') + "?manifest&how=manifest"
+          };
+        },
+        use: function() {
+          var ref;
+          return {
             actor: {
-              source: "var Service = (" + (_.stringify((ref6 = this.actor.constructor.__prototyper__) != null ? ref6 : function() {
+              source: "var Service = (" + (_.stringify((ref = this.actor.constructor.__prototyper__) != null ? ref : function() {
                 return {};
               })) + ")();"
             }

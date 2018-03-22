@@ -223,8 +223,14 @@ class Chocokup
         Chocokup.registered_kups[name] = func
         
     @unregister: (name) ->
-        delete Chocokup.registered_kups[name] if Chocokup.registered_kups?
-
+        return unless Chocokup.registered_kups?
+        
+        if name?
+            delete Chocokup.registered_kups[name]
+        else
+            delete Chocokup.registered_kups[k] for k of Chocokup.registered_kups
+        return
+        
     render: (options) ->
         locals = options?.locals ? {}
         if @params?.locals? 

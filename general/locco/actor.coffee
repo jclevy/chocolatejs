@@ -121,6 +121,7 @@ Actor.Web = _.prototype inherit:Actor, use: ->
             name:@actor.options?.name ? basename ? ''
             theme: 'writer'
             manifest:"#{basename ? '/'}?manifest&how=manifest"
+        use: ->
             actor:
                 source: "var Service = (#{_.stringify(@actor.constructor.__prototyper__ ? -> {})})();"
     

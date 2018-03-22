@@ -522,6 +522,19 @@
       expect(lines.length).toBe(8);
       return expect(lines[4].name).toBe('SL 600');
     });
+    it('can try to query (with table\'s name) a non-existing table', function() {
+      var lines;
+      lines = db.tables.query('bikes');
+      return expect(lines.length).toBe(0);
+    });
+    it('can try to query (with table\'s name) an existing but empty table', function() {
+      var lines, table;
+      db.tables.create('nulls');
+      table = db("tables.nulls");
+      expect(table.entity_name).toBe('null');
+      lines = db.tables.query('nulls');
+      return expect(lines.length).toBe(0);
+    });
     it('can directly query (with table\'s name) and sort cars in reverse order', function() {
       var lines;
       lines = db.tables.query('cars', {

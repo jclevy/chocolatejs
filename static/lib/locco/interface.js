@@ -9,8 +9,12 @@
   Chocokup = require('../../general/chocokup');
 
   Interface = _.prototype({
-    constructor: function(defaults, service) {
+    constructor: function(defaults, use, service) {
       var item, name;
+      if (service == null) {
+        service = use;
+        use = void 0;
+      }
       if (service == null) {
         service = defaults;
         defaults = void 0;
@@ -22,6 +26,9 @@
       }
       if ((service != null) && (defaults != null)) {
         service.defaults = defaults;
+      }
+      if ((service != null) && (use != null)) {
+        service.use = use;
       }
       if (service != null) {
         if (service.defaults != null) {
@@ -38,6 +45,13 @@
             this.locks = (this.locks != null ? this.locks : this.locks = []).concat(service.locks);
           }
         }
+        if (service.use != null) {
+          if (typeof service.use === 'function') {
+            this.use = service.use;
+          } else {
+            this.use = _.defaults(this.use, service.use);
+          }
+        }
         if (service.check != null) {
           this.check = service.check;
         }
@@ -49,7 +63,7 @@
         }
         for (name in service) {
           item = service[name];
-          if (name !== 'defaults' && name !== 'locks' && name !== 'check' && name !== 'steps') {
+          if (name !== 'defaults' && name !== 'use' && name !== 'locks' && name !== 'check' && name !== 'steps') {
             this[name] = item;
           }
         }
@@ -107,6 +121,28 @@
             return set(object, defaults);
           };
         })(this),
+        use: (function(_this) {
+          return function(object, required) {
+            var set;
+            if (typeof required === 'function') {
+              required = required.call(self, object);
+            }
+            set = function(o, d) {
+              var dk, dv;
+              for (dk in d) {
+                if (!hasProp.call(d, dk)) continue;
+                dv = d[dk];
+                if ((_.isBasicObject(o[dk]) || o[dk] instanceof Interface.Web.Global) && (_.isBasicObject(dv) || dv instanceof Interface.Web.Global)) {
+                  set(o[dk], dv);
+                } else {
+                  o[dk] = dv;
+                }
+              }
+              return o;
+            };
+            return set(object, required);
+          };
+        })(this),
         locks: (function(_this) {
           return function(keys, locks) {
             var i, len, lock, ref1;
@@ -137,6 +173,9 @@
       if (this.defaults != null) {
         check.defaults(bin, this.defaults);
       }
+      if (this.use != null) {
+        check.use(bin, this.use);
+      }
       if (reaction.certified) {
         if (this.locks != null) {
           reaction.certified = check.locks((ref1 = bin.__) != null ? (ref2 = ref1.session) != null ? ref2.keys : void 0 : void 0, this.locks);
@@ -163,7 +202,7 @@
         getSelf = function(end) {
           var ref, respond, transmit;
           respond = function(o) {
-            this.reaction.props = this.reaction.bin = o;
+            reaction.props = reaction.bin = o;
             return end();
           };
           respond.later = end.later;
@@ -317,27 +356,56 @@
               checked = [];
               checked_kups = {};
               check_interfaces = function(bin) {
-                var base, declare_kups, defaults, kups, local_kups, name, name1, ref, ref1, ref2, scope_, service, service_id, service_kup;
+                var base, declare_kups, defaults, kups, local_kups, name, name1, ref, ref1, ref2, ref3, ref4, scope_, self, service, service_id, service_kup, use;
                 local_kups = [];
                 for (name in bin) {
                   service = bin[name];
                   if (service instanceof Interface.Web) {
-                    if (!(((service != null ? service.defaults : void 0) == null) || indexOf.call(checked, service) >= 0)) {
+                    if (((service != null ? service.defaults : void 0) != null) && indexOf.call(checked, service) < 0) {
                       checked.push(service);
                       defaults = service.defaults;
+                      self = {
+                        bin: bin,
+                        props: bin,
+                        space: bin != null ? (ref = bin.__) != null ? ref.space : void 0 : void 0,
+                        document: this.document,
+                        'interface': this,
+                        actor: this.actor
+                      };
                       if (typeof defaults === 'function') {
-                        defaults = defaults();
+                        defaults = defaults.call(self, bin);
                       }
                       scope_ = scope;
                       scope = [];
-                      kups = checked_kups[service] = check_interfaces(defaults);
+                      kups = checked_kups[service] = check_interfaces.call(this, defaults);
                       scope = scope_;
                     } else {
-                      kups = (ref = checked_kups[service]) != null ? ref : [];
+
+                    }
+                    if (((service != null ? service.use : void 0) != null) && indexOf.call(checked, service) < 0) {
+                      checked.push(service);
+                      use = service.use;
+                      self = {
+                        bin: bin,
+                        props: bin,
+                        space: bin != null ? (ref1 = bin.__) != null ? ref1.space : void 0 : void 0,
+                        document: this.document,
+                        'interface': this,
+                        actor: this.actor
+                      };
+                      if (typeof use === 'function') {
+                        use = use.call(self, bin);
+                      }
+                      scope_ = scope;
+                      scope = [];
+                      kups = checked_kups[service] = check_interfaces.call(this, use);
+                      scope = scope_;
+                    } else {
+                      kups = (ref2 = checked_kups[service]) != null ? ref2 : [];
                     }
                     declare_kups = get_declare_kups(kups);
                     service_id = _.Uuid().replace(/\-/g, '_');
-                    service_kup = new Function('args', "var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;\nthis.keys = [];\nthis.props = this.bin = {__:bin.__};\nthis.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};\nbin_cp = function(b_, _b) {\n  var done = false, k, v;\n  for (k in _b) {\n    if (!hasProp.call(_b, k) || (k === '__')) continue; \n    if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } \n    else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }\n  }\n  return done;\n};\nbin_cp(this.bin, bin);\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction, function(){});\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref1 = (ref2 = service.render) != null ? ref2.overriden : void 0) != null ? ref1 : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;");
+                    service_kup = new Function('args', "var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;\nthis.keys = [];\nthis.props = this.bin = {__:bin.__};\nthis.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};\nbin_cp = function(b_, _b) {\n  var done = false, k, v;\n  for (k in _b) {\n    if (!hasProp.call(_b, k) || (k === '__')) continue; \n    if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } \n    else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }\n  }\n  return done;\n};\nbin_cp(this.bin, bin);\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction, function(){});\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref3 = (ref4 = service.render) != null ? ref4.overriden : void 0) != null ? ref3 : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;");
                     if (reaction.kups == null) {
                       reaction.kups = {};
                     }
@@ -353,7 +421,7 @@
                     if (name !== '__' && (_.isBasicObject(service) || service instanceof Interface.Web.Global)) {
                       scope.push(name);
                       checked.push(service);
-                      local_kups = local_kups.concat(check_interfaces(service));
+                      local_kups = local_kups.concat(check_interfaces.call(this, service));
                       scope.pop();
                     }
                   }
@@ -361,7 +429,7 @@
                 return local_kups;
               };
               checked.push(bin);
-              reaction.local_kups = check_interfaces(bin);
+              reaction.local_kups = check_interfaces.call(this, bin);
             }
             return end();
           });

@@ -326,7 +326,7 @@ stringify = ->
     doit = (o) ->
         result = []
         result.push switch Object.prototype.toString.apply o
-            when '[object Object]' then "{#{(k + ':' + doit(v) for own k,v of o).join(',')}}"
+            when '[object Object]' then "{#{("'"+ k + "':" + doit(v) for own k,v of o).join(',')}}"
             when '[object Array]' then "function () {var a = []; var o = {#{(k + ':' + doit(v) for own k,v of o).join(',')}};for (var k in o) {a[k] = o[k];} return a; }()"
             when '[object Boolean]' then o
             when '[object Number]' then o

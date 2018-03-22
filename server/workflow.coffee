@@ -403,8 +403,8 @@ class World
         sessions = new Sessions cache
         websockets = new WebSockets
         
-        space = new Reserve.Space datadir
-
+        space = new Reserve.Space datadir, config.extensions
+        
         workflow = Workflow.main
 
         port_https = port

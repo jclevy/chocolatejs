@@ -1,3 +1,75 @@
+## v0.0.27 - (2018-03-22)
+
+--------------
+
+NEW FEATURES
+
+ - `general/locco/interface`: 
+   - `use` is a new option in an `interface` declaration. It allows you to pass values/objects to the `interface` through the `bin/props` property that will not be overriden by any data passed to the interface.
+     Use this `use` option instead of `defaults` when you do not want your default values defined for the interface to be overriden (`defaults` values are overriden when values with the same name are submited to the interface). 
+ - `server/reserve`:
+   - `space` now gives access to a `DB` service that allows you to open an other database than the default one. It is accessible through the `Interface`'s `render`'s `this` object: `this.space.DB`.
+ - You can now define `extensions` in a `chocolatejs` project. Extensions can provide a default behavior for a part of your app, like User's management...
+
+   Use the `extensions` option `data/app.config.json` to declare one ore more `extensions` :
+
+        "extensions": {
+            "mymodule": "virtual_folder"
+        }
+        
+    A package named `mymodule` and installed in app's `node_modules` folder with optional `client, general, server, static` folders will be used as an extention to the current app folder.
+    
+    So modules and files placed in this package will be accessible with an url starting with the `virtual_folder` value. `virtual_folder` can be empty.
+    
+    When in an `Interface` render service, constants defined in an `extension` name `my_extension` will be available in `this.space.constants.my_extension`
+    
+ - You can now define `Master Interfaces` to provide a default behavior for you web pages. When you call a page that is provided by an `Interface`, this `Interface` will be sent first to a `Master Interface` that will insert this `Interface` in its default behaviour.
+
+ Use `masterInterfaces` option in `data/app.config.json` to define one or more master `Interface` 
+
+    `masterInterfaces` is defined by:
+    
+     - `directory`: optional string or array of strings defining the web directory(ies) on which to use the `master interface` service. If not provided, the `master interface` will be used for every web page in your web site.
+     - `extension`: optional string giving the name of the `extension` in which the `master interface` is defined. If not provided, `chocolate` will look for the `master interface` in your app folders.
+     - `where`: string heading to the module where the `master interface` is defined (in an `extension` or in your app)
+     - `what`: string giving the name of the function in the `master interface` module to be called to render the `master interface`
+     - `prop`: string giving the name used by the `master interface` function to designate the provided `interface` (that has to be encapsulated)
+     
+    e.g.: 
+    
+        "masterInterfaces": [
+            {
+                "directory": "admin",
+                "extension": "users",
+                "where": "server/admin/common",
+                "what": "document",
+                "prop": "content"
+            }
+        ]
+
+ - `monitor.coffee` service 
+   - will now convert `.scss` Sass files present in `client` folder to `.css` in `static` folder.
+   - when designing an extension, `monitor` will look in `extension`'s `client` and `general` folder to convert `.coffee`, `.ck` or `.scss` files or to build Javascript bundles to the `extension`'s static folder.
+      
+UPDATES
+
+ - `general/latedb`: 
+   - you can now query a non-existing table and receive an empty array as a result
+ - `general/chocokup`:
+   - now, you can unregister all registered `kups` all at once by calling `Chocokup.unregister` with no parameter
+ - updated node-inspector to v1.1.2
+ - added node-sass v4.7.2 as a dependency
+
+FIXED BUGS
+
+ - `server/studio`: small bug in `display_opened_files_list` that would produce a wrong path in folder's link
+ - `general/latedb`: 
+   - was not able to query an existing but empty table
+   - was crashing on startup when an empty foregn key was foundin a table
+ - `general/coffeekup`: internal `stringify` function was not handling correctly object's key values. now it puts quotes around object's key values
+ - `general/locco/interface`: `respond` in `getSelf` now references `reaction` correctly. This is usefull if the interface has a `steps` service that wants to return a response
+
+
 ## v0.0.26 - (2017-10-10)
 
 --------------
@@ -5,23 +77,23 @@
 NEW FEATURES
 
  - `studio`:
-  - you can now open and execute a module in another tab window by pressing the ↗ button (next to the close button)
-  - a module's tab, that was opened from `studio`, will be automatically reloaded every time a file is saved from the studio's editor
-  - you can now start and stop the debugger directly from the UI using the ▣ button!
+   - you can now open and execute a module in another tab window by pressing the ↗ button (next to the close button)
+   - a module's tab, that was opened from `studio`, will be automatically reloaded every time a file is saved from the studio's editor
+   - you can now start and stop the debugger directly from the UI using the ▣ button!
 
 UPDATES
 
  - `general/latedb`:
-  - Table's list now returns an alphabetically ordered list
-  - `db.tables.get`: you can now get a line in a table by its primary key (usually an `id`)
+   - Table's list now returns an alphabetically ordered list
+   - `db.tables.get`: you can now get a line in a table by its primary key (usually an `id`)
 
             line = db.tables.get 'table_name', id
         
  - `general/coffeekup`: 
-  - `id.ids` service now has an optional `db` parameter, if you need to share an ids collection between separate interfaces
+   - `id.ids` service now has an optional `db` parameter, if you need to share an ids collection between separate interfaces
  - `general/loco/interface`: 
-  - `Interface.submit` `transmit` service now allows to pass some more data to add to the `Interface`'s `props`
-  - `render` function, in `Interface` objects, can transmit the request it received to another `Interface` or `Interface.Web` `render` function:
+   - `Interface.submit` `transmit` service now allows to pass some more data to add to the `Interface`'s `props`
+   - `render` function, in `Interface` objects, can transmit the request it received to another `Interface` or `Interface.Web` `render` function:
   
             render : ->
                 @transmit module, 'function_name', optional_props
@@ -32,12 +104,12 @@ UPDATES
                 @transmit function, optional_props
 
  - `server/monitor`: 
-  - you can now specify a `group` to run the process with. if you specify a `user` but no `group` then the `user` will also be used as a `group`
-  - the debugger is now started using the same protocol than the app (https or http depending on the `http_only` option available in `app.config.json`)
+   - you can now specify a `group` to run the process with. if you specify a `user` but no `group` then the `user` will also be used as a `group`
+   - the debugger is now started using the same protocol than the app (https or http depending on the `http_only` option available in `app.config.json`)
 
  - `server.studio`: 
-  - wrap mode and invisible characters buttons moved on the toolbar 
-  - main studio panel is now blurred when you are logged off
+   - wrap mode and invisible characters buttons moved on the toolbar 
+   - main studio panel is now blurred when you are logged off
  
  - updated formidable to v1.0.17
 

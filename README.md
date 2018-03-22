@@ -63,55 +63,75 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.26 - (2017-10-10)**
+**Chocolate v0.0.27 - (2018-03-22)**
 --------------
 
 NEW FEATURES
 
- - `studio`:
-  - you can now open and execute a module in another tab window by pressing the ↗ button (next to the close button)
-  - a module's tab, that was opened from `studio`, will be automatically reloaded every time a file is saved from the studio's editor
-  - you can now start and stop the debugger directly from the UI using the ▣ button!
+ - `general/locco/interface`: 
+   - `use` is a new option in an `interface` declaration. It allows you to pass values/objects to the `interface` through the `bin/props` property that will not be overriden by any data passed to the interface.
+     Use this `use` option instead of `defaults` when you do not want your default values defined for the interface to be overriden (`defaults` values are overriden when values with the same name are submited to the interface). 
+ - `server/reserve`:
+   - `space` now gives access to a `DB` service that allows you to open an other database than the default one. It is accessible through the `Interface`'s `render`'s `this` object: `this.space.DB`.
+ - You can now define `extensions` in a `chocolatejs` project. Extensions can provide a default behavior for a part of your app, like User's management...
 
+   Use the `extensions` option `data/app.config.json` to declare one ore more `extensions` :
+
+        "extensions": {
+            "mymodule": "virtual_folder"
+        }
+        
+    A package named `mymodule` and installed in app's `node_modules` folder with optional `client, general, server, static` folders will be used as an extention to the current app folder.
+    
+    So modules and files placed in this package will be accessible with an url starting with the `virtual_folder` value. `virtual_folder` can be empty.
+    
+    When in an `Interface` render service, constants defined in an `extension` name `my_extension` will be available in `this.space.constants.my_extension`
+    
+ - You can now define `Master Interfaces` to provide a default behavior for you web pages. When you call a page that is provided by an `Interface`, this `Interface` will be sent first to a `Master Interface` that will insert this `Interface` in its default behaviour.
+
+ Use `masterInterfaces` option in `data/app.config.json` to define one or more master `Interface` 
+
+    `masterInterfaces` is defined by:
+    
+     - `directory`: optional string or array of strings defining the web directory(ies) on which to use the `master interface` service. If not provided, the `master interface` will be used for every web page in your web site.
+     - `extension`: optional string giving the name of the `extension` in which the `master interface` is defined. If not provided, `chocolate` will look for the `master interface` in your app folders.
+     - `where`: string heading to the module where the `master interface` is defined (in an `extension` or in your app)
+     - `what`: string giving the name of the function in the `master interface` module to be called to render the `master interface`
+     - `prop`: string giving the name used by the `master interface` function to designate the provided `interface` (that has to be encapsulated)
+     
+    e.g.: 
+    
+        "masterInterfaces": [
+            {
+                "directory": "admin",
+                "extension": "users",
+                "where": "server/admin/common",
+                "what": "document",
+                "prop": "content"
+            }
+        ]
+
+ - `monitor.coffee` service 
+   - will now convert `.scss` Sass files present in `client` folder to `.css` in `static` folder.
+   - when designing an extension, `monitor` will look in `extension`'s `client` and `general` folder to convert `.coffee`, `.ck` or `.scss` files or to build Javascript bundles to the `extension`'s static folder.
+      
 UPDATES
 
- - `general/latedb`:
-  - Table's list now returns an alphabetically ordered list
-  - `db.tables.get`: you can now get a line in a table by its primary key (usually an `id`)
-
-            line = db.tables.get 'table_name', id
-        
- - `general/coffeekup`: 
-  - `id.ids` service now has an optional `db` parameter, if you need to share an ids collection between separate interfaces
- - `general/loco/interface`: 
-  - `Interface.submit` `transmit` service now allows to pass some more data to add to the `Interface`'s `props`
-  - `render` function, in `Interface` objects, can transmit the request it received to another `Interface` or `Interface.Web` `render` function:
-  
-            render : ->
-                @transmit module, 'function_name', optional_props
-        
-        or
-        
-            render : ->
-                @transmit function, optional_props
-
- - `server/monitor`: 
-  - you can now specify a `group` to run the process with. if you specify a `user` but no `group` then the `user` will also be used as a `group`
-  - the debugger is now started using the same protocol than the app (https or http depending on the `http_only` option available in `app.config.json`)
-
- - `server.studio`: 
-  - wrap mode and invisible characters buttons moved on the toolbar 
-  - main studio panel is now blurred when you are logged off
- 
- - updated formidable to v1.0.17
+ - `general/latedb`: 
+   - you can now query a non-existing table and receive an empty array as a result
+ - `general/chocokup`:
+   - now, you can unregister all registered `kups` all at once by calling `Chocokup.unregister` with no parameter
+ - updated node-inspector to v1.1.2
+ - added node-sass v4.7.2 as a dependency
 
 FIXED BUGS
 
- - `general/locco/interface`: fixed sub-sub-interfaces that where not properly declared if used in many places
- - `client/litejq`: Ajax header was missing `'x-requested-with':'XMLHttpRequest'`
- - `server/workflow`: compressed response was only working with string or buffer response. Now response is converted to string if response isn't string or Buffer.
- - `general/chocokup`: in `render`, this.params.props was not deleted and thus always transfered to sub kups
- - `server/interface`: upload using `Formidable` had a bug and was not compatible with Node's new versions
+ - `server/studio`: small bug in `display_opened_files_list` that would produce a wrong path in folder's link
+ - `general/latedb`: 
+   - was not able to query an existing but empty table
+   - was crashing on startup when an empty foregn key was foundin a table
+ - `general/coffeekup`: internal `stringify` function was not handling correctly object's key values. now it puts quotes around object's key values
+ - `general/locco/interface`: `respond` in `getSelf` now references `reaction` correctly. This is usefull if the interface has a `steps` service that wants to return a response
 
 See history in **CHANGELOG.md** file
 
@@ -346,7 +366,7 @@ But there is more: you can put many domains in the same certificate
 
     "domains": [ "yourdomain.com", "theirdomain.com", "ourdomain.com" ]
 
-Finally, know that you **have** to explicitly add an entry with `yourdomain` prefixed with `www` if you want to support it:
+Finally, you **have** to explicitly add an entry with `yourdomain` prefixed with `www` if you want to support it:
  
     "domains": [ "yourdomain.com", "www.yourdomain.com" ]
 
@@ -881,7 +901,19 @@ Primary key `ìd` can be given by LateDB
 
         expect(db('tables.colors').index.id[1].id).toBe 1
         expect(db('tables.colors').index.id[3].name).toBe 'red'
-        
+
+### update a line in a table
+
+        db.tables.update 'brands', id:3, name:'Toyota Motors'
+
+        expect(db('tables.brands').lines[3].name).toBe 'Toyota Motors'
+
+### delete a line in a table
+
+        db.tables.delete 'cars', id:7
+
+        expect(db('tables.cars').lines[7]).toBe undefined
+
 ### insert data with foreign keys
 
 Foreign keys' name have to end with `_id` and use the sigular version of the table's name which is it's corresponding entity's name.
@@ -996,7 +1028,7 @@ You can provide directly the query definition instead of the name of a previousl
 
 Use the `select` clause in the query definition to define a join between tables.
 
-Simply put a dot between tables' name to define a n-1 relationship: 
+Simply put a dot between tables' name to define a n -> 1 relationship: 
 
         cars.brands
         
@@ -1044,7 +1076,7 @@ The filter function you provide will receive three parameters: the `line` to acc
 
 ### query with a join and select fields using a function
 
-When you want to define a n -> 1 join, you have to put the table on the right side of the relationship inside brackets `[]`
+When you want to define a 1 -> n join, you have to put the table on the right side of the relationship inside brackets `[]`
 
 In the following example
 
@@ -1713,7 +1745,7 @@ Locco Interface is a javascript protoype that provides the following services:
 
 **Steps** execution:
 
-  - execute asynchronous preparation steps before 'render' function
+  - execute asynchronous preparation steps before 'render' function. `steps` function returns `this.respond.later`.
 
 **Render** execution:
 
@@ -1744,7 +1776,7 @@ That interface can embed other `Interface.Web` modules:
         welcome_user = new Interface.Web
             defaults:
                 welcome_message: -> 'Welcome'
-                
+            use: ->
                 login_panel: new Interface.Web
                     defaults:
                         login: -> 'Login'
@@ -1760,8 +1792,8 @@ That interface can embed other `Interface.Web` modules:
                 else
                     login_panel @bin.login_panel.bin
 
-If you want to declare, in the `defaults` section, an object that contains cyclical cross references, you have to create it with the `new` keyword or to put it in an array. 
-This way the `Interface.Web` will not look endlessly inside your `defaults` section for `Interface.Web` objects.
+If you want to declare, in the `defaults` or `use` sections, an object that contains cyclical cross references, you have to create it with the `new` keyword or to put it in an array. 
+This way the `Interface.Web` will not look endlessly inside your `defaults` (or `use`) section for `Interface.Web` objects.
 
 &nbsp;
 

@@ -85,7 +85,10 @@ if  (typeof Highlight !== "undefined" && Highlight != null) { Showdown.Highlight
 //
 Showdown.converter = function (options) {
     if (options != null) {
-        if (Showdown.Chocokup != null) Showdown.Chocokup.format = options.formatChocokup
+        if (Showdown.Chocokup != null) {
+            Showdown.Chocokup.format = options.formatChocokup;
+            Showdown.Chocokup.unregister();
+        }
     }
 
 //

@@ -377,7 +377,7 @@
               for (k in o) {
                 if (!hasProp.call(o, k)) continue;
                 v = o[k];
-                results.push(k + ':' + doit(v));
+                results.push("'" + k + "':" + doit(v));
               }
               return results;
             })()).join(',')) + "}";

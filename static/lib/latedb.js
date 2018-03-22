@@ -1316,10 +1316,11 @@
             }
           },
           next: function() {
+            var ref;
             if (table.lines != null) {
               this.index++;
               this.current = this.current != null ? this.current.next : table.list.first;
-              return this.current.line;
+              return (ref = this.current) != null ? ref.line : void 0;
             } else {
               return this.current = table[this.index++];
             }
@@ -1401,24 +1402,25 @@
               if (joined_table.index == null) {
                 Index.create(joined_table, true);
               }
-              joined_line = joined_table.index.id[value];
-              joined_line_join_table = joined_line[name1 = table.name + '_joins'] != null ? joined_line[name1] : joined_line[name1] = IndexTable();
-              IndexTable.insert(joined_line_join_table, line);
-              if (joined_line_join_table.index == null) {
-                joined_line_join_table.index = {};
-              }
-              for (k in line) {
-                v = line[k];
-                if (!((k === 'id' || k === 'idx') || ((ref = k.slice(-3)) === '_id' || ref === 'Idx'))) {
-                  continue;
+              if ((joined_line = joined_table.index.id[value]) != null) {
+                joined_line_join_table = joined_line[name1 = table.name + '_joins'] != null ? joined_line[name1] : joined_line[name1] = IndexTable();
+                IndexTable.insert(joined_line_join_table, line);
+                if (joined_line_join_table.index == null) {
+                  joined_line_join_table.index = {};
                 }
-                if ((base = joined_line_join_table.index)[k] == null) {
-                  base[k] = {};
+                for (k in line) {
+                  v = line[k];
+                  if (!((k === 'id' || k === 'idx') || ((ref = k.slice(-3)) === '_id' || ref === 'Idx'))) {
+                    continue;
+                  }
+                  if ((base = joined_line_join_table.index)[k] == null) {
+                    base[k] = {};
+                  }
+                  index_in_joined_table = (base1 = joined_line_join_table.index[k])[v] != null ? base1[v] : base1[v] = IndexTable();
+                  IndexTable.insert(index_in_joined_table, line);
                 }
-                index_in_joined_table = (base1 = joined_line_join_table.index[k])[v] != null ? base1[v] : base1[v] = IndexTable();
-                IndexTable.insert(index_in_joined_table, line);
+                line[joined_table_name + '_ref'] = joined_line;
               }
-              line[joined_table_name + '_ref'] = joined_line;
             }
           }
         }
@@ -1695,7 +1697,12 @@
       QueryIterator = (function() {
         function _Class(table1) {
           this.table = table1;
-          this.iterator = Iterator(this.table);
+          if (this.table != null) {
+            this.iterator = Iterator(this.table);
+          } else {
+            this.iterator = Iterator([]);
+            this["continue"] = false;
+          }
         }
 
         _Class.prototype.iterator = null;

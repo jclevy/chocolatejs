@@ -27,7 +27,7 @@ monitor_server = new class
     group: null
 
     "log": (msg) ->
-        Debugate.log "Time:#{Date.now()}: " + msg if @logging
+        Debugate.log "Time:#{new Date().toISOString()}: " + msg if @logging
 
     "exit": ->
         this.log 'CHOCOLATEJS: terminate child process'
@@ -101,8 +101,6 @@ monitor_server = new class
             
             debug_ssl = unless @config.http_only then  ['--ssl-key', dir + '/' + key, '--ssl-cert', dir + '/' + cert] else []
             
-            console.log "debug_ssl:" + debug_ssl
-            
             @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', @config.debug_port ? "8081"].concat debug_ssl)
 
         args = []
@@ -128,11 +126,13 @@ monitor_server = new class
                 self.unwatchFiles()
                 self.start()
                 self.restarting = false
-    
-    "convertFile": _.throttle wait:500, reset:on, (file, file_path, file_base, curdir) ->
-        file_html_name = file_path + file_base + '.html'
-        add_html_file_to_git = not Fs.existsSync file_html_name
+
+    "convertFile": _.throttle wait:500, reset:on, (file, file_path, file_ext, file_base, curdir) ->
+        file_dest_name = file_path + file_base + if file_ext in ['.scss'] then '.css' else '.html'
+        add_dest_file_to_git = not Fs.existsSync file_dest_name
         source = null; code = null; curent_code = null
+
+        self = this
         _.flow (run) ->
             run (end) ->
                 Fs.readFile file, (err, data) -> 
@@ -140,17 +140,21 @@ monitor_server = new class
                     end()
             run (end) ->
                 if source? and source isnt ""
-                    try code = new Chocokup.Panel(source).render(format:yes)
+                    try switch file_ext 
+                        when '.scss' then code = require('node-sass').renderSync(data:source, includePaths:[self.appdir + '/client']).css
+                        else code = new Chocokup.Panel(source).render(format:yes)
+                    catch e then self.log "CHOCOLATEJS (convertFile): #{e}" ; 
+                
                 end()
             run (end) ->
-                Fs.readFile file_html_name, (err, data) -> 
+                Fs.readFile file_dest_name, (err, data) -> 
                     curent_code = data.toString() unless err?
                     end()
             run ->
                 if code? and code isnt "" and code isnt curent_code
-                    Fs.writeFile file_html_name, code, (err) ->
-                        unless err? and add_html_file_to_git 
-                            Child_process.exec 'git add ' + file_html_name, cwd:curdir if add_html_file_to_git
+                    Fs.writeFile file_dest_name, code, (err) ->
+                        unless err? and add_dest_file_to_git 
+                            Child_process.exec 'git add ' + file_dest_name, cwd:curdir if add_dest_file_to_git
         
     "watchFiles": ->
         self = this
@@ -164,7 +168,7 @@ monitor_server = new class
                 if path is folder then return yes
             try stats = Fs.statSync path catch then return yes
             if stats.isDirectory() then return no
-            suffixes = ['.js', '.coffee', '.chocokup', '.ck', '.config.json']
+            suffixes = ['.js', '.coffee', '.chocokup', '.ck', '.scss', '.config.json']
             suffixes.push self.cert_suffix if self.cert_suffix?
             for suffix in suffixes
                 if path.substr(path.length - suffix.length, suffix.length) is suffix then return no
@@ -175,7 +179,7 @@ monitor_server = new class
         on_event = (event, file) ->
             return if self.restarting
             
-            should_restart = if Path.extname(file) in ['.chocokup', '.ck'] then no else yes
+            should_restart = if Path.extname(file) in ['.chocokup', '.ck', '.scss'] then no else yes
             
             if File.hasWriteAccess appdir
             
@@ -196,7 +200,8 @@ monitor_server = new class
                             command = "cp"
                             params = [file, file_js_name]
                         else
-                            self.convertFile file, file_path, file_base, curdir if file_ext in ['.chocokup', '.ck'] and file.indexOf(curdir + '/client/') is 0
+                            if file_ext in ['.chocokup', '.ck', '.scss'] and file.indexOf(curdir + '/client/') is 0
+                                self.convertFile file, file_path, file_ext, file_base, curdir
                             command = param = undefined
 
                     bundles = self.config.build?.bundles ? []
@@ -222,6 +227,7 @@ monitor_server = new class
                         put = (pathname) ->
                             try
                                 file_content = Fs.readFileSync static_lib_dirname + '/' + pathname
+                                
                                 bundle_file += if bundle.with_modules
                                     """
                                     if (typeof window !== "undefined" && window !== null) { window.previousExports = window.exports; window.exports = {} };
@@ -267,7 +273,11 @@ monitor_server = new class
                 if (file.indexOf(appdir + '/client/') is 0 or file.indexOf(appdir + '/general/') is 0) then build file, appdir
                 if (file.indexOf(sysdir + '/client/') is 0 or file.indexOf(sysdir + '/general/') is 0) then build file, sysdir
 
-            self.log 'CHOCOLATEJS: Restarting because of ' + event + ' file at ' + file
+                if self.config.extensions? then for extension of self.config.extensions
+                    if (file.indexOf(appdir + "/node_modules/#{extension}/client/") is 0 or file.indexOf(appdir + "/node_modules/#{extension}/general/") is 0) then build file, appdir + "/node_modules/#{extension}"
+                        
+
+            self.log "CHOCOLATEJS: #{if should_restart then 'Restarting because of' else 'Non restarting with'} " + event + ' file at ' + file
             
             setTimeout (-> self.restart() if should_restart), 10
 

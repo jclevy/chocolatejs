@@ -5,18 +5,37 @@ lateDB = require '../general/latedb'
 {Uuid} = _ = require '../general/chocodash'
 
 Space = _.prototype
-    constructor: (@path = '.', @name = 'reserve.db.log') ->
+    constructor: (@path = '.', name, extensions) ->
+        if name? and typeof name isnt 'string'
+            extensions = name
+            name = null
+        
+        @name = (name ?= 'reserve.db.log')
+        
         Space.spaces[@name] = this
         @db_path = @path + '/' + @name
         @db = lateDB(@name, @path)
         @tables = @db.tables
         @world = @db.world
         
-        constants = {}
+        dbs = {}
+        dbs[@name] = @db
+        @DB = (name, extension) ->
+            dbs[name] ? dbs[name] = lateDB(name, @path + if extension? then "/../node_modules/#{extension}/data" else '')
+        
         @constants = do =>
             pathname = @path + '/constants'
             try constants = require Path.resolve pathname
             constants ?= {}
+
+        if extensions? then for extension, virtual_folder of extensions
+            @constants[extension] = do =>
+                pathname = @path + "/../node_modules/#{extension}/data/constants"
+                try constants = require Path.resolve pathname
+                constants ?= {}
+            
+            @constants[extension].app = @constants
+
         return
 
     adopt:
