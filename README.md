@@ -53,7 +53,7 @@ It includes :
 
 Chocolate integrates:
 
- > [Node.js](http://nodejs.org) - [Coffeescript](http://coffeescript.org) - [Ace](http://ace.ajax.org) - [Letsencrypt](https://github.com/Daplie/node-letsencrypt) - [Http-proxy](https://github.com/nodejitsu/node-http-proxy) - [Jasmine](http://pivotal.github.com/jasmine) - [Reactor](https://github.com/fynyky/reactor.js)
+ > [Node.js](http://nodejs.org) - [Coffeescript](http://coffeescript.org) - [Ace](http://ace.ajax.org) - [Letsencrypt](https://github.com/Daplie/node-letsencrypt) - [Http-proxy](https://github.com/nodejitsu/node-http-proxy) - [Jasmine](https://jasmine.github.io/) - [Reactor](https://github.com/fynyky/reactor.js)
  >
  > [Coffeekup](http://coffeekup.org) - [Showdown](https://github.com/coreyti/showdown) - [Highlight.js](http://softwaremaniacs.org/soft/highlight/en) - [Docco](http://jashkenas.github.com/docco/) - [Ccss](https://github.com/aeosynth/ccss) - [Git](http://git-scm.com) - [Impress](http://bartaz.github.com/impress.js/#/bored)
 
