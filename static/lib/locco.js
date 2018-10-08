@@ -537,6 +537,9 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
             this[name] = item;
           }
         }
+        if (this.embedded == null) {
+          this.embedded = void 0;
+        }
       }
     },
     bind: function(actor, document, name1) {
@@ -556,107 +559,111 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
         }
       }
     },
-    review: function(bin, reaction, end) {
+    review: function(bin, reaction) {
       var check, ref, ref1, ref2, self;
-      self = {
-        bin: bin,
-        props: bin,
-        space: bin != null ? (ref = bin.__) != null ? ref.space : void 0 : void 0,
-        document: this.document,
-        'interface': this,
-        actor: this.actor
-      };
-      check = {
-        defaults: (function(_this) {
-          return function(object, defaults) {
-            var set;
-            if (typeof defaults === 'function') {
-              defaults = defaults.call(self, object);
-            }
-            set = function(o, d) {
-              var dk, dv;
-              for (dk in d) {
-                if (!hasProp.call(d, dk)) continue;
-                dv = d[dk];
-                if ((_.isBasicObject(o[dk]) || o[dk] instanceof Interface.Web.Global) && (_.isBasicObject(dv) || dv instanceof Interface.Web.Global)) {
-                  set(o[dk], dv);
-                } else {
-                  if (o[dk] == null) {
-                    o[dk] = dv;
-                  }
-                }
-              }
-              return o;
-            };
-            return set(object, defaults);
-          };
-        })(this),
-        use: (function(_this) {
-          return function(object, required) {
-            var set;
-            if (typeof required === 'function') {
-              required = required.call(self, object);
-            }
-            set = function(o, d) {
-              var dk, dv;
-              for (dk in d) {
-                if (!hasProp.call(d, dk)) continue;
-                dv = d[dk];
-                if ((_.isBasicObject(o[dk]) || o[dk] instanceof Interface.Web.Global) && (_.isBasicObject(dv) || dv instanceof Interface.Web.Global)) {
-                  set(o[dk], dv);
-                } else {
-                  o[dk] = dv;
-                }
-              }
-              return o;
-            };
-            return set(object, required);
-          };
-        })(this),
-        locks: (function(_this) {
-          return function(keys, locks) {
-            var i, len, lock, ref1;
-            if (locks == null) {
-              return true;
-            }
-            if (typeof locks === 'function') {
-              locks = locks.call(self);
-            }
-            for (i = 0, len = locks.length; i < len; i++) {
-              lock = locks[i];
-              if (!(((ref1 = lock.key) != null ? ref1 : lock) in keys)) {
-                return false;
-              }
-            }
-            return true;
-          };
-        })(this),
-        values: (function(_this) {
-          return function(bin, controller) {
-            return controller.call(self, bin);
-          };
-        })(this)
-      };
       if (reaction.certified == null) {
         reaction.certified = true;
       }
-      if (this.defaults != null) {
-        check.defaults(bin, this.defaults);
-      }
-      if (this.use != null) {
-        check.use(bin, this.use);
+      if (this.embedded != null) {
+        this.embedded.review(bin, reaction);
       }
       if (reaction.certified) {
-        if (this.locks != null) {
-          reaction.certified = check.locks((ref1 = bin.__) != null ? (ref2 = ref1.session) != null ? ref2.keys : void 0 : void 0, this.locks);
+        self = {
+          bin: bin,
+          props: bin,
+          space: bin != null ? (ref = bin.__) != null ? ref.space : void 0 : void 0,
+          document: this.document,
+          'interface': this,
+          actor: this.actor
+        };
+        check = {
+          defaults: (function(_this) {
+            return function(object, defaults) {
+              var set;
+              if (typeof defaults === 'function') {
+                defaults = defaults.call(self, object);
+              }
+              set = function(o, d) {
+                var dk, dv;
+                for (dk in d) {
+                  if (!hasProp.call(d, dk)) continue;
+                  dv = d[dk];
+                  if ((_.isBasicObject(o[dk]) || o[dk] instanceof Interface.Web.Global) && (_.isBasicObject(dv) || dv instanceof Interface.Web.Global)) {
+                    set(o[dk], dv);
+                  } else {
+                    if (o[dk] == null) {
+                      o[dk] = dv;
+                    }
+                  }
+                }
+                return o;
+              };
+              return set(object, defaults);
+            };
+          })(this),
+          use: (function(_this) {
+            return function(object, required) {
+              var set;
+              if (typeof required === 'function') {
+                required = required.call(self, object);
+              }
+              set = function(o, d) {
+                var dk, dv;
+                for (dk in d) {
+                  if (!hasProp.call(d, dk)) continue;
+                  dv = d[dk];
+                  if ((_.isBasicObject(o[dk]) || o[dk] instanceof Interface.Web.Global) && (_.isBasicObject(dv) || dv instanceof Interface.Web.Global)) {
+                    set(o[dk], dv);
+                  } else {
+                    o[dk] = dv;
+                  }
+                }
+                return o;
+              };
+              return set(object, required);
+            };
+          })(this),
+          locks: (function(_this) {
+            return function(keys, locks) {
+              var i, len, lock, ref1;
+              if (locks == null) {
+                return true;
+              }
+              if (typeof locks === 'function') {
+                locks = locks.call(self);
+              }
+              for (i = 0, len = locks.length; i < len; i++) {
+                lock = locks[i];
+                if (!(((ref1 = lock.key) != null ? ref1 : lock) in keys)) {
+                  return false;
+                }
+              }
+              return true;
+            };
+          })(this),
+          values: (function(_this) {
+            return function(bin, controller) {
+              return controller.call(self, bin);
+            };
+          })(this)
+        };
+        if (this.defaults != null) {
+          check.defaults(bin, this.defaults);
+        }
+        if (this.use != null) {
+          check.use(bin, this.use);
+        }
+        if (reaction.certified) {
+          if (this.locks != null) {
+            reaction.certified = check.locks((ref1 = bin.__) != null ? (ref2 = ref1.session) != null ? ref2.keys : void 0 : void 0, this.locks);
+          }
+        }
+        if (reaction.certified) {
+          if (this.check != null) {
+            reaction.certified = check.values(bin, this.check);
+          }
         }
       }
-      if (reaction.certified) {
-        if (this.check != null) {
-          reaction.certified = check.values(bin, this.check);
-        }
-      }
-      return end();
     },
     submit: function(bin) {
       var publisher, reaction;
@@ -708,10 +715,8 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
           };
         };
         run(function(end) {
-          return end["with"](this.review(bin, reaction, end));
-        });
-        run(function(end) {
           var result, self;
+          this.review(bin, reaction);
           if (reaction.certified && (this.steps != null)) {
             self = getSelf.call(this, end);
             result = this.steps.call(self, bin);
@@ -719,7 +724,7 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
           return end["with"](result);
         });
         run(function(end) {
-          var result, self;
+          var redirect, result, self;
           if (reaction.certified) {
             if (this.render != null) {
               self = getSelf.call(this, end);
@@ -729,9 +734,10 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
               }
             }
           } else {
-            if (this.redirect != null) {
+            redirect = this.embedded != null ? this.embedded.redirect : this.redirect;
+            if (redirect != null) {
               self = getSelf.call(this, end);
-              reaction.redirect = typeof this.redirect === 'function' ? this.redirect.call(self) : this.redirect;
+              reaction.redirect = typeof redirect === 'function' ? redirect.call(self) : redirect;
             }
           }
           return end["with"](result);
@@ -808,103 +814,93 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
         return declare_kups;
       };
       this.type = 'App';
-      this.review = function(bin, reaction, end) {
-        _.flow({
-          self: this
-        }, function(run) {
-          run(function(end) {
-            return end["with"](_["super"](Interface.Web.prototype.review, this, bin, reaction, end));
-          });
-          return run(function() {
-            var check_interfaces, checked, checked_kups, scope;
-            if (reaction.certified) {
-              reaction.props = reaction.bin = '';
-              if (reaction.kups === false) {
-                return end();
-              }
-              scope = [];
-              checked = [];
-              checked_kups = {};
-              check_interfaces = function(bin) {
-                var base, declare_kups, defaults, kups, local_kups, name, name1, ref, ref1, ref2, ref3, ref4, scope_, self, service, service_id, service_kup, use;
-                local_kups = [];
-                for (name in bin) {
-                  service = bin[name];
-                  if (service instanceof Interface.Web) {
-                    if (((service != null ? service.defaults : void 0) != null) && indexOf.call(checked, service) < 0) {
-                      checked.push(service);
-                      defaults = service.defaults;
-                      self = {
-                        bin: bin,
-                        props: bin,
-                        space: bin != null ? (ref = bin.__) != null ? ref.space : void 0 : void 0,
-                        document: this.document,
-                        'interface': this,
-                        actor: this.actor
-                      };
-                      if (typeof defaults === 'function') {
-                        defaults = defaults.call(self, bin);
-                      }
-                      scope_ = scope;
-                      scope = [];
-                      kups = checked_kups[service] = check_interfaces.call(this, defaults);
-                      scope = scope_;
-                    } else {
-
-                    }
-                    if (((service != null ? service.use : void 0) != null) && indexOf.call(checked, service) < 0) {
-                      checked.push(service);
-                      use = service.use;
-                      self = {
-                        bin: bin,
-                        props: bin,
-                        space: bin != null ? (ref1 = bin.__) != null ? ref1.space : void 0 : void 0,
-                        document: this.document,
-                        'interface': this,
-                        actor: this.actor
-                      };
-                      if (typeof use === 'function') {
-                        use = use.call(self, bin);
-                      }
-                      scope_ = scope;
-                      scope = [];
-                      kups = checked_kups[service] = check_interfaces.call(this, use);
-                      scope = scope_;
-                    } else {
-                      kups = (ref2 = checked_kups[service]) != null ? ref2 : [];
-                    }
-                    declare_kups = get_declare_kups(kups);
-                    service_id = _.Uuid().replace(/\-/g, '_');
-                    service_kup = new Function('args', "var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;\nthis.keys = [];\nthis.props = this.bin = {__:bin.__};\nthis.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};\nbin_cp = function(b_, _b) {\n  var done = false, k, v;\n  for (k in _b) {\n    if (!hasProp.call(_b, k) || (k === '__')) continue; \n    if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } \n    else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }\n  }\n  return done;\n};\nbin_cp(this.bin, bin);\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction, function(){});\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref3 = (ref4 = service.render) != null ? ref4.overriden : void 0) != null ? ref3 : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;");
-                    if (reaction.kups == null) {
-                      reaction.kups = {};
-                    }
-                    if ((base = reaction.kups)[name1 = "_kup_" + service_id] == null) {
-                      base[name1] = service_kup;
-                    }
-                    local_kups.push({
-                      name: name,
-                      scope: [].concat(scope),
-                      id: service_id
-                    });
-                  } else {
-                    if (name !== '__' && (_.isBasicObject(service) || service instanceof Interface.Web.Global)) {
-                      scope.push(name);
-                      checked.push(service);
-                      local_kups = local_kups.concat(check_interfaces.call(this, service));
-                      scope.pop();
-                    }
+      this.review = function(bin, reaction) {
+        var check_interfaces, checked, checked_kups, scope;
+        _["super"](Interface.Web.prototype.review, this, bin, reaction);
+        if (reaction.certified) {
+          reaction.props = reaction.bin = '';
+          if (reaction.kups === false) {
+            return;
+          }
+          scope = [];
+          checked = [];
+          checked_kups = {};
+          check_interfaces = function(bin) {
+            var base, declare_kups, defaults, kups, local_kups, name, name1, ref, ref1, ref2, ref3, ref4, scope_, self, service, service_id, service_kup, use;
+            local_kups = [];
+            for (name in bin) {
+              service = bin[name];
+              if (service instanceof Interface.Web) {
+                if (((service != null ? service.defaults : void 0) != null) && indexOf.call(checked, service) < 0) {
+                  checked.push(service);
+                  defaults = service.defaults;
+                  self = {
+                    bin: bin,
+                    props: bin,
+                    space: bin != null ? (ref = bin.__) != null ? ref.space : void 0 : void 0,
+                    document: this.document,
+                    'interface': this,
+                    actor: this.actor
+                  };
+                  if (typeof defaults === 'function') {
+                    defaults = defaults.call(self, bin);
                   }
+                  scope_ = scope;
+                  scope = [];
+                  kups = checked_kups[service] = check_interfaces.call(this, defaults);
+                  scope = scope_;
+                } else {
+
                 }
-                return local_kups;
-              };
-              checked.push(bin);
-              reaction.local_kups = check_interfaces.call(this, bin);
+                if (((service != null ? service.use : void 0) != null) && indexOf.call(checked, service) < 0) {
+                  checked.push(service);
+                  use = service.use;
+                  self = {
+                    bin: bin,
+                    props: bin,
+                    space: bin != null ? (ref1 = bin.__) != null ? ref1.space : void 0 : void 0,
+                    document: this.document,
+                    'interface': this,
+                    actor: this.actor
+                  };
+                  if (typeof use === 'function') {
+                    use = use.call(self, bin);
+                  }
+                  scope_ = scope;
+                  scope = [];
+                  kups = checked_kups[service] = check_interfaces.call(this, use);
+                  scope = scope_;
+                } else {
+                  kups = (ref2 = checked_kups[service]) != null ? ref2 : [];
+                }
+                declare_kups = get_declare_kups(kups);
+                service_id = _.Uuid().replace(/\-/g, '_');
+                service_kup = new Function('args', "var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;\nthis.keys = [];\nthis.props = this.bin = {__:bin.__};\nthis.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};\nbin_cp = function(b_, _b) {\n  var done = false, k, v;\n  for (k in _b) {\n    if (!hasProp.call(_b, k) || (k === '__')) continue; \n    if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } \n    else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }\n  }\n  return done;\n};\nbin_cp(this.bin, bin);\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction);\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref3 = (ref4 = service.render) != null ? ref4.overriden : void 0) != null ? ref3 : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;\nreturn reaction.certified;");
+                if (reaction.kups == null) {
+                  reaction.kups = {};
+                }
+                if ((base = reaction.kups)[name1 = "_kup_" + service_id] == null) {
+                  base[name1] = service_kup;
+                }
+                local_kups.push({
+                  name: name,
+                  scope: [].concat(scope),
+                  id: service_id
+                });
+              } else {
+                if (name !== '__' && (_.isBasicObject(service) || service instanceof Interface.Web.Global)) {
+                  scope.push(name);
+                  checked.push(service);
+                  local_kups = local_kups.concat(check_interfaces.call(this, service));
+                  scope.pop();
+                }
+              }
             }
-            return end();
-          });
-        });
-        return end;
+            return local_kups;
+          };
+          checked.push(bin);
+          return reaction.local_kups = check_interfaces.call(this, bin);
+        }
       };
       return this.submit = function(bin) {
         var callback, chocokup_code, ref, ref1, render_code, result;

@@ -2264,6 +2264,6 @@
 
   _module = typeof window !== "undefined" && window !== null ? window : module;
 
-  _module[_module.exports != null ? "exports" : "Chocokup"] = lateDB;
+  _module[_module.exports != null ? "exports" : "LateDB"] = lateDB;
 
 }).call(this);

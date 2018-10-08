@@ -2,6 +2,7 @@
 
 Coffeekup = require './coffeekup'
 _ = require './chocodash'
+litelorem = require './litelorem'
 
 class Chocokup
     constructor: (@params, @content) ->
@@ -37,7 +38,9 @@ class Chocokup
     
             # return verified arguments
             {id_class, attributes, content}
-                
+
+        lorem: litelorem
+
         css : (param) ->
             compile = (rules, helpers) ->
                 result = ''

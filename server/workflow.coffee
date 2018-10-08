@@ -603,7 +603,7 @@ class World
             what_pathname = what
             if (app_pathname + (if what[0] isnt '/' then '/' else '' ) + what).indexOf(sys_pathname) is 0 then what_pathname = '/-' + (app_pathname + (if what[0] isnt '/' then '/' else '' ) + what).substr sys_pathname.length
             what_path = what_pathname.split '/'
-            how = query.dict['how'] ? 'web'
+            how = query.dict['how'] ? 'web' # web, edit, help, manifest, raw, json
             backdoor_key = if path[1] is '!' then path[2] else ''
             where_index = 1 + if backdoor_key isnt '' then 2 else 0
             where_path = path[(where_index + if path[where_index] is '-' then 1 else 0)..]
@@ -612,7 +612,7 @@ class World
             
             session = sessions.get(request)
             websocket = websockets.get(request)
-            
+
             {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket}
 
         exchange = (bin, request, response) ->

@@ -1395,4 +1395,4 @@ lateDB = (name, path) ->
 lateDB.exists = -> Log.exists.apply Log, arguments
 
 _module = window ? module
-_module[if _module.exports? then "exports" else "Chocokup"] = lateDB
+_module[if _module.exports? then "exports" else "LateDB"] = lateDB

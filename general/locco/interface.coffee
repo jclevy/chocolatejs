@@ -34,6 +34,7 @@ Interface = _.prototype
             @render = service.action if service.action? # 'action' is synonym to 'render'
             
             @[name] = item for name, item of service when name not in ['defaults', 'use', 'locks', 'check', 'steps'] # service, actor, document, update...
+            @embedded ?= undefined
             
         return
     
@@ -45,54 +46,56 @@ Interface = _.prototype
                 when _.Type.Function then @observe @update 
                 when _.Type.String then @observe (html) => $(@update).html html; return
     
-    review: (bin, reaction, end) ->
-        self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
-        check =
-            # `defaults` ensure default values are set in the bin/props passed to the interface
-            defaults: (object, defaults) =>
-                if typeof defaults is 'function' then defaults = defaults.call self, object
-                
-                set = (o, d) ->
-                    for own dk,dv of d
-                        if (_.isBasicObject(o[dk]) or o[dk] instanceof Interface.Web.Global) and (_.isBasicObject(dv) or dv instanceof Interface.Web.Global) then set o[dk], dv
-                        else o[dk] = dv if not o[dk]? 
-                    o
-                   
-                set object, defaults
-        
-            # `use` ensure required values are set to a specific value in the bin/props passed to the interface
-            use: (object, required) =>
-                if typeof required is 'function' then required = required.call self, object
-                
-                set = (o, d) ->
-                    for own dk,dv of d
-                        if (_.isBasicObject(o[dk]) or o[dk] instanceof Interface.Web.Global) and (_.isBasicObject(dv) or dv instanceof Interface.Web.Global) then set o[dk], dv
-                        else o[dk] = dv
-                    o
-                   
-                set object, required
-        
-            # `locks` ensure keys are provided for every present lock (a lock is a uid or an object id and key fields)
-            locks: (keys, locks) =>
-                return yes unless locks?
-                if typeof locks is 'function' then locks = locks.call self
-                
-                for lock in locks then return no unless (lock.key ? lock) of keys
-                
-                yes
-                
-            # `values` ensure values at the right scale, in the right range...
-            values: (bin, controller) => controller.call self, bin
-        
+    review: (bin, reaction) ->
         reaction.certified ?= yes
-
-        check.defaults bin, @defaults if @defaults?
-        check.use bin, @use if @use?
-        if reaction.certified then reaction.certified = check.locks bin.__?.session?.keys, @locks if @locks?
-        if reaction.certified then reaction.certified = check.values bin, @check if @check?
         
-        # check_services()
-        end()
+        if @embedded? then @embedded.review bin, reaction
+        
+        if reaction.certified
+            self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
+            check =
+                # `defaults` ensure default values are set in the bin/props passed to the interface
+                defaults: (object, defaults) =>
+                    if typeof defaults is 'function' then defaults = defaults.call self, object
+                    
+                    set = (o, d) ->
+                        for own dk,dv of d
+                            if (_.isBasicObject(o[dk]) or o[dk] instanceof Interface.Web.Global) and (_.isBasicObject(dv) or dv instanceof Interface.Web.Global) then set o[dk], dv
+                            else o[dk] = dv if not o[dk]? 
+                        o
+                       
+                    set object, defaults
+            
+                # `use` ensure required values are set to a specific value in the bin/props passed to the interface
+                use: (object, required) =>
+                    if typeof required is 'function' then required = required.call self, object
+                    
+                    set = (o, d) ->
+                        for own dk,dv of d
+                            if (_.isBasicObject(o[dk]) or o[dk] instanceof Interface.Web.Global) and (_.isBasicObject(dv) or dv instanceof Interface.Web.Global) then set o[dk], dv
+                            else o[dk] = dv
+                        o
+                       
+                    set object, required
+            
+                # `locks` ensure keys are provided for every present lock (a lock is a uid or an object id and key fields)
+                locks: (keys, locks) =>
+                    return yes unless locks?
+                    if typeof locks is 'function' then locks = locks.call self
+                    
+                    for lock in locks then return no unless (lock.key ? lock) of keys
+                    
+                    yes
+                    
+                # `values` ensure values at the right scale, in the right range...
+                values: (bin, controller) => controller.call self, bin
+            
+            check.defaults bin, @defaults if @defaults?
+            check.use bin, @use if @use?
+            if reaction.certified then reaction.certified = check.locks bin.__?.session?.keys, @locks if @locks?
+            if reaction.certified then reaction.certified = check.values bin, @check if @check?
+        
+        return
         
     submit: (bin = {}) ->
         publisher = new _.Publisher
@@ -114,10 +117,9 @@ Interface = _.prototype
                         
                 { bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor, reaction, respond, transmit }
                 
-            run (end) -> 
-                end.with @review bin, reaction, end
-            
             run (end) ->
+                @review bin, reaction
+                
                 if reaction.certified and @steps?
                     self = getSelf.call this, end
                     result = @steps.call self, bin
@@ -129,10 +131,11 @@ Interface = _.prototype
                         self = getSelf.call this, end
                         result = @render.call self, bin
                         reaction.props = reaction.bin = result unless reaction.bin? or result is end.later
-                else
-                    if @redirect? 
+                else 
+                    redirect = if @embedded? then @embedded.redirect else @redirect
+                    if redirect? 
                         self = getSelf.call this, end
-                        reaction.redirect = if typeof @redirect is 'function' then @redirect.call self else @redirect
+                        reaction.redirect = if typeof redirect is 'function' then redirect.call(self) else redirect
                         
                 end.with result
 
@@ -170,98 +173,92 @@ Interface.Web = _.prototype inherit:Interface, use: ->
     
     @type = 'App'
     
-    @review = (bin, reaction, end) ->
-        
-        _.flow self:@, (run) ->
-            run (end) -> 
-                end.with _.super Interface.Web::review, @, bin, reaction, end
+    @review = (bin, reaction) ->
+        _.super Interface.Web::review, @, bin, reaction
 
-            run ->
-                if reaction.certified
-                    reaction.props = reaction.bin = ''
-                    return end() if reaction.kups is false
-                    
-                    scope = []
-                    checked = []
-                    checked_kups = {}
-                    
-                    check_interfaces = (bin) ->
-                        local_kups = []
-                        for name, service of bin
-                            if service instanceof Interface.Web
-                                if service?.defaults? and service not in checked
-                                    checked.push service
-                                    defaults = service.defaults
-                                    self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
-                                    if typeof defaults is 'function' then defaults = defaults.call self, bin
-                                    scope_ = scope
-                                    scope = []
-                                    kups = checked_kups[service] = check_interfaces.call this, defaults
-                                    scope = scope_
-                                else 
-                                if service?.use? and service not in checked
-                                    checked.push service
-                                    use = service.use
-                                    self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
-                                    if typeof use is 'function' then use = use.call self, bin
-                                    scope_ = scope
-                                    scope = []
-                                    kups = checked_kups[service] = check_interfaces.call this, use
-                                    scope = scope_
-                                else 
-                                    kups = checked_kups[service] ? []
-    
-                                declare_kups = get_declare_kups kups
-    
-                                service_id = _.Uuid().replace /\-/g, '_'
-                                service_kup = new Function 'args', """
-                                    var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;
-                                    try {this.interface = bin#{if scope.length > 0 then '.' + scope.join('.') else ''}.#{name};} 
-                                    catch (error) { try {this.interface = bin.#{name};} catch (error) {}; };
-                                    this.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;
-                                    this.keys = [];
-                                    this.props = this.bin = {__:bin.__};
-                                    this.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};
-                                    bin_cp = function(b_, _b) {
-                                      var done = false, k, v;
-                                      for (k in _b) {
-                                        if (!hasProp.call(_b, k) || (k === '__')) continue; 
-                                        if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } 
-                                        else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }
-                                      }
-                                      return done;
-                                    };
-                                    bin_cp(this.bin, bin);
-                                    if (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}
-                                    reaction = {kups:false};
-                                    if (this.interface != null)
-                                        this.interface.review(this.bin, reaction, function(){});
-                                    if (reaction.certified) {
-                                        #{declare_kups.join ';\n'};
-                                        with (this.locals) {(#{(service.render?.overriden ? service.render).toString()}).call(this, this.bin);}
-                                    }
-                                    this.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;
-                                    """
-    
-                                reaction.kups ?= {}
-                                reaction.kups["_kup_#{service_id}"] ?= service_kup
-                                    
-                                local_kups.push {name, scope:[].concat(scope), id:service_id}
-                            else
-                                if name isnt '__' and (_.isBasicObject(service) or service instanceof Interface.Web.Global)
-                                    scope.push name
-                                    checked.push service
-                                    local_kups = local_kups.concat check_interfaces.call this, service
-                                    scope.pop()
-    
-                        return local_kups
-     
-                    checked.push bin
-                    reaction.local_kups = check_interfaces.call this, bin
-                end()
-        
-        end
+        if reaction.certified
+            reaction.props = reaction.bin = ''
+            return if reaction.kups is false
+            
+            scope = []
+            checked = []
+            checked_kups = {}
+            
+            check_interfaces = (bin) ->
+                local_kups = []
+                for name, service of bin
+                    if service instanceof Interface.Web
+                        if service?.defaults? and service not in checked
+                            checked.push service
+                            defaults = service.defaults
+                            self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
+                            if typeof defaults is 'function' then defaults = defaults.call self, bin
+                            scope_ = scope
+                            scope = []
+                            kups = checked_kups[service] = check_interfaces.call this, defaults
+                            scope = scope_
+                        else 
+                        if service?.use? and service not in checked
+                            checked.push service
+                            use = service.use
+                            self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
+                            if typeof use is 'function' then use = use.call self, bin
+                            scope_ = scope
+                            scope = []
+                            kups = checked_kups[service] = check_interfaces.call this, use
+                            scope = scope_
+                        else 
+                            kups = checked_kups[service] ? []
 
+                        declare_kups = get_declare_kups kups
+
+                        service_id = _.Uuid().replace /\-/g, '_'
+                        service_kup = new Function 'args', """
+                            var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;
+                            try {this.interface = bin#{if scope.length > 0 then '.' + scope.join('.') else ''}.#{name};} 
+                            catch (error) { try {this.interface = bin.#{name};} catch (error) {}; };
+                            this.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;
+                            this.keys = [];
+                            this.props = this.bin = {__:bin.__};
+                            this.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};
+                            bin_cp = function(b_, _b) {
+                              var done = false, k, v;
+                              for (k in _b) {
+                                if (!hasProp.call(_b, k) || (k === '__')) continue; 
+                                if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } 
+                                else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }
+                              }
+                              return done;
+                            };
+                            bin_cp(this.bin, bin);
+                            if (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}
+                            reaction = {kups:false};
+                            if (this.interface != null)
+                                this.interface.review(this.bin, reaction);
+                            if (reaction.certified) {
+                                #{declare_kups.join ';\n'};
+                                with (this.locals) {(#{(service.render?.overriden ? service.render).toString()}).call(this, this.bin);}
+                            }
+                            this.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;
+                            return reaction.certified;
+                            """
+
+                        reaction.kups ?= {}
+                        reaction.kups["_kup_#{service_id}"] ?= service_kup
+                            
+                        local_kups.push {name, scope:[].concat(scope), id:service_id}
+                    else
+                        if name isnt '__' and (_.isBasicObject(service) or service instanceof Interface.Web.Global)
+                            scope.push name
+                            checked.push service
+                            local_kups = local_kups.concat check_interfaces.call this, service
+                            scope.pop()
+
+                return local_kups
+
+            checked.push bin
+            reaction.local_kups = check_interfaces.call this, bin
+        
     @submit = (bin) ->
         unless @render?.overriden
             render_code = @render ? ->

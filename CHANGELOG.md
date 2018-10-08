@@ -1,3 +1,77 @@
+## v0.0.28 - (2018-10-08)
+
+--------------
+
+NEW FEATURES
+
+ - `general/litelorem`: added basic `lorem` service that can generate `word`, `sentence`, `paragraph`, `image`, `face`
+ 
+    lorem.word(): generates one word
+    
+    lorem.words(count): generates `count` words
+    
+    lorem.sentence(): generates one sentence (5 to 10 words each), starting with an upper case and ending with a point.
+    
+    lorem.sentences(count): generates `count` sentences
+    
+    lorem.paragraph(): generates one paragraph (10 to 20 sentences each), separated by a newline char (\\n)
+    
+    lorem.paragraphs(count): generates `count` paragraphs
+    
+    lorem.image(): generates a random image (400x200px)
+    
+    lorem.image(width:200, height:300): generates a random image (200x400)
+    
+    lorem.image(type:'arch'): generates a random architecture image. Type can be: `animals`, `arch`, `nature`, `people`, `tech`
+    
+    lorem.image(type:'people', color:'sepia'): generates a random people image in sepia (with sepia a `type` has to be provided). 
+    
+    lorem.image(color:'grayscale'): generates a random image in gray scale.
+    
+    lorem.image(blur:true): generates a random blurred image (with blurred image no `type` can be provided).
+    
+    lorem.image(gravity:'east'): generates a random image cropped to the east if image is wider than high (with gravity image no `type` can be provided). Gravity can be `north`, `east`, `south`, `west`, `center`
+
+ - `general/chocokup`: added lorem service as a native keyword in Chocokup
+
+        e.g.: 
+            
+    >  div lorem.words(4)   
+    >  
+    >   `<div>volutpat odio facilisis mauris</div>`
+                    
+    >  div lorem.sentences(2)
+    >  
+    >   `<div>Malesuada bibendum arcu vitae elementum curabitur vitae nunc. Nec sagittis aliquam malesuada bibendum arcu vitae elementum.</div>  `
+                    
+    >  p para for para in lorem.paragraphs(2).split('\n')
+    >  
+    >   `<p>Vitae tortor condimentum lacinia quis vel. Dignissim sodales ut eu sem integer vitae. Arcu vitae elementum curabitur vitae nunc sed velit dignissim sodales. Facilisis leo vel fringilla est ullamcorper. Felis donec et odio pellentesque. Sem integer vitae justo eget. Dignissim diam quis enim lobortis. Pellentesque diam volutpat commodo sed egestas egestas fringilla phasellus faucibus. Elementum curabitur vitae nunc sed velit dignissim sodales ut. Sodales ut eu sem integer. Velit dignissim sodales ut eu sem integer. Ut eu sem integer vitae justo. Nec sagittis aliquam malesuada bibendum arcu. Lobortis scelerisque fermentum dui faucibus in ornare. Volutpat odio facilisis mauris sit amet massa vitae tortor. Odio tempor orci dapibus ultrices in iaculis nunc sed augue.</p>`  
+    >   `<p>Magna fermentum iaculis eu non. Malesuada bibendum arcu vitae elementum curabitur vitae nunc sed velit. Eu sem integer vitae justo eget magna fermentum iaculis eu. Tempor orci dapibus ultrices in iaculis nunc sed augue lacus. Quis enim lobortis scelerisque fermentum dui faucibus in ornare. Nulla facilisi etiam dignissim diam quis enim lobortis. Odio tempor orci dapibus ultrices in iaculis nunc sed. Fringilla urna porttitor rhoncus dolor purus non enim. Ut aliquam purus sit amet luctus venenatis lectus magna fringilla. Orci dapibus ultrices in iaculis nunc sed augue. Sed velit dignissim sodales ut eu sem integer vitae justo. Congue eu consequat ac felis donec.</p>`
+    >
+    
+    >  img src:lorem.image()
+    >
+    >   `<img src="https://picsum.photos/400/200?cache=4801568232095026" />`
+                
+    >  img src:lorem.face('woman')
+    >  
+    >   `<img src="https://randomuser.me/api/portraits/women/43.jpg" />`
+    
+
+ - `general/chocodash`: added `_.slugify` service that converts a string to version that is compatible with URL
+ - `.ck`, `.chocokup` files can be served from `static` folder so that you can write an Html-like file using `Chocokup`
+
+UPDATES
+ - `server/interface`: `masterInterface` can now manage page interface defined by a simple function that returns a string
+ - `server/interface`: `defaultExchange` now has an `extension` parameter to set an extension name if `defaultExchange` service is inside
+ - `server/interface` and `general/locco/interface`: modified the `review` service to enable embedded interface to act as access controller for tha MasterItem interface
+ - updated formidable to v1.2.1
+
+FIXED BUGS
+ - `server/monitor`: added the `.scss` file's folder to the `includePaths` Sass compiler command so that other `scss` files present in the same folder could be found by the compiler.
+ - `server/interface`: `masterInterface` was not found if placed in an application's extension folder
+
 ## v0.0.27 - (2018-03-22)
 
 --------------

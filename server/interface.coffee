@@ -37,7 +37,7 @@ exports.exchange = (bin, send) ->
             console.log.apply console, arguments
             try websocket?.send JSON.stringify console:log:(if arguments.length is 1 then arguments[0] else arguments)
 
-    context = {space, workflow, request, response, region, where, what, params, websocket, session, sysdir, appdir, datadir, config, console:console_}
+    context = {space, workflow, request, response, region, where, what, params, arguments:[], websocket, session, sysdir, appdir, datadir, config, console:console_}
 
     config = config.clone()
     
@@ -64,12 +64,10 @@ exports.exchange = (bin, send) ->
                 response_headers['Cache-Control'] = 'max-age=0'
                 response_headers['Expires'] = new Date().toUTCString()
                 
-            when 'raw', 'json'
+            when 'raw', 'json', 'json-late'
                 if result instanceof Interface.Reaction then delete result.props
-                result = JSON.stringify result unless as is 'raw' and Object.prototype.toString.call(result) is '[object String]'
-        
-            when 'json-late'
-                result = _.stringify result
+                unless as is 'raw' and Object.prototype.toString.call(result) is '[object String]'
+                    result = if as is 'json-late' then _.stringify(result) else JSON.stringify(result)
         
             when 'web', 'edit', 'help'
                 # render if instance of Chocokup
@@ -192,16 +190,19 @@ exports.exchange = (bin, send) ->
                                 when '.js' then  "text/javascript"
                                 when '.manifest' then "text/cache-manifest"
                                 when '.ttf' then "font/ttf"
-                                when '.html', '.md', '.markdown', '.cd', '.chocodown' then "text/html"
+                                when '.html', '.md', '.markdown', '.cd', '.chocodown', '.ck', '.chocokup' then "text/html"
                                 when '.pdf' then  "application/pdf"
                                 when '.gif' then  "image/gif"
                                 when '.png' then  "image/png"
                                 when '.jpg', '.jpeg' then  "image/jpeg"
                             
                             respondStatic 200, headers, switch extension
-                                when '.md', '.markdown', '.cd', '.chocodown' 
+                                when '.md', '.markdown', '.cd', '.chocodown', '.ck', '.chocokup'
                                     try
-                                        html = new Chocodown.converter().makeHtml file.toString()
+                                        if extension in ['.ck', '.chocokup']
+                                            try html = new Chocodown.Chocokup.Panel(file.toString()).render() catch e then html = e.message
+                                        else 
+                                            html = new Chocodown.converter().makeHtml file.toString()
                                         if html.indexOf('<body') < 0 then html = '<html><head><meta http-equiv="content-type" content="text/html; charset=utf-8" /></head><body>' + html + '</body></html>' else html
                                     catch error
                                         'Error loading ' + where + ': ' + error
@@ -259,7 +260,11 @@ exports.exchange = (bin, send) ->
         __ = context
         
         what_is_public = no
-        so_is_go_public = no
+        is_classic_web_request = do ->
+            return no if request.headers['x-requested-with'] is 'XMLHttpRequest'
+            return yes if so is 'do' and how is 'web'
+            return yes if so is 'go' and how is 'web' and where isnt 'ping'
+            no
 
         switch so
             # if so is 'do' and what is public then authorize access  
@@ -272,7 +277,6 @@ exports.exchange = (bin, send) ->
             # if so is 'go' and where has a public interface then do use interface
             when 'go' 
                 if how is 'web' and where isnt 'ping'
-                    so_is_go_public = yes
                     {method, args, self, klass, property, error} = getMethodInfo { required }
                     unless error
                         if method? then so = 'do' ; what = undefined ; what_is_public = yes
@@ -374,7 +378,7 @@ exports.exchange = (bin, send) ->
                     File.moveFile(what, where, __).on 'end', (err) ->
                         if err? then respond err.toString() else respondOnMoveFile()
                             
-                # Take care of the `eval` and `do` actions
+            # Take care of the `eval` and `do` actions
             when 'do', 'eval'
                 if so is 'eval'
                     args = [(if how is 'raw' then 'json' else 'html'), Path.resolve(__dirname + '/' + required), context]
@@ -388,33 +392,46 @@ exports.exchange = (bin, send) ->
                     if '__' in expected_args then params['__'] = context
                     args = []
                     
-                    if so_is_go_public and region is 'app' and self instanceof Interface and config.masterInterfaces?
+                    if is_classic_web_request and region is 'app' and config.masterInterfaces?
                         for masterInterface in config.masterInterfaces
-                            valid_directory = no
+                            doMasterInterface = no
                             if _.type(masterInterface.directory) is _.Type.Array
                                 for directory in masterInterface.directory
-                                    if where.indexOf(directory + '/') is 0 then valid_directory = yes ; break
-                            else if masterInterface.directory? is false or masterInterface.directory is '' or where.indexOf(masterInterface.directory + '/') is 0 then valid_directory = yes
+                                    if where.indexOf(directory + '/') is 0 then doMasterInterface = yes ; break
+                            else if masterInterface.directory? is false or masterInterface.directory is '' or where.indexOf(masterInterface.directory + '/') is 0 then doMasterInterface = yes
                             
-                            if valid_directory
-                                params[masterInterface.prop] = self
-                                self = require((if masterInterface.extension? then masterInterface.extension + '/' else '') + masterInterface.where)[masterInterface.what]
+                            if doMasterInterface
+                                if self instanceof Interface 
+                                    params[masterInterface.prop] = self
+                                else
+                                    self_isnt_interface = true
+                                    masterMethod = method
+                                    params[masterInterface.prop] = new Interface.Web.Html
+                                        use: -> {masterMethod}
+                                        render: -> 
+                                            text @props.masterMethod.apply undefined, @props.__.arguments
+                                
+                                self = require('../' + (if region is 'system' or appdir is '.' then '' else appdir + '/' ) + (if masterInterface.extension? then "node_modules/#{masterInterface.extension}/" else '') + masterInterface.where)[masterInterface.what]
+                                self.embedded = params[masterInterface.prop]
                                 method = self.submit
         
-                    if expected_args[0] is '{__}'
+                    if expected_args[0] is '{__}' or self_isnt_interface
                         bin = {__:context}
                         bin[k] = v for k, v of params when k isnt '__'
                         args.push bin
-                    else
-                        args_index = 0
-                        for arg_name in expected_args
-                            args.push if params[arg_name] isnt undefined then params[arg_name] else params[ '__' + args_index++ ]
-                        while args_index >= 0
-                           if params['__' + args_index] is undefined then args_index = -1
-                           else args.push params[ '__' + args_index++ ]
+
+                    args_index = 0
+                    for arg_name in expected_args
+                        context.arguments.push if params[arg_name] isnt undefined then params[arg_name] else params[ '__' + args_index++ ]
+                    while args_index >= 0
+                       if params['__' + args_index] is undefined then args_index = -1
+                       else context.arguments.push params[ '__' + args_index++ ]
+
+                    if expected_args[0] isnt '{__}'
+                        args.push(arg) for arg in context.arguments
 
                 produced = method.apply self, args
-                
+
                 if produced instanceof _.Publisher
                     produced.subscribe (answer) -> respond answer
                 else if produced instanceof Events.EventEmitter
@@ -437,7 +454,8 @@ exports.exchange = (bin, send) ->
             old_params = params
             params_ = __0:where, __1:what
             index = 2 ; for k,v of params then params_['__' + index++] = v
-            {where, what, params} = _.clone {}, config.defaultExchange
+            {extension, where, what, params} = _.clone {}, config.defaultExchange
+            if extension? then where = "node_modules/#{extension}/#{where}"
             so = 'do' if what?
             what ?= ''
             if params? then for k,v of params then params[k] = (if _.type(v) is _.Type.Array then (if v.length is 1 then params_["__#{v[0]}"] else (params_["__#{i}"] for i in v)) else v)

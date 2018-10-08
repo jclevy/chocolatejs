@@ -41,6 +41,8 @@ It includes :
 
  - **liteJq** -- a lite jQuery-compatible library
 
+ - **liteLorem** -- a basic lorem (fake words, sentences and images) library
+
  - an automatic **free SSL certificate** service with Let's Encrypt
 
  - a simple **reverse proxy** service
@@ -178,6 +180,7 @@ See history in **CHANGELOG.md** file
    - [Usage](#Choco-Specolate-Usage)
  - [Doccolate](#Choco-Doccolate)
  - [litejQ](#Choco-litejQ)
+ - [liteLorem](#Choco-liteLorem)
  - [Newnotes](#Choco-Newnotes)
    - [Newnotes-Usage](#Choco-Newnotes-Usage)
    - [Impress.js with Newnotes !](#Choco-Newnotes-Impress)
@@ -1608,6 +1611,16 @@ You can also write Css code using Chocokup:
 
 This will display a basic Calculator 
 
+Chocokup also provides a basic `lorem` service that can generate `word`, `sentence`, `paragraph`, `image` and `face`.
+    
+`lorem.word`, `lorem.words`, `lorem.sentence`, `lorem.sentences`, `lorem.paragraph`, `lorem.paragraphs` generate text and so can be used anywhere a text is expected.
+    
+>   e.g.: div src:lorem.sentences(3) 
+
+`lorem.image` and `lorem.face` generate an url that can be used in a `ìmg` tag as its `src` property value.
+    
+>   e.g.: img src:lorem.image('woman') 
+    
 &nbsp;
 
 ### <a name="Choco-Chocokup-Usage"></a> Usage [⌂](#Choco-Summary) 
@@ -1892,6 +1905,38 @@ It knows:
 &nbsp;
 
 ---
+
+## <a name="Choco-liteLorem"></a> liteLorem [⌂](#Choco-Summary) 
+
+liteLorem is a basic lorem (fake words, sentences and images) library that can be used anywhere and that is included in chocokup
+    
+    lorem.word(): generates one words
+    
+    lorem.words(count): generates `count` words
+    
+    lorem.sentence(): generates one sentence (5 to 10 words each), starting with an upper case and ending with a point.
+    
+    lorem.sentences(count): generates `count` sentences
+    
+    lorem.paragraphs(): generates one paragraph (10 to 20 sentences each), separated by a newline char (\\n)
+    
+    lorem.paragraphs(count): generates `count` paragraphs
+    
+    lorem.image(): generates a random image (400x200px)
+    
+    lorem.image(width:200, height:300): generates a random image (200x400)
+    
+    lorem.image(type:'arch'): generates a random architecture image. Type can be: `animals`, `arch`, `nature`, `people`, `tech`
+    
+    lorem.image(type:'people', color:'sepia'): generates a random people image in sepia (with sepia a `type` has to be provided). 
+    
+    lorem.image(color:'grayscale'): generates a random image in gray scale.
+    
+    lorem.image(blur:true): generates a random blurred image (with blurred image no `type` can be provided).
+    
+    lorem.image(gravity:'east'): generates a random image cropped to the east if image is wider than high (with gravity image no `type` can be provided). Gravity can be `north`, `east`, `south`, `west`, `center`
+
+--- 
 
 ## <a name="Choco-Newnotes"></a> Newnotes [⌂](#Choco-Summary) 
 

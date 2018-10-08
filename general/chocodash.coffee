@@ -1001,6 +1001,61 @@ _.Publisher = Publisher = _.prototype
                 self.unreported.length = 0
             setTimeout notify, 0 
 
+# slugify function
+_.slugify = (text) ->
+  # Use hash map for special characters 
+  specialChars = 
+    'à': 'a'
+    'ä': 'a'
+    'á': 'a'
+    'â': 'a'
+    'æ': 'a'
+    'å': 'a'
+    'ë': 'e'
+    'è': 'e'
+    'é': 'e'
+    'ê': 'e'
+    'î': 'i'
+    'ï': 'i'
+    'ì': 'i'
+    'í': 'i'
+    'ò': 'o'
+    'ó': 'o'
+    'ö': 'o'
+    'ô': 'o'
+    'ø': 'o'
+    'ù': 'o'
+    'ú': 'u'
+    'ü': 'u'
+    'û': 'u'
+    'ñ': 'n'
+    'ç': 'c'
+    'ß': 's'
+    'ÿ': 'y'
+    'œ': 'o'
+    'ŕ': 'r'
+    'ś': 's'
+    'ń': 'n'
+    'ṕ': 'p'
+    'ẃ': 'w'
+    'ǵ': 'g'
+    'ǹ': 'n'
+    'ḿ': 'm'
+    'ǘ': 'u'
+    'ẍ': 'x'
+    'ź': 'z'
+    'ḧ': 'h'
+    '·': '-'
+    '/': '-'
+    '_': '-'
+    ',': '-'
+    ':': '-'
+    ';': '-'
+  text.toString().toLowerCase().replace(/\s+/g, '-').replace(/./g, (target, index, str) ->
+    specialChars[target] or target
+  ).replace(/&/g, '-and-').replace(/[^\w\-]+/g, '').replace(/\-\-+/g, '-').replace(/^-+/, '').replace /-+$/, ''
+
+
 # cuid.js
 # Collision-resistant UID generator for browsers and node.
 # Sequential for fast db lookups and recency sorting.

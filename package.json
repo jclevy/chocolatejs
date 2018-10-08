@@ -1,6 +1,6 @@
 {
   "name": "chocolate",
-  "version": "0.0.27",
+  "version": "0.0.28",
   "description": "A full stack Node.js web framework built using Coffeescript",
   "preferGlobal": "true",
   "keywords": [
@@ -39,7 +39,7 @@
     "bufferstream": "0.6.2",
     "chokidar": "1.4.3",
     "coffee-script": "1.12.6",
-    "formidable": "1.0.17",
+    "formidable": "1.2.1",
     "jasmine-node": "1.5.0",
     "letsencrypt": "1.4.4",
     "microtime": "2.1.3",

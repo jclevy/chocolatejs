@@ -141,7 +141,7 @@ monitor_server = new class
             run (end) ->
                 if source? and source isnt ""
                     try switch file_ext 
-                        when '.scss' then code = require('node-sass').renderSync(data:source, includePaths:[self.appdir + '/client']).css
+                        when '.scss' then code = require('node-sass').renderSync(data:source, includePaths:[Path.dirname(file), self.appdir + '/client']).css
                         else code = new Chocokup.Panel(source).render(format:yes)
                     catch e then self.log "CHOCOLATEJS (convertFile): #{e}" ; 
                 
