@@ -54,6 +54,8 @@ exports.access = (where, backdoor_key, __) ->
 
 # `hasWriteAccess` checks if we have write access on path
 exports.hasWriteAccess = (path) ->
+    return true if process.platform is 'win32' # temporary limitation on Windows platform
+    
     stats = Fs.statSync Path.resolve (if path? then path else '.')
         
     canWrite = (owner, inGroup, mode) ->
@@ -271,20 +273,30 @@ exports.grep = (pattern, with_case, show_details, __) ->
     
     event = new Events.EventEmitter
     results = []
-    params = ['-r', '--include', "'*.coffee'", '--include', "'*.js'", '--include', "'*.css'", '--include', "'*.markdown'", '--include', "'*.md'", pattern, __?.appdir ? '.',]
-    unless with_case then params = ['-i'].concat params
-    unless show_details then params = ['-l'].concat params else params = ['-n'].concat params
+    if process.platform is 'win32'
+        params = ['/R', '/S', pattern, (__?.appdir ? '.') + '\\*']
+        unless with_case then params = ['/I'].concat params
+        unless show_details then params = ['/M'].concat params
+    else
+        params = ['-r', '--include', "'*'", pattern, __?.appdir ? '.',]
+        unless with_case then params = ['-i'].concat params
+        unless show_details then params = ['-l'].concat params else params = ['-n'].concat params
     
-    command = (['grep'].concat params).join(' ')
-    unless show_details then command += " | while read line; do stat -c '%n %Y' $line; done"
+    command = ([if process.platform is 'win32' then 'findstr' else 'grep'].concat params).join(' ')
+    if process.platform isnt 'win32' then unless show_details then command += " | while read line; do stat -c '%n %Y' $line; done"
+    
     grep  = require('child_process').exec command
-    grep.stdout.on 'data', (data) -> results.push data
+    grep.stdout.on 'data', (data) ->
+        results = results.concat data.split(if process.platform is 'win32' then '\r\n' else '\n')
     grep.stderr.on 'data', (data) ->
     grep.on 'exit', (code) ->
+        results = results.filter (item) ->
+            [path] = item.toString().split ' '
+            Path.extname(path) in ['.coffee', '.js', '.css', '.scss', '.json', '.txt', '.md', '.markdown', '.ck', '.chockup', '.log' ]
         results = results.map (item) ->
             [path, stamp] = item.toString().split ' '
-            (Path.relative (__?.appdir ? '.'), path) + ' ' + stamp
-        event.emit 'end', results.join ''
+            (Path.relative (__?.appdir ? '.'), path).replace(/\\/g, '/') + ' ' + stamp
+        event.emit 'end', results.join '\n'
 
     event
 
@@ -331,9 +343,40 @@ exports.getAvailableCommits = (path, __) ->
     handler.on 'item', (commit) ->
         (commits ?= []).push sha:commit.sha, date:commit.author.date, message:commit.message, name:commit.name, repo:repo.cwd
     handler.on 'close', ->
-        event.emit 'end', commits ? '{}'
+        event.emit 'end', commits ? '[]'
             
     event
+
+#### getGitStatus
+
+# `getGitStatus` return current Git status for current git repository
+exports.getGitStatus = (path, __) ->
+    status = null
+    event = new Events.EventEmitter
+    repo = resolve_repo path, __
+    handler = new Git(cwd:repo.cwd).status()
+    handler.on 'item', (response) ->
+        (status ?= []).push response
+    handler.on 'close', ->
+        event.emit 'end', status ? '[]'
+            
+    event
+
+#### getFileDiff
+
+# `getFileDiff` return current file Git diff
+exports.getFileDiff = (path, __) ->
+    diff = null
+    event = new Events.EventEmitter
+    repo = resolve_repo path, __
+    handler = new Git(cwd:repo.cwd).diff(repo.path)
+    handler.on 'item', (response) ->
+        (diff ?= []).push response
+    handler.on 'close', ->
+        event.emit 'end', diff ? '[]'
+            
+    event
+
 
 #### logConsoleAndErrors
 
@@ -467,14 +510,19 @@ resolve = (where, __) ->
 
 # `resolve_repo` adapts given path if in sysdir repository.
 resolve_repo = (path, __) ->
-    cwd = __?.appdir ? '.'
-    appdir_abs = Path.resolve(__?.appdir ? '.')
-    sysdir_abs = Path.resolve('')
     if path.charAt(0) isnt '/' then path = '/' + path
-    if (appdir_abs + path).indexOf(sysdir_abs) is 0 then path = (appdir_abs + path).substr sysdir_abs.length + 1 ; cwd = '.' else path = path.substr 1
-    
-    {cwd, path}
-    
+    appdir_abs = Path.resolve(__?.appdir ? '.')
+    git_dirname = appdir_abs + path
+    while not Fs.existsSync(git_dirname + (if git_dirname[git_dirname.length - 1] isnt '/' then '/' else '') +  '.git')
+        new_dirname = Path.resolve(git_dirname, '..')
+        if new_dirname is git_dirname or new_dirname is appdir_abs
+            cwd = __?.appdir ? '.'
+            path = path.substr 1
+            return {cwd, path}
+        else
+            git_dirname = new_dirname
+
+    {cwd:git_dirname, path:(appdir_abs + path).substr(git_dirname.length + 1)}
 
 #### with_error
 
@@ -583,7 +631,6 @@ clientInterface = ->
                             onFailure: (xhr) ->
                                 alert 'Error: ' + xhr.status
                         myRequest.post data
-
 
                 _ide.commit = ->
                     message = document.id('commit_message').get 'value'

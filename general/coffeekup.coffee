@@ -244,7 +244,7 @@ skeleton = (__data = {}) ->
     _classes = db ? {}
     classes = (value) -> 
         unless value? then return _classes
-        _ids[value] ? _ids[value] = value.substr(0,id.classes.size ? 0) + '_' + id()
+        _classes[value] ? _classes[value] = value.substr(0,id.classes.size ? 0) + '_' + id()
 
     classes.toJSONString = ->
         """

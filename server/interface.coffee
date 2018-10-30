@@ -50,6 +50,7 @@ exports.exchange = (bin, send) ->
         subtype = switch as
             when 'web', 'edit', 'help' then 'html'
             when 'manifest' then 'cache-manifest'
+            when 'pwa_worker' then 'javascript'
             else 'plain'
         
         unless as is 'raw'
@@ -60,7 +61,7 @@ exports.exchange = (bin, send) ->
         response_headers = { "Content-Type":"#{type}/#{subtype}; charset=utf-8" }
         
         switch as
-            when 'manifest'
+            when 'manifest', 'pwa_worker'
                 response_headers['Cache-Control'] = 'max-age=0'
                 response_headers['Expires'] = new Date().toUTCString()
                 
@@ -305,7 +306,7 @@ exports.exchange = (bin, send) ->
                         File.access(where, backdoor_key, __).on 'end', (html) ->
                             respond html.error ? html
                     # when `How` is 'raw'
-                    when 'raw', 'manifest'
+                    when 'raw', 'manifest', 'pwa_worker'
                         # Read the file and returns it
                         Fs.readFile resource_path, (err, data) ->
                             respond data.toString()
@@ -400,6 +401,12 @@ exports.exchange = (bin, send) ->
                                     if where.indexOf(directory + '/') is 0 then doMasterInterface = yes ; break
                             else if masterInterface.directory? is false or masterInterface.directory is '' or where.indexOf(masterInterface.directory + '/') is 0 then doMasterInterface = yes
                             
+                            if doMasterInterface and masterInterface.exclude?
+                                for exclusion in masterInterface.exclude
+                                    if where.indexOf(exclusion) is 0
+                                        doMasterInterface = no
+                                        break
+                                
                             if doMasterInterface
                                 if self instanceof Interface 
                                     params[masterInterface.prop] = self
@@ -530,5 +537,28 @@ exports.forget_keys = (__) ->
 
 #### Create Hash
 # `create_hash` returns the corresponding sha256 hash from a given key
-exports.create_hash = (key) ->
-    Crypto.createHash('sha256').update(key).digest('hex')
+exports.create_hash = (__) ->
+    enter_kup = ->
+        form method:"post", ->
+            text "Create your Key : "
+            input name:"key", type:"password"
+            
+    entered_kup = ->
+        text @params.hash
+
+    if __.request.method isnt 'POST'
+        new Chocokup.Document 'Key creation', kups:{key:enter_kup}, Chocokup.Kups.Tablet
+    else
+        event = new Events.EventEmitter
+
+        source = ''
+        __.request.on 'data', (chunk) ->
+            source += chunk
+        __.request.on 'end', () ->
+            fields = require('querystring').parse source
+
+            key = Crypto.createHash('sha256').update(fields.key).digest('hex')
+            
+            event.emit 'end', new Chocokup.Document 'Key registration', kups:{key:entered_kup}, hash:key, Chocokup.Kups.Tablet
+        
+        event

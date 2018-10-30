@@ -1,3 +1,38 @@
+## v0.0.29 - (2018-10-30)
+
+--------------
+
+NEW FEATURES
+
+ - Windows compatibility: now `Chocolate` can run on Windows.
+   - a `bin/chocomake.bat` has been added to create Chocolate projects on Windows systems
+   - few modifications have been made on core code to make Chocolate compatible with `Node.js` on Winodws platform
+   - current limitations on Windows:
+     - `File.hasWriteAccess` always returns `true`
+     - Chocolate's debug service does not work yet
+ - `server/file`: 
+   - added `getGitStatus` service that returns the current Git status for current Git repository
+   - added `getFileDiff` service that returns the current file's Git diff
+ - `server/studio`: added `Diff` and `Status` tabs to display Git status for current app and Git diff for current file
+ - added `server/monitor.js` and `server/server.js`, so that one can start `Chocolate` using classical Node.js command
+ 
+UPDATES
+
+ - `general/chocokup`: added `.overflow` rule to chocokup's css to overflow-auto to a DOM element
+ - `server/interface`: 
+   - added `pwa_worker` request type using `?how=pwa_worker` this request returns a `text/javascript` file the the browser
+   - added `masterInterfaces.exclude` sub-section in `app.config.json` file to tell the `masterInterfaces` service to bypass any file which name starts with one of the prefixes given in `masterInterfaces.exclude`'s array
+   - `create_hash` service now through a web interface
+ - `server/file`: update list of searchable files suffixes in `grep`:
+
+        '.coffee', '.js', '.css', '.scss', '.json', '.txt', '.md', '.markdown', '.ck', '.chockup', '.log'
+
+
+FIXED BUGS
+ - `server/file`: `resolve_repo` now resolve to to closest parent to have a `.git` folder
+
+
+
 ## v0.0.28 - (2018-10-08)
 
 --------------
@@ -63,12 +98,14 @@ NEW FEATURES
  - `.ck`, `.chocokup` files can be served from `static` folder so that you can write an Html-like file using `Chocokup`
 
 UPDATES
+
  - `server/interface`: `masterInterface` can now manage page interface defined by a simple function that returns a string
  - `server/interface`: `defaultExchange` now has an `extension` parameter to set an extension name if `defaultExchange` service is inside
  - `server/interface` and `general/locco/interface`: modified the `review` service to enable embedded interface to act as access controller for tha MasterItem interface
  - updated formidable to v1.2.1
 
 FIXED BUGS
+
  - `server/monitor`: added the `.scss` file's folder to the `includePaths` Sass compiler command so that other `scss` files present in the same folder could be found by the compiler.
  - `server/interface`: `masterInterface` was not found if placed in an application's extension folder
 
@@ -226,6 +263,7 @@ NEW FEATURES
 
 
 UPDATES
+
  - updated LateDB section in README.md
  - updated Locco Interface section in README.md
 

@@ -543,6 +543,7 @@ class Chocokup.Css
     .scroll *{overflow:auto;webkit-overflow-scrolling:touch;}
     .no-scroll *{overflow:hidden;}
     .no-crop {overflow: visible;}
+    .overflow {overflow: auto}
 
     .row{margin:0 auto;width:960px;overflow:hidden;display:block;}
     .row .row{margin:0 -16px 0 -16px;width:auto;display:inline-block}

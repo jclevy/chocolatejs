@@ -1,6 +1,6 @@
 {
   "name": "chocolate",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "description": "A full stack Node.js web framework built using Coffeescript",
   "preferGlobal": "true",
   "keywords": [
@@ -50,8 +50,5 @@
   },
   "engines": {
     "node": ">=0.10.0"
-  },
-  "os": [
-    "!win32"
-  ]
+  }
 }

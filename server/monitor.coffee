@@ -25,14 +25,21 @@ monitor_server = new class
     config: null
     user: null
     group: null
+    sep: if process.platform is 'win32' then '\\' else '/'
+    dir:
+        node_modules:if process.platform is 'win32' then '\\node_modules\\' else '/node_modules/'
+        client:if process.platform is 'win32' then '\\client\\' else '/client/'
+        general:if process.platform is 'win32' then '\\general\\' else '/general/'
+        server:if process.platform is 'win32' then '\\server\\' else '/server/'
+        'static':if process.platform is 'win32' then '\\static\\' else '/static/'
+        letsencrypt:if process.platform is 'win32' then '\\letsencrypt\\' else '/letsencrypt/'
 
     "log": (msg) ->
         Debugate.log "Time:#{new Date().toISOString()}: " + msg if @logging
 
     "exit": ->
         this.log 'CHOCOLATEJS: terminate child process'
-        this.kill(@process.pid) if @process?
-        this.kill(@debug_process.pid) if @debug_process?
+        this.killProcesses()
         check = =>
             # if child process exited we can also exit
             # otherwise we wait...
@@ -50,8 +57,7 @@ monitor_server = new class
         @throttled_restart ?= _.throttle wait:1000, reset:on, ->
             @restarting = true
             self.log 'CHOCOLATEJS: Stopping server for restart'
-            self.kill(@process.pid) if @process?
-            self.kill(@debug_process.pid) if @debug_process?
+            self.killProcesses()
         
         @throttled_restart()
 
@@ -72,7 +78,7 @@ monitor_server = new class
         @memory ?=  args[2]
         @user ?=  args[3]
         @group ?=  args[4]
-        @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}/data"
+        @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}#{@sep}}data"
         
         if @user? then process.setgid @group ? @user ; process.setuid @user ; process.env.HOME = @appdir ; process.env.USER = @user
         
@@ -81,7 +87,7 @@ monitor_server = new class
         @config = require('./config')(@datadir, reload:on).clone()
         if @config.letsencrypt?
             hostname = @config.letsencrypt.domains[0] if @config.letsencrypt.domains?
-            @cert_suffix = '/letsencrypt/live/' + hostname + '/privkey.pem' if hostname?
+            @cert_suffix = "#{self.dir.letsencrypt}live#{self.sep}#{hostname}#{self.sep}privkey.pem" if hostname?
         
         process.on 'uncaughtException', (err) ->
             console.error((err && err.stack) ? new Date() + '\n' + err.stack + '\n\n' : err);
@@ -93,13 +99,13 @@ monitor_server = new class
 
         if @config.debug
             hostname = @config.letsencrypt.domains[0] if @config.letsencrypt?.domains?
-            dir = @datadir + if hostname? and @config.letsencrypt?.published is on then '/letsencrypt/live/' + hostname else ''
+            dir = @datadir + if hostname? and @config.letsencrypt?.published is on then "#{self.dir.letsencrypt}live#{self.sep}" + hostname else ''
             key = @config.key
             key ?= if @config.letsencrypt?.published is on then 'privkey.pem' else 'privatekey.pem'
             cert = @config.cert
             cert ?= if @config.letsencrypt?.published is on then 'fullchain.pem' else 'certificate.pem'
             
-            debug_ssl = unless @config.http_only then  ['--ssl-key', dir + '/' + key, '--ssl-cert', dir + '/' + cert] else []
+            debug_ssl = unless @config.http_only then  ['--ssl-key', dir + self.sep + key, '--ssl-cert', dir + self.sep + cert] else []
             
             @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', @config.debug_port ? "8081"].concat debug_ssl)
 
@@ -110,7 +116,7 @@ monitor_server = new class
         cmds = ['--nodejs', "--max-old-space-size=#{@memory}"] if @memory?
         cmds = ['--nodejs', '--debug-brk'] if @config.debug
         cmds.push 'server/server.coffee'
-        @process = Child_process.spawn("coffee", cmds.concat args)
+        @process = Child_process.spawn("coffee#{if process.platform is 'win32' then '.cmd' else ''}", cmds.concat args)
 
         @process.stdout.addListener 'data', (data) ->
             process.stdout.write(data)
@@ -141,7 +147,7 @@ monitor_server = new class
             run (end) ->
                 if source? and source isnt ""
                     try switch file_ext 
-                        when '.scss' then code = require('node-sass').renderSync(data:source, includePaths:[Path.dirname(file), self.appdir + '/client']).css
+                        when '.scss' then code = require('node-sass').renderSync(data:source, includePaths:[Path.dirname(file), self.appdir + self.sep + 'client']).css
                         else code = new Chocokup.Panel(source).render(format:yes)
                     catch e then self.log "CHOCOLATEJS (convertFile): #{e}" ; 
                 
@@ -162,8 +168,9 @@ monitor_server = new class
         appdir = if @appdir? then @appdir else '.'
         sysdir = Path.resolve __dirname, '..' 
         
-        filter = (path) -> 
-            if path.search(/^\.[^\.\/]+/) isnt -1 then return yes
+        filter = (path) ->
+            dotdot_re = if process.platform is 'win32' then /^\.[^\.\\]+/ else /^\.[^\.\/]+/
+            if path.search(dotdot_re) isnt -1 then return yes
             for folder in ['static']
                 if path is folder then return yes
             try stats = Fs.statSync path catch then return yes
@@ -184,23 +191,23 @@ monitor_server = new class
             if File.hasWriteAccess appdir
             
                 build = (file, curdir) ->
-                    static_lib_dirname = curdir + '/static/lib'
+                    static_lib_dirname = curdir + "#{self.dir.static}lib"
                     file_ext = Path.extname file
                     file_base = Path.basename file, file_ext
-                    file_rel_path = Path.dirname(file).substr folder.length for folder in [curdir + '/client/', curdir + '/general/'] when file.indexOf(folder) is 0
-                    file_path = static_lib_dirname + '/' + (if file_rel_path isnt '' then file_rel_path + '/' else '')
+                    file_rel_path = Path.dirname(file).substr folder.length for folder in [curdir + self.dir.client, curdir + self.dir.general] when file.indexOf(folder) is 0
+                    file_path = static_lib_dirname + self.sep + (if file_rel_path isnt '' then file_rel_path + self.sep else '')
                     File.ensurePathExists file_path
                     file_js_name = file_path + file_base + '.js'
                     add_js_file_to_git = not Fs.existsSync file_js_name
                     switch file_ext
                         when '.coffee' 
-                            command = "coffee"
+                            command = "coffee#{if process.platform is 'win32' then '.cmd' else ''}"
                             params = ['-c', '-o', file_path, file]
                         when '.js'
-                            command = "cp"
+                            command = if process.platform is 'win32' then "copy" else "cp"
                             params = [file, file_js_name]
                         else
-                            if file_ext in ['.chocokup', '.ck', '.scss'] and file.indexOf(curdir + '/client/') is 0
+                            if file_ext in ['.chocokup', '.ck', '.scss'] and file.indexOf(curdir + self.dir.client) is 0
                                 self.convertFile file, file_path, file_ext, file_base, curdir
                             command = param = undefined
 
@@ -226,7 +233,7 @@ monitor_server = new class
 
                         put = (pathname) ->
                             try
-                                file_content = Fs.readFileSync static_lib_dirname + '/' + pathname
+                                file_content = Fs.readFileSync static_lib_dirname + self.sep + pathname
                                 
                                 bundle_file += if bundle.with_modules
                                     """
@@ -255,7 +262,7 @@ monitor_server = new class
                         for own filename of bundle.known_files then put filename
                         for filename in files.sort(sort) when bundle.known_files[filename] is undefined and filename.indexOf(bundle.prefix) is 0 and filename.indexOf('.spec') is -1 and filename isnt bundle.filename then put filename
                         
-                        Fs.writeFileSync static_lib_dirname + '/' + bundle.filename, bundle_file   
+                        Fs.writeFileSync static_lib_dirname + self.sep + bundle.filename, bundle_file   
                     
                     if command? then do (file, file_base, file_js_name, add_js_file_to_git) ->
                         self.compile_process[file] = Child_process.spawn command, params, cwd:curdir
@@ -263,23 +270,23 @@ monitor_server = new class
                             Child_process.exec 'git add ' + file_js_name, cwd:curdir if add_js_file_to_git
                             
                             for bundle in bundles
-                                file_rel_name = file_rel_path + (if file_rel_path is '' then '' else '/') + file_base + file_ext
+                                file_rel_name = file_rel_path + (if file_rel_path is '' then '' else self.sep) + file_base + file_ext
                                 if file_rel_name.indexOf(bundle.prefix) is 0 and file_base.indexOf('.spec') is -1
                                     build_lib_package(bundle)
                                     
                             delete self.compile_process[file]
             
-                file = appdir + '/' + file if appdir is '.'
-                if (file.indexOf(appdir + '/client/') is 0 or file.indexOf(appdir + '/general/') is 0) then build file, appdir
-                if (file.indexOf(sysdir + '/client/') is 0 or file.indexOf(sysdir + '/general/') is 0) then build file, sysdir
+                file = appdir + self.sep + file if appdir is '.'
+                if (file.indexOf(appdir + self.dir.client) is 0 or file.indexOf(appdir + self.dir.general) is 0) then build file, appdir
+                if (file.indexOf(sysdir + self.dir.client) is 0 or file.indexOf(sysdir + self.dir.general) is 0) then build file, sysdir
 
                 if self.config.extensions? then for extension of self.config.extensions
-                    if (file.indexOf(appdir + "/node_modules/#{extension}/client/") is 0 or file.indexOf(appdir + "/node_modules/#{extension}/general/") is 0) then build file, appdir + "/node_modules/#{extension}"
+                    if (file.indexOf(appdir + "#{self.dir.node_modules}#{extension}#{self.dir.client}") is 0 or file.indexOf(appdir + "#{self.dir.node_modules}#{extension}#{self.dir.general}") is 0) then build file, appdir + "#{self.dir.node_modules}#{extension}"
                         
 
             self.log "CHOCOLATEJS: #{if should_restart then 'Restarting because of' else 'Non restarting with'} " + event + ' file at ' + file
             
-            setTimeout (-> self.restart() if should_restart), 10
+            setTimeout (-> self.restart() if should_restart), if process.platform is 'win32' then 100 else 10
 
         @watcher = Chokidar.watch appdir, ignored: filter, persistent: yes, ignoreInitial:yes
         @watcher.on 'add', on_add
@@ -348,6 +355,11 @@ monitor_server = new class
     
         return
     
+    "killProcesses": ->
+        @process.kill 'SIGINT' if @process? and process.platform is 'win32'
+        this.kill(@process.pid) if @process?
+        this.kill(@debug_process.pid) if @debug_process?
+        
     "kill": (pid, signal, callback) ->
         tree = {}
         pidsToProcess = {}

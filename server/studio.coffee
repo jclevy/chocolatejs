@@ -519,13 +519,30 @@ exports.enter = (__) ->
                                     box -> a '#toggle-help', href:"#", onclick:"_ide.toggleServicesPanel('help');", -> 'Help'                                
                             body ->
                                 panel '#git-panel', ->
-                                    panel proportion:'half', orientation:'vertical', ->
-                                        panel '#git-code.expand', ->
-                                            box '#.chocoblack.round', -> body '#code-git-history', ->
-                                        panel '#git-spec.shrink', ->
-                                            header -> box -> 'Spec'
-                                            body ->
-                                                box '#.chocoblack.round', -> body '#spec-git-history', ->
+                                    body ->
+                                        panel '#git-panel-history', ->
+                                            panel proportion:'half', orientation:'vertical', ->
+                                                panel '#git-code.expand', ->
+                                                    box '#.chocoblack.round', -> body '#code-git-history', ->
+                                                panel '#git-spec.shrink', ->
+                                                    header -> box -> 'Spec'
+                                                    body ->
+                                                        box '#.chocoblack.round', -> body '#spec-git-history', ->
+                                        panel '#git-panel-diff.hidden', ->
+                                            panel proportion:'half', orientation:'vertical', ->
+                                                panel '#git-diff-code.overflow.expand', ->
+                                                    box '#.chocoblack.round', -> body '#code-git-diff', ->
+                                                panel '#git-diff-spec.overflow.shrink', ->
+                                                    header -> box -> 'Spec'
+                                                    body ->
+                                                        box '#.chocoblack.round', -> body '#spec-git-diff', ->
+                                        panel '#git-panel-status.hidden.overflow', ->
+                                    footer ->
+                                        panel proportion:'third', ->
+                                            box -> a '#toggle-git-history.selected', href:"#", onclick:"_ide.toggleServicesPanel('git', 'history');", -> 'History'
+                                            box -> a '#toggle-git-diff', href:"#", onclick:"_ide.toggleServicesPanel('git', 'diff');", -> 'Diff'
+                                            box -> a '#toggle-git-status', href:"#", onclick:"_ide.toggleServicesPanel('git', 'status');", -> 'Status'
+                                        
                                 panel '#notes-panel.hidden', ''
 
                                 panel '#help-panel.hidden', ->
@@ -846,6 +863,7 @@ exports.enter = (__) ->
                             sources.available[rel_new_dir + item.name] = { name:item.name, extension:item.extension, modifiedDate:item.modifiedDate, has_spec_file:false } if item.isFile
                         document.id('dir_content').set 'html', content
                         document.id('current_dir').set 'text', if new_dir isnt '.' then new_dir else ''
+                        _ide.get_git_status()
                         callback?() 
                     onFailure: (xhr) ->
                         _ide.display_message "Error with _ide.goto_dir(#{new_dir}) : #{xhr.status}"
@@ -885,6 +903,7 @@ exports.enter = (__) ->
                 
                 # Refresh file History panel if display file is not from History
                 _ide.get_file_git_history path unless overwrite
+                _ide.get_file_diff path
                     
                 _ide.on_file_status_changed()
                 _ide.on_content_changed init:yes
@@ -1083,6 +1102,7 @@ exports.enter = (__) ->
                         _ide.close_file sources.current, yes
                         _ide.goto_dir cur_dir, ->
                             _ide.display_message translate "File /#{cur_dir}/#{filename} was deleted"
+                        _ide.get_git_status()
 
             _ide.open_file = (path, with_spec_file, callback) ->
                 if sources.isOpening then return no
@@ -1174,6 +1194,8 @@ exports.enter = (__) ->
 
                             _ide.goto_dir _ide.get_current_dir()
                             _ide.get_file_git_history sources.current
+                            _ide.get_file_diff sources.current
+                            _ide.get_git_status()
                             _ide.on_file_status_changed is_spec
                             _ide.display_message translate "File #{path} was saved"
                             _ide.save_sources_opened()
@@ -1262,11 +1284,46 @@ exports.enter = (__) ->
                                 for item in list then item.source = 'git'; item.is_spec = yes; add_element item, spec_git_history
                                 
                             onFailure: (xhr) ->
-                                _ide.display_message "Error with _ide.get_file_git_history(#{path}) : #{xhr.status}"
+                                _ide.display_message "Error with _ide.get_file_git_history(#{spec_filename}) : #{xhr.status}"
                         .get()
                         
                     onFailure: (xhr) ->
                         _ide.display_message "Error with _ide.get_file_git_history(#{path}) : #{xhr.status}"
+                .get()
+                
+            _ide.get_file_diff = (path) ->
+                if path is '' then return
+                
+                new Request.JSON
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getFileDiff&' + path + '&how=raw'
+                    onSuccess: (diff) ->
+                        document.id('code-git-diff').set 'html', '<pre>' + diff.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
+                        
+                        if not _ide.has_spec_file sources.current then return
+                        
+                        spec_filename = _ide.get_spec_filename path
+                        
+                        new Request.JSON
+                            url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getFileDiff&' + spec_filename + '&how=raw'
+                            onSuccess: (diff) ->
+                                document.id('code-git-diff').set 'html', '<pre>' + diff.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
+                                
+                            onFailure: (xhr) ->
+                                _ide.display_message "Error with _ide.get_file_diff(#{spec_filename}) : #{xhr.status}"
+                        .get()
+                        
+                    onFailure: (xhr) ->
+                        _ide.display_message "Error with _ide.get_file_diff(#{path}) : #{xhr.status}"
+                .get()
+                
+            _ide.get_git_status = ->
+                new Request.JSON
+                    url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getGitStatus&' + _ide.get_current_dir() + '/' + ' &how=raw'
+                    onSuccess: (status) ->
+                        document.id('git-panel-status').set 'html', '<pre>' + status.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
+
+                    onFailure: (xhr) ->
+                        _ide.display_message "Error with _ide.get_git_status() : #{xhr.status}"
                 .get()
                 
             _ide.load_file_from_git_history = (sha, is_spec, path, repo) ->
@@ -1300,6 +1357,8 @@ exports.enter = (__) ->
                         url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?commitToHistory&message=' + message + '&repository=' + _ide.get_current_dir() + '&how=raw'
                         onSuccess: (responseText) ->
                             _ide.get_file_git_history sources.current
+                            _ide.get_file_diff sources.current
+                            _ide.get_git_status()
                             _ide.display_message translate "Files were commited to Git repository"
                         onFailure: (xhr) ->
                             _ide.display_message "Error with _ide.commit_to_git() : #{xhr.status}"
@@ -1513,8 +1572,10 @@ exports.enter = (__) ->
                     document.id('toggle-' + what).addClass 'selected'
                     lab_markup_editor.focus()
 
-            _ide.toggleServicesPanel = (what) ->
+            _ide.toggleServicesPanel = (what, sub_what) ->
                 list = ['git', 'notes', 'help']
+                sub_list =
+                    git: ['history', 'diff', 'status']
                 
                 (document.id(item + '-panel').addClass('hidden') unless document.id(item + '-panel').hasClass('hidden')) for item in list
                 document.id(what + '-panel').removeClass('hidden')
@@ -1522,7 +1583,14 @@ exports.enter = (__) ->
                 document.id('toggle-' + item).removeClass('selected') for item in list
                 document.id('toggle-' + what).addClass 'selected'
                 
-                switch what 
+                if sub_what?
+                    (document.id(what + '-panel' + '-' + item).addClass('hidden') unless document.id(what + '-panel' + '-' + item).hasClass('hidden')) for item in sub_list[what]
+                    document.id(what + '-panel' + '-' + sub_what).removeClass('hidden')
+                    
+                    document.id('toggle-' + what + '-' + item).removeClass('selected') for item in sub_list[what]
+                    document.id('toggle-' + what + '-' + sub_what).addClass 'selected'
+                
+                switch what
                     when 'help'
                         if (k for own k of frames.help).length > 0 then _ide.toggleMainDisplay 'help'
                         if  document.id('toggle-help-chocolate').hasClass('selected') and 

@@ -279,7 +279,7 @@
         if (value == null) {
           return _classes;
         }
-        return (ref = _ids[value]) != null ? ref : _ids[value] = value.substr(0, (ref1 = id.classes.size) != null ? ref1 : 0) + '_' + id();
+        return (ref = _classes[value]) != null ? ref : _classes[value] = value.substr(0, (ref1 = id.classes.size) != null ? ref1 : 0) + '_' + id();
       };
       classes.toJSONString = function() {
         return "(function (key) {\n    var _classes = " + (JSON.stringify(_classes)) + ";\n    return _classes[key];\n})";
