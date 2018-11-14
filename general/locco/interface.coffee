@@ -35,7 +35,24 @@ Interface = _.prototype
             
             @[name] = item for name, item of service when name not in ['defaults', 'use', 'locks', 'check', 'steps'] # service, actor, document, update...
             @embedded ?= undefined
-            
+            @module_path = do ->
+                files_stack = []
+                if Error.prepareStackTrace?
+                    oldPST = Error.prepareStackTrace
+                    Error.prepareStackTrace = (err, stack) -> stack
+                    stack = (new Error).stack
+                    Error.prepareStackTrace = oldPST
+                    for line in stack then files_stack.push line.getFileName()
+                else
+                    stack = (new Error).stack
+                    files_stack = stack.toString().split('\n')
+                
+                found = no
+                for line in files_stack
+                    if line.indexOf('/chocodash.') >= 0 then found = yes
+                    else if line.indexOf('\\chocodash.') >= 0 then found = yes
+                    else if found then return line
+                'global'
         return
     
     bind: (actor, document, @name) ->
@@ -188,7 +205,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                 local_kups = []
                 for name, service of bin
                     if service instanceof Interface.Web
-                        if service?.defaults? and service not in checked
+                        if service.defaults? and service not in checked
                             checked.push service
                             defaults = service.defaults
                             self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
@@ -198,7 +215,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                             kups = checked_kups[service] = check_interfaces.call this, defaults
                             scope = scope_
                         else 
-                        if service?.use? and service not in checked
+                        if service.use? and service not in checked
                             checked.push service
                             use = service.use
                             self = {bin, props:bin, space:bin?.__?.space, document:@document, 'interface':@, actor:@actor}
@@ -214,13 +231,15 @@ Interface.Web = _.prototype inherit:Interface, use: ->
 
                         service_id = _.Uuid().replace /\-/g, '_'
                         service_kup = new Function 'args', """
-                            var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;
+                            var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, space = this.space, module_path = this.module_path, local_ids = this.local_ids, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;
                             try {this.interface = bin#{if scope.length > 0 then '.' + scope.join('.') else ''}.#{name};} 
                             catch (error) { try {this.interface = bin.#{name};} catch (error) {}; };
                             this.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;
                             this.keys = [];
                             this.props = this.bin = {__:bin.__};
                             this.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};
+                            this.module_path = '#{service.module_path}';
+                            this.local_ids = {};
                             bin_cp = function(b_, _b) {
                               var done = false, k, v;
                               for (k in _b) {
@@ -239,7 +258,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
                                 #{declare_kups.join ';\n'};
                                 with (this.locals) {(#{(service.render?.overriden ? service.render).toString()}).call(this, this.bin);}
                             }
-                            this.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;
+                            this.bin = bin; this.props = props; this.keys = keys; this.interface = interface; this.actor = actor; this.space = space; this.module_path = module_path; this.local_ids = local_ids;
                             return reaction.certified;
                             """
 
@@ -263,6 +282,7 @@ Interface.Web = _.prototype inherit:Interface, use: ->
         unless @render?.overriden
             render_code = @render ? ->
             chocokup_code = null
+
             @render = (bin) ->
                 bin ?= {}
 
@@ -276,11 +296,17 @@ Interface.Web = _.prototype inherit:Interface, use: ->
 
                 chocokup_code = if declare_kups.length > 0 then new Function 'args', """
                         this.self.keys = [];
+                        this.module_path = this.self.module_path = '#{@interface.module_path}';
+                        this.local_ids = {};
                         if (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.self.bin[k] = args[k]; this.self.keys.push(k); }}}
                         #{declare_kups.join ';\n'};
                         with (this.locals) {return (#{render_code.toString()}).apply(this.self, arguments);}
                     """
-                else render_code
+                else new Function 'args', """
+                        this.module_path = this.self.module_path = '#{@interface.module_path}';
+                        this.local_ids = {};
+                        return (#{render_code.toString()}).apply(this.self, arguments);
+                    """
                 
                 transmit = (actor, service, bin_ = {}) ->
                     if typeof service isnt 'string'

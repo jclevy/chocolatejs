@@ -101,6 +101,10 @@ skeleton = (__data = {}) ->
   # Whether to autoescape all content or let you handle it on a case by case
   # basis with the `h` function.
   __data.autoescape ?= off
+  
+  # Used to generate DOM ids scoped to a global, module or local space
+  __data.module_path ?= 'global'
+  __data.local_ids ?= {}
 
   # Internal CoffeeKup stuff.
   __ck =
@@ -214,46 +218,52 @@ skeleton = (__data = {}) ->
 
     __ck.render_tag(name, idclass, attrs, contents)
 
+  _global_ids = {}
+  _modules_ids = {}
+  
   id = (db, value) ->
     if typeof db is 'string' then value = db ; db = null
     
     if typeof value is 'string'
-      ids = db ? {}
-      for key in arguments then ids[key] = id()
-      return ids
+      ids = db ? __data.local_ids ? {}
+      prefix = if value then value.replace(/[\.\#]/g, '-') else ''
+      for key in arguments when key isnt db then ids[key] ?= prefix + id()
+      return if arguments.length <= 2 then ids[value] ?= prefix + id() else ids
     
     __data.id(parseInt value) if value? and typeof value is "number"
     '_' + __data.id()
-        
+
+  id.local = (value) -> id __data.local_ids, value
+  id.module = (value) -> id (_modules_ids[__data.module_path] ?= {}), value
+  id.global = (value) -> id _global_ids, value
+ 
   id.ids = (db) ->
-    _ids = db ? {}
+    _ids = db ? __data.local_ids ? {}
     ids = (value) -> 
         unless value? then return _ids
-        _ids[value] ? _ids[value] = id()
+        _ids[value] ? _ids[value] = id(value)
 
-    ids.toJSONString = ->
+    ids.toJSONString = (var_name) ->
+        empty = """
+        (function () {return ''})
         """
+        full = """
         (function (key) {
             var _ids = #{JSON.stringify _ids};
             return _ids[key];
         })
         """
+        func = empty; for k of _ids then func = full; break
+        """
+        #{func}#{(for own k, v of @ when k isnt 'toJSONString' then ";#{var_name}.#{k}=#{if v.toJSONString then v.toJSONString(var_name + '.' + k) else v.toString()}").join('')}
+        """
     ids
 
-  id.classes = (db) -> 
-    _classes = db ? {}
-    classes = (value) -> 
-        unless value? then return _classes
-        _classes[value] ? _classes[value] = value.substr(0,id.classes.size ? 0) + '_' + id()
+  id.ids.local = -> id.ids __data.local_ids
+  id.ids.module = -> id.ids (_modules_ids[__data.module_path] ?= {})
+  id.ids.global = -> id.ids _global_ids
 
-    classes.toJSONString = ->
-        """
-        (function (key) {
-            var _classes = #{JSON.stringify _classes};
-            return _classes[key];
-        })
-        """
-    classes
+  id.classes = id.ids
 
   totext = (func) ->
     temp_buffer = []
@@ -282,10 +292,20 @@ skeleton = (__data = {}) ->
     text '\n' if __data.format
   
   coffeescript = (param, func) ->
+    has_local = no; for k of __data.local_ids then has_local = yes; break
+    has_module = _modules_ids[__data.module_path]?
+    if (has_local or has_module)
+      unless func? then func = param; param = null
+      func = func?.toString()
+      unless param?.id? or not func?
+          if (idx = func.indexOf('id')) >= 0 then (param ?= {}).id = id.ids.local() ? {}
+          if idx > 0 and func.indexOf('module') >= 0 then param.id.module = id.ids.module() ? {}
+          if idx > 0 and func.indexOf('global') >= 0 then param.id.global = id.ids.global() ? {}
+    
     if (func)
       # `coffeescript {value:"sample"} -> alert value'` becomes:
       # `<script>var value="sample";(function () {return alert(value);})();</script>`
-      script "#{__ck.coffeescript_helpers}\n(function() {var " + ("#{k}=" + (if typeof v is 'function' then (if v.toJSONString? then v.toJSONString() else "#{v.toString()}") else JSON.stringify(v)) for k,v of param).join(',') + ";\n" + "(#{func}).call(this);}).call(this);"
+      script "#{__ck.coffeescript_helpers}" + (if param? then "\n(function() {var " + ("#{k}=" + (if typeof v is 'function' then (if v.toJSONString? then v.toJSONString(k) else "#{v.toString()}") else JSON.stringify(v)) for k,v of param).join(',') + ";\n" else '') + "(#{func}).call(this)" + if param? then "}).call(this);" else ";"
       __ck.coffeescript_helpers = "" # needed only once in a `render`
     else switch typeof param
       # `coffeescript -> alert 'hi'` becomes:
@@ -300,7 +320,7 @@ skeleton = (__data = {}) ->
       # `coffeescript src: 'script.coffee'` becomes:
       # `<script type="text/coffeescript" src="script.coffee"></script>`
       when 'object'
-        param.type = 'text/coffeescript'
+        (param ?= {}).type = 'text/coffeescript'
         script param
   
   # Conditional IE comments.

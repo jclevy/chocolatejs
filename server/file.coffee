@@ -273,12 +273,14 @@ exports.grep = (pattern, with_case, show_details, __) ->
     
     event = new Events.EventEmitter
     results = []
+    suffixes = ['.coffee', '.js', '.css', '.scss', '.json', '.txt', '.md', '.markdown', '.ck', '.chockup', '.log' ]
     if process.platform is 'win32'
         params = ['/R', '/S', pattern, (__?.appdir ? '.') + '\\*']
         unless with_case then params = ['/I'].concat params
         unless show_details then params = ['/M'].concat params
     else
-        params = ['-r', '--include', "'*'", pattern, __?.appdir ? '.',]
+        #params = ['-r', '--include', "'*.coffee'", '--include', "'*.js'", '--include', "'*.css'", '--include', "'*.markdown'", '--include', "'*.md'", pattern, __?.appdir ? '.',]
+        params = ['-r'].concat(do -> s=[]; (s.push("--include"); s.push("'*#{suffix}'"); s) for suffix in suffixes; s).concat([pattern, __?.appdir ? '.',])
         unless with_case then params = ['-i'].concat params
         unless show_details then params = ['-l'].concat params else params = ['-n'].concat params
     
@@ -292,7 +294,7 @@ exports.grep = (pattern, with_case, show_details, __) ->
     grep.on 'exit', (code) ->
         results = results.filter (item) ->
             [path] = item.toString().split ' '
-            Path.extname(path) in ['.coffee', '.js', '.css', '.scss', '.json', '.txt', '.md', '.markdown', '.ck', '.chockup', '.log' ]
+            Path.extname(path) in suffixes
         results = results.map (item) ->
             [path, stamp] = item.toString().split ' '
             (Path.relative (__?.appdir ? '.'), path).replace(/\\/g, '/') + ' ' + stamp

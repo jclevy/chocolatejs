@@ -78,7 +78,7 @@ monitor_server = new class
         @memory ?=  args[2]
         @user ?=  args[3]
         @group ?=  args[4]
-        @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}#{@sep}}data"
+        @datadir = "#{(if not @appdir? or @appdir is '.' then '.' else  Path.relative process.cwd(), @appdir)}#{@sep}data"
         
         if @user? then process.setgid @group ? @user ; process.setuid @user ; process.env.HOME = @appdir ; process.env.USER = @user
         

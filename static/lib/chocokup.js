@@ -19,6 +19,37 @@
         this.content = this.params;
         this.params = void 0;
       }
+      this.module_path = (function() {
+        var files_stack, found, j, l, len, len1, line, oldPST, stack;
+        files_stack = [];
+        if (Error.prepareStackTrace != null) {
+          oldPST = Error.prepareStackTrace;
+          Error.prepareStackTrace = function(err, stack) {
+            return stack;
+          };
+          stack = (new Error).stack;
+          Error.prepareStackTrace = oldPST;
+          for (j = 0, len = stack.length; j < len; j++) {
+            line = stack[j];
+            files_stack.push(line.getFileName());
+          }
+        } else {
+          stack = (new Error).stack;
+          files_stack = stack.toString().split('\n');
+        }
+        found = false;
+        for (l = 0, len1 = files_stack.length; l < len1; l++) {
+          line = files_stack[l];
+          if (line.indexOf('/chocokup.') >= 0) {
+            found = true;
+          } else if (line.indexOf('\\chocokup.') >= 0) {
+            found = true;
+          } else if (found) {
+            return line;
+          }
+        }
+        return 'global';
+      })();
     }
 
     Chocokup.prototype.head_template = function() {
@@ -503,6 +534,9 @@
         document = this.params.document;
         delete this.params.document;
       }
+      if (this.content.toString().indexOf('module_path') < 0) {
+        this.content = Chocokup.scope(this.content, this.module_path);
+      }
       all_tags = (ref12 = options != null ? options.all_tags : void 0) != null ? ref12 : true;
       format = (ref13 = options != null ? options.format : void 0) != null ? ref13 : false;
       data = {
@@ -528,6 +562,16 @@
     return Chocokup;
 
   })();
+
+  Chocokup.scope = function(kup, module_path) {
+    if (_.type(kup) === _.Type.Function || (_.type(kup) === _.Type.String && kup.substr(8) === 'function')) {
+      return new Function('args', "old_module_path = this.module_path; old_local_ids = this.local_ids;\nthis.module_path = '" + module_path + "'; this.local_ids = {};\nresult = (" + (kup.toString()) + ").apply(this, arguments);\nthis.module_path = old_module_path; this.local_ids = old_local_ids;\nreturn result;");
+    } else {
+      return "    old_module_path = this.module_path; old_local_ids = this.local_ids\n    this.module_path = '" + module_path + "'; this.local_ids = {};\n    kup = ->\n" + (kup.toString().split('\n').map(function(line) {
+        return "        " + line;
+      }).join('\n')) + "\n    result = kup.apply this, arguments\n    this.module_path = old_module_path; this.local_ids = old_local_ids\n    result";
+    }
+  };
 
   Chocokup.Document = (function(superClass) {
     extend(Document, superClass);

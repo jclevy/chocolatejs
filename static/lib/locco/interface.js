@@ -70,6 +70,37 @@
         if (this.embedded == null) {
           this.embedded = void 0;
         }
+        this.module_path = (function() {
+          var files_stack, found, i, j, len, len1, line, oldPST, stack;
+          files_stack = [];
+          if (Error.prepareStackTrace != null) {
+            oldPST = Error.prepareStackTrace;
+            Error.prepareStackTrace = function(err, stack) {
+              return stack;
+            };
+            stack = (new Error).stack;
+            Error.prepareStackTrace = oldPST;
+            for (i = 0, len = stack.length; i < len; i++) {
+              line = stack[i];
+              files_stack.push(line.getFileName());
+            }
+          } else {
+            stack = (new Error).stack;
+            files_stack = stack.toString().split('\n');
+          }
+          found = false;
+          for (j = 0, len1 = files_stack.length; j < len1; j++) {
+            line = files_stack[j];
+            if (line.indexOf('/chocodash.') >= 0) {
+              found = true;
+            } else if (line.indexOf('\\chocodash.') >= 0) {
+              found = true;
+            } else if (found) {
+              return line;
+            }
+          }
+          return 'global';
+        })();
       }
     },
     bind: function(actor, document, name1) {
@@ -361,7 +392,7 @@
             for (name in bin) {
               service = bin[name];
               if (service instanceof Interface.Web) {
-                if (((service != null ? service.defaults : void 0) != null) && indexOf.call(checked, service) < 0) {
+                if ((service.defaults != null) && indexOf.call(checked, service) < 0) {
                   checked.push(service);
                   defaults = service.defaults;
                   self = {
@@ -382,7 +413,7 @@
                 } else {
 
                 }
-                if (((service != null ? service.use : void 0) != null) && indexOf.call(checked, service) < 0) {
+                if ((service.use != null) && indexOf.call(checked, service) < 0) {
                   checked.push(service);
                   use = service.use;
                   self = {
@@ -405,7 +436,7 @@
                 }
                 declare_kups = get_declare_kups(kups);
                 service_id = _.Uuid().replace(/\-/g, '_');
-                service_kup = new Function('args', "var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;\nthis.keys = [];\nthis.props = this.bin = {__:bin.__};\nthis.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};\nbin_cp = function(b_, _b) {\n  var done = false, k, v;\n  for (k in _b) {\n    if (!hasProp.call(_b, k) || (k === '__')) continue; \n    if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } \n    else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }\n  }\n  return done;\n};\nbin_cp(this.bin, bin);\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction);\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref3 = (ref4 = service.render) != null ? ref4.overriden : void 0) != null ? ref3 : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.props = props; this.keys = keys; this.interface = interface, this.actor = actor;\nreturn reaction.certified;");
+                service_kup = new Function('args', "var interface = this.interface, bin = this.bin, props = this.props, keys = this.keys, actor = this.actor, space = this.space, module_path = this.module_path, local_ids = this.local_ids, __hasProp = {}.hasOwnProperty, Interface = this.params.Interface;\ntry {this.interface = bin" + (scope.length > 0 ? '.' + scope.join('.') : '') + "." + name + ";} \ncatch (error) { try {this.interface = bin." + name + ";} catch (error) {}; };\nthis.actor = this.interface != null ? (this.interface.actor != null ? this.interface.actor : actor) : actor;\nthis.keys = [];\nthis.props = this.bin = {__:bin.__};\nthis.space = this.bin != null && this.bin.__ != null ? this.bin.__.space : {};\nthis.module_path = '" + service.module_path + "';\nthis.local_ids = {};\nbin_cp = function(b_, _b) {\n  var done = false, k, v;\n  for (k in _b) {\n    if (!hasProp.call(_b, k) || (k === '__')) continue; \n    if (((v = _b[k]) != null ? v.constructor : void 0) === {}.constructor) { b_[k] = {}; if (!(done = bin_cp(b_[k], v))) { delete b_[k]; } } \n    else if ((v instanceof Interface.Web) || (v instanceof Interface.Web.Global)) { b_[k] = v; done = true; }\n  }\n  return done;\n};\nbin_cp(this.bin, bin);\nif (args != null) {for (k in args) {if (__hasProp.call(args, k)) { this.bin[k] = args[k]; this.keys.push(k); }}}\nreaction = {kups:false};\nif (this.interface != null)\n    this.interface.review(this.bin, reaction);\nif (reaction.certified) {\n    " + (declare_kups.join(';\n')) + ";\n    with (this.locals) {(" + (((ref3 = (ref4 = service.render) != null ? ref4.overriden : void 0) != null ? ref3 : service.render).toString()) + ").call(this, this.bin);}\n}\nthis.bin = bin; this.props = props; this.keys = keys; this.interface = interface; this.actor = actor; this.space = space; this.module_path = module_path; this.local_ids = local_ids;\nreturn reaction.certified;");
                 if (reaction.kups == null) {
                   reaction.kups = {};
                 }
@@ -447,7 +478,7 @@
             local_kups = this.reaction.local_kups;
             delete this.reaction.local_kups;
             declare_kups = get_declare_kups(local_kups);
-            chocokup_code = declare_kups.length > 0 ? new Function('args', "this.self.keys = [];\nif (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.self.bin[k] = args[k]; this.self.keys.push(k); }}}\n" + (declare_kups.join(';\n')) + ";\nwith (this.locals) {return (" + (render_code.toString()) + ").apply(this.self, arguments);}") : render_code;
+            chocokup_code = declare_kups.length > 0 ? new Function('args', "this.self.keys = [];\nthis.module_path = this.self.module_path = '" + this["interface"].module_path + "';\nthis.local_ids = {};\nif (args != null) {for (k in args) {if ({}.hasOwnProperty.call(args, k)) { this.self.bin[k] = args[k]; this.self.keys.push(k); }}}\n" + (declare_kups.join(';\n')) + ";\nwith (this.locals) {return (" + (render_code.toString()) + ").apply(this.self, arguments);}") : new Function('args', "this.module_path = this.self.module_path = '" + this["interface"].module_path + "';\nthis.local_ids = {};\nreturn (" + (render_code.toString()) + ").apply(this.self, arguments);");
             transmit = function(actor, service, bin_) {
               var interface_;
               if (bin_ == null) {

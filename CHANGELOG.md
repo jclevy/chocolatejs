@@ -1,3 +1,69 @@
+## v0.0.30 - (2018-11-14)
+
+--------------
+
+NEW FEATURES
+
+ - `general/chocokup` and `general/locco/interface`: new `id` and `id.class` feature.
+ 
+    When building HTML documents using Chocokup you may already use the `id()`, `id.ids()` and `id.classes()` functions.  
+    `id()` gives you a new unique id to be used to define a DOM element id and `id.ids()` gives you a local id generator to get ids by name, like in:
+
+            ids = id.ids()
+            ids('ok_button')
+
+    Now, you can define named ids in three different scopes (`local`, `module` and `general`) using `id('id_name')`, `id.module('id_name')` and `id.global('id_name')`.
+    
+    Using Coffeekup, `id('id_name')`, `id.module('id_name')` and `id.global('id_name')` refer to three distinct global scopes.
+    
+    Using Chockup, `id('id_name')` has a `global` scope, but you can define a module scope for a given kup using  
+    the `Chocokup.scope(kup, module_path)` and then get a module's scoped id using `id.module('id_name')`.
+    
+    Using Locco/Interface.Web: 
+      - `id('id_name')` has a local scope (local to the Interface.Web's `render` code
+      - `id.module('id_name')` has a module scope (local to the module file in which the Interface is defined)
+      - `id.global('id_name')` has a global scope (global in all `render` code used in the page/document rendered
+    
+    So, using Locco/Interface.Web:
+      - you can share unique ids between different Interfaces' `render` code
+      - you don't need to get a local id generatore with `id.ids()`, just use `id('id_name')`
+      - you don't need to pass the `id.ids` generated ids dictionary to the `coffeescript` section, it will be done behond the scene.
+    
+    
+    i.e., **local usage**: 
+    
+            sample_interface = new Interface.Web.Html 
+                render: ->
+                    input "##{id 'input'}", value:'Ok'
+                    coffeescript ->
+                        element = document.getElementById(id 'input')
+                        alert element.value
+    
+    i.e., **module usage:**
+    
+            extern_interface = new Interface.Web.Html 
+                render: ->
+                    coffeescript ->
+                        element = document.getElementById(id.module 'input')
+                        alert element.value
+                        
+            sample_interface = new Interface.Web.Html
+                use: -> {extern_interface}
+                render: ->
+                    input "##{id.module 'input'}", value:'Ok'
+                    extern_interface()
+
+
+UPDATES
+
+ - Added missing chocomake.bat file to `bin` directory
+
+FIXED BUGS
+
+ - `server/studio` and `server/file`: `grep` search service was not working well on Linux after Windows compatibility update
+ - `server/monitor`: faulty datadir introduced in 0.0.29
+
+
 ## v0.0.29 - (2018-10-30)
 
 --------------

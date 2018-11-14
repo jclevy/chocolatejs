@@ -9,6 +9,25 @@ class Chocokup
         if @content is undefined
             @content = @params
             @params = undefined
+        @module_path = do ->
+            files_stack = []
+            if Error.prepareStackTrace?
+                oldPST = Error.prepareStackTrace
+                Error.prepareStackTrace = (err, stack) -> stack
+                stack = (new Error).stack
+                Error.prepareStackTrace = oldPST
+                for line in stack then files_stack.push line.getFileName()
+            else
+                stack = (new Error).stack
+                files_stack = stack.toString().split('\n')
+            
+            found = no
+            for line in files_stack
+                if line.indexOf('/chocokup.') >= 0 then found = yes
+                else if line.indexOf('\\chocokup.') >= 0 then found = yes
+                else if found then return line
+            'global'
+
     head_template: ->
         text "#{@__.body()}"
     body_template: ->
@@ -305,6 +324,9 @@ class Chocokup
             document = @params.document
             delete @params.document
 
+        if @content.toString().indexOf('module_path') < 0
+            @content = Chocokup.scope @content, @module_path
+
         all_tags = options?.all_tags ? true
         format = options?.format ? false
         data = { params:@params, format, all_tags, hardcode:helpers, document, self, actor:self?.actor, locals, bin, props:bin, space:bin?.__?.space, __ }
@@ -312,6 +334,26 @@ class Chocokup
         __.content Coffeekup.render @content, data
         __.body Coffeekup.render @body_template, data
         __.head Coffeekup.render @head_template, data
+
+Chocokup.scope = (kup, module_path) ->
+    if _.type(kup) is _.Type.Function or (_.type(kup) is _.Type.String and kup.substr(8) is 'function')
+        new Function 'args', """
+            old_module_path = this.module_path; old_local_ids = this.local_ids;
+            this.module_path = '#{module_path}'; this.local_ids = {};
+            result = (#{kup.toString()}).apply(this, arguments);
+            this.module_path = old_module_path; this.local_ids = old_local_ids;
+            return result;
+        """
+    else
+        """
+            old_module_path = this.module_path; old_local_ids = this.local_ids
+            this.module_path = '#{module_path}'; this.local_ids = {};
+            kup = ->
+        #{kup.toString().split('\n').map((line) -> "        " + line).join('\n')}
+            result = kup.apply this, arguments
+            this.module_path = old_module_path; this.local_ids = old_local_ids
+            result
+        """
 
 class Chocokup.Document extends Chocokup
     constructor: (@title, @params, @content) -> super @params, @content

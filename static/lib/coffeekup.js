@@ -60,7 +60,7 @@
   coffeekup.self_closing = merge_elements('void', 'obsolete_void');
 
   skeleton = function(__data) {
-    var __ck, coffeescript, comment, doctype, h, id, ie, tag, text, totext;
+    var __ck, _global_ids, _modules_ids, coffeescript, comment, doctype, h, id, ie, tag, text, totext;
     if (__data == null) {
       __data = {};
     }
@@ -69,6 +69,12 @@
     }
     if (__data.autoescape == null) {
       __data.autoescape = false;
+    }
+    if (__data.module_path == null) {
+      __data.module_path = 'global';
+    }
+    if (__data.local_ids == null) {
+      __data.local_ids = {};
     }
     __ck = {
       buffer: [],
@@ -237,55 +243,92 @@
       }
       return __ck.render_tag(name, idclass, attrs, contents);
     };
+    _global_ids = {};
+    _modules_ids = {};
     id = function(db, value) {
-      var ids, j, key, len;
+      var ids, j, key, len, prefix, ref;
       if (typeof db === 'string') {
         value = db;
         db = null;
       }
       if (typeof value === 'string') {
-        ids = db != null ? db : {};
+        ids = (ref = db != null ? db : __data.local_ids) != null ? ref : {};
+        prefix = value ? value.replace(/[\.\#]/g, '-') : '';
         for (j = 0, len = arguments.length; j < len; j++) {
           key = arguments[j];
-          ids[key] = id();
+          if (key !== db) {
+            if (ids[key] == null) {
+              ids[key] = prefix + id();
+            }
+          }
         }
-        return ids;
+        if (arguments.length <= 2) {
+          return ids[value] != null ? ids[value] : ids[value] = prefix + id();
+        } else {
+          return ids;
+        }
       }
       if ((value != null) && typeof value === "number") {
         __data.id(parseInt(value));
       }
       return '_' + __data.id();
     };
+    id.local = function(value) {
+      return id(__data.local_ids, value);
+    };
+    id.module = function(value) {
+      var name1;
+      return id((_modules_ids[name1 = __data.module_path] != null ? _modules_ids[name1] : _modules_ids[name1] = {}), value);
+    };
+    id.global = function(value) {
+      return id(_global_ids, value);
+    };
     id.ids = function(db) {
-      var _ids, ids;
-      _ids = db != null ? db : {};
+      var _ids, ids, ref;
+      _ids = (ref = db != null ? db : __data.local_ids) != null ? ref : {};
       ids = function(value) {
-        var ref;
+        var ref1;
         if (value == null) {
           return _ids;
         }
-        return (ref = _ids[value]) != null ? ref : _ids[value] = id();
+        return (ref1 = _ids[value]) != null ? ref1 : _ids[value] = id(value);
       };
-      ids.toJSONString = function() {
-        return "(function (key) {\n    var _ids = " + (JSON.stringify(_ids)) + ";\n    return _ids[key];\n})";
+      ids.toJSONString = function(var_name) {
+        var empty, full, func, k, v;
+        empty = "(function () {return ''})";
+        full = "(function (key) {\n    var _ids = " + (JSON.stringify(_ids)) + ";\n    return _ids[key];\n})";
+        func = empty;
+        for (k in _ids) {
+          func = full;
+          break;
+        }
+        return "" + func + (((function() {
+          var ref1, results;
+          ref1 = this;
+          results = [];
+          for (k in ref1) {
+            if (!hasProp.call(ref1, k)) continue;
+            v = ref1[k];
+            if (k !== 'toJSONString') {
+              results.push(";" + var_name + "." + k + "=" + (v.toJSONString ? v.toJSONString(var_name + '.' + k) : v.toString()));
+            }
+          }
+          return results;
+        }).call(this)).join(''));
       };
       return ids;
     };
-    id.classes = function(db) {
-      var _classes, classes;
-      _classes = db != null ? db : {};
-      classes = function(value) {
-        var ref, ref1;
-        if (value == null) {
-          return _classes;
-        }
-        return (ref = _classes[value]) != null ? ref : _classes[value] = value.substr(0, (ref1 = id.classes.size) != null ? ref1 : 0) + '_' + id();
-      };
-      classes.toJSONString = function() {
-        return "(function (key) {\n    var _classes = " + (JSON.stringify(_classes)) + ";\n    return _classes[key];\n})";
-      };
-      return classes;
+    id.ids.local = function() {
+      return id.ids(__data.local_ids);
     };
+    id.ids.module = function() {
+      var name1;
+      return id.ids((_modules_ids[name1 = __data.module_path] != null ? _modules_ids[name1] : _modules_ids[name1] = {}));
+    };
+    id.ids.global = function() {
+      return id.ids(_global_ids);
+    };
+    id.classes = id.ids;
     totext = function(func) {
       var old_buffer, temp_buffer;
       temp_buffer = [];
@@ -318,17 +361,41 @@
       }
     };
     coffeescript = function(param, func) {
-      var k, v;
+      var has_local, has_module, idx, k, ref, ref1, ref2, v;
+      has_local = false;
+      for (k in __data.local_ids) {
+        has_local = true;
+        break;
+      }
+      has_module = _modules_ids[__data.module_path] != null;
+      if (has_local || has_module) {
+        if (func == null) {
+          func = param;
+          param = null;
+        }
+        func = func != null ? func.toString() : void 0;
+        if (!(((param != null ? param.id : void 0) != null) || (func == null))) {
+          if ((idx = func.indexOf('id')) >= 0) {
+            (param != null ? param : param = {}).id = (ref = id.ids.local()) != null ? ref : {};
+          }
+          if (idx > 0 && func.indexOf('module') >= 0) {
+            param.id.module = (ref1 = id.ids.module()) != null ? ref1 : {};
+          }
+          if (idx > 0 && func.indexOf('global') >= 0) {
+            param.id.global = (ref2 = id.ids.global()) != null ? ref2 : {};
+          }
+        }
+      }
       if (func) {
-        script((__ck.coffeescript_helpers + "\n(function() {var ") + ((function() {
+        script(("" + __ck.coffeescript_helpers) + (param != null ? "\n(function() {var " + ((function() {
           var results;
           results = [];
           for (k in param) {
             v = param[k];
-            results.push((k + "=") + (typeof v === 'function' ? (v.toJSONString != null ? v.toJSONString() : "" + (v.toString())) : JSON.stringify(v)));
+            results.push((k + "=") + (typeof v === 'function' ? (v.toJSONString != null ? v.toJSONString(k) : "" + (v.toString())) : JSON.stringify(v)));
           }
           return results;
-        })()).join(',') + ";\n" + ("(" + func + ").call(this);}).call(this);"));
+        })()).join(',') + ";\n" : '') + ("(" + func + ").call(this)") + (param != null ? "}).call(this);" : ";"));
         return __ck.coffeescript_helpers = "";
       } else {
         switch (typeof param) {
@@ -342,7 +409,7 @@
               return param;
             });
           case 'object':
-            param.type = 'text/coffeescript';
+            (param != null ? param : param = {}).type = 'text/coffeescript';
             return script(param);
         }
       }

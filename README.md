@@ -65,113 +65,69 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.29 - (2018-10-30)**
+**Chocolate v0.0.30 - (2018-11-14)**
 ---
 
 NEW FEATURES
 
- - Windows compatibility: now `Chocolate` can run on Windows.
-   - a `bin/chocomake.bat` has been added to create Chocolate projects on Windows systems
-   - few modifications have been made on core code to make Chocolate compatible with `Node.js` on Winodws platform
-   - current limitations on Windows:
-     - `File.hasWriteAccess` always returns `true`
-     - Chocolate's debug service does not work yet
- - `server/file`: 
-   - added `getGitStatus` service that returns the current Git status for current Git repository
-   - added `getFileDiff` service that returns the current file's Git diff
- - `server/studio`: added `Diff` and `Status` tabs to display Git status for current app and Git diff for current file
- - added `server/monitor.js` and `server/server.js`, so that one can start `Chocolate` using classical Node.js command
+ - `general/chocokup` and `general/locco/interface`: new `id` and `id.class` feature.
  
-UPDATES
+    When building HTML documents using Chocokup you may already use the `id()`, `id.ids()` and `id.classes()` functions.  
+    `id()` gives you a new unique id to be used to define a DOM element id and `id.ids()` gives you a local id generator to get ids by name, like in:
 
- - `general/chocokup`: added `.overflow` rule to chocokup's css to overflow-auto to a DOM element
- - `server/interface`: 
-   - added `pwa_worker` request type using `?how=pwa_worker` this request returns a `text/javascript` file the the browser
-   - added `masterInterfaces.exclude` sub-section in `app.config.json` file to tell the `masterInterfaces` service to bypass any file which name starts with one of the prefixes given in `masterInterfaces.exclude`'s array
-   - `create_hash` service now through a web interface
- - `server/file`: update list of searchable files suffixes in `grep`:
+            ids = id.ids()
+            ids('ok_button')
 
-        '.coffee', '.js', '.css', '.scss', '.json', '.txt', '.md', '.markdown', '.ck', '.chockup', '.log'
+    Now, you can define named ids in three different scopes (`local`, `module` and `general`) using `id('id_name')`, `id.module('id_name')` and `id.global('id_name')`.
+    
+    Using Coffeekup, `id('id_name')`, `id.module('id_name')` and `id.global('id_name')` refer to three distinct global scopes.
+    
+    Using Chockup, `id('id_name')` has a `global` scope, but you can define a module scope for a given kup using  
+    the `Chocokup.scope(kup, module_path)` and then get a module's scoped id using `id.module('id_name')`.
+    
+    Using Locco/Interface.Web: 
+      - `id('id_name')` has a local scope (local to the Interface.Web's `render` code
+      - `id.module('id_name')` has a module scope (local to the module file in which the Interface is defined)
+      - `id.global('id_name')` has a global scope (global in all `render` code used in the page/document rendered
+    
+    So, using Locco/Interface.Web:
+      - you can share unique ids between different Interfaces' `render` code
+      - you don't need to get a local id generatore with `id.ids()`, just use `id('id_name')`
+      - you don't need to pass the `id.ids` generated ids dictionary to the `coffeescript` section, it will be done behond the scene.
+    
+    
+    i.e., **local usage**: 
+    
+            sample_interface = new Interface.Web.Html 
+                render: ->
+                    input "##{id 'input'}", value:'Ok'
+                    coffeescript ->
+                        element = document.getElementById(id 'input')
+                        alert element.value
+    
+    i.e., **module usage:**
+    
+            extern_interface = new Interface.Web.Html 
+                render: ->
+                    coffeescript ->
+                        element = document.getElementById(id.module 'input')
+                        alert element.value
+                        
+            sample_interface = new Interface.Web.Html
+                use: -> {extern_interface}
+                render: ->
+                    input "##{id.module 'input'}", value:'Ok'
+                    extern_interface()
 
-
-FIXED BUGS
- - `server/file`: `resolve_repo` now resolve to to closest parent to have a `.git` folder
-
----
-
-**Chocolate v0.0.28 - (2018-10-08)**
---------------
-
-NEW FEATURES
-
- - `general/litelorem`: added basic `lorem` service that can generate `word`, `sentence`, `paragraph`, `image`, `face`
- 
-    lorem.word(): generates one word
-    
-    lorem.words(count): generates `count` words
-    
-    lorem.sentence(): generates one sentence (5 to 10 words each), starting with an upper case and ending with a point.
-    
-    lorem.sentences(count): generates `count` sentences
-    
-    lorem.paragraph(): generates one paragraph (10 to 20 sentences each), separated by a newline char (\\n)
-    
-    lorem.paragraphs(count): generates `count` paragraphs
-    
-    lorem.image(): generates a random image (400x200px)
-    
-    lorem.image(width:200, height:300): generates a random image (200x400)
-    
-    lorem.image(type:'arch'): generates a random architecture image. Type can be: `animals`, `arch`, `nature`, `people`, `tech`
-    
-    lorem.image(type:'people', color:'sepia'): generates a random people image in sepia (with sepia a `type` has to be provided). 
-    
-    lorem.image(color:'grayscale'): generates a random image in gray scale.
-    
-    lorem.image(blur:true): generates a random blurred image (with blurred image no `type` can be provided).
-    
-    lorem.image(gravity:'east'): generates a random image cropped to the east if image is wider than high (with gravity image no `type` can be provided). Gravity can be `north`, `east`, `south`, `west`, `center`
-
- - `general/chocokup`: added lorem service as a native keyword in Chocokup
-
-        e.g.: 
-            
-    >  div lorem.words(4)   
-    >  
-    >   `<div>volutpat odio facilisis mauris</div>`
-                    
-    >  div lorem.sentences(2)
-    >  
-    >   `<div>Malesuada bibendum arcu vitae elementum curabitur vitae nunc. Nec sagittis aliquam malesuada bibendum arcu vitae elementum.</div>  `
-                    
-    >  p para for para in lorem.paragraphs(2).split('\n')
-    >  
-    >   `<p>Vitae tortor condimentum lacinia quis vel. Dignissim sodales ut eu sem integer vitae. Arcu vitae elementum curabitur vitae nunc sed velit dignissim sodales. Facilisis leo vel fringilla est ullamcorper. Felis donec et odio pellentesque. Sem integer vitae justo eget. Dignissim diam quis enim lobortis. Pellentesque diam volutpat commodo sed egestas egestas fringilla phasellus faucibus. Elementum curabitur vitae nunc sed velit dignissim sodales ut. Sodales ut eu sem integer. Velit dignissim sodales ut eu sem integer. Ut eu sem integer vitae justo. Nec sagittis aliquam malesuada bibendum arcu. Lobortis scelerisque fermentum dui faucibus in ornare. Volutpat odio facilisis mauris sit amet massa vitae tortor. Odio tempor orci dapibus ultrices in iaculis nunc sed augue.</p>`  
-    >   `<p>Magna fermentum iaculis eu non. Malesuada bibendum arcu vitae elementum curabitur vitae nunc sed velit. Eu sem integer vitae justo eget magna fermentum iaculis eu. Tempor orci dapibus ultrices in iaculis nunc sed augue lacus. Quis enim lobortis scelerisque fermentum dui faucibus in ornare. Nulla facilisi etiam dignissim diam quis enim lobortis. Odio tempor orci dapibus ultrices in iaculis nunc sed. Fringilla urna porttitor rhoncus dolor purus non enim. Ut aliquam purus sit amet luctus venenatis lectus magna fringilla. Orci dapibus ultrices in iaculis nunc sed augue. Sed velit dignissim sodales ut eu sem integer vitae justo. Congue eu consequat ac felis donec.</p>`
-    >
-    
-    >  img src:lorem.image()
-    >
-    >   `<img src="https://picsum.photos/400/200?cache=4801568232095026" />`
-                
-    >  img src:lorem.face('woman')
-    >  
-    >   `<img src="https://randomuser.me/api/portraits/women/43.jpg" />`
-    
-
- - `general/chocodash`: added `_.slugify` service that converts a string to version that is compatible with URL
- - `.ck`, `.chocokup` files can be served from `static` folder so that you can write an Html-like file using `Chocokup`
 
 UPDATES
 
- - `server/interface`: `masterInterface` can now manage page interface defined by a simple function that returns a string
- - `server/interface`: `defaultExchange` now has an `extension` parameter to set an extension name if `defaultExchange` service is inside
- - `server/interface` and `general/locco/interface`: modified the `review` service to enable embedded interface to act as access controller for tha MasterItem interface
- - updated formidable to v1.2.1
+ - Added missing chocomake.bat file to `bin` directory
 
 FIXED BUGS
- - `server/monitor`: added the `.scss` file's folder to the `includePaths` Sass compiler command so that other `scss` files present in the same folder could be found by the compiler.
- - `server/interface`: `masterInterface` was not found if placed in an application's extension folder
+
+ - `server/studio` and `server/file`: `grep` search service was not working well on Linux after Windows compatibility update
+ - `server/monitor`: faulty datadir introduced in 0.0.29
 
 See history in **CHANGELOG.md** file
 
@@ -1836,7 +1792,7 @@ That interface can embed other `Interface.Web` modules:
                         a href:'#', login
                         a href:'#', signin
                 
-            render: ({__, welcome_message})->
+            render: ({__, welcome_message}) ->
                 if __.session.user?.has_signed_in
                     span welcome_message
                     span __.session.user.name
@@ -1846,6 +1802,58 @@ That interface can embed other `Interface.Web` modules:
 If you want to declare, in the `defaults` or `use` sections, an object that contains cyclical cross references, you have to create it with the `new` keyword or to put it in an array. 
 This way the `Interface.Web` will not look endlessly inside your `defaults` (or `use`) section for `Interface.Web` objects.
 
+### <a name="Choco-Locco-Interface-Id"></a>Generating id and css class id in Interface.Web or Chocokup [⌂](#Choco-Summary) 
+
+When building HTML documents using Interface.Web or Chocokup you may use the `id()`, `id.ids()` and `id.classes()` functions to generate ids and css class ids.  
+`id()` gives you a new unique id to be used to define a DOM element id and `id.ids()` gives you a local id generator to get ids by name, like in:
+
+        button "##{id 'ok_button'}"
+    
+    or 
+
+        ids = id.ids()
+        button "##{ids('ok_button')}"
+
+You can define named ids in three different scopes (`local`, `module` and `general`) using `id('id_name')`, `id.module('id_name')` and `id.global('id_name')`.
+
+Using Coffeekup, `id('id_name')`, `id.module('id_name')` and `id.global('id_name')` refer to three distinct global scopes.
+
+Using Chockup, `id('id_name')` has a `global` scope, but you can define a module scope for a given kup using  
+the `Chocokup.scope(kup, module_path)` and then get a module's scoped id using `id.module('id_name')`.
+
+Using Interface.Web:
+  - `id('id_name')` has a local scope (local to the Interface.Web's `render` code
+  - `id.module('id_name')` has a module scope (local to the module file in which the Interface is defined)
+  - `id.global('id_name')` has a global scope (global in all `render` code used in the page/document rendered
+
+So, using Locco/Interface.Web:
+  - you can share unique ids between different Interfaces' `render` code
+  - you don't need to get a local id generatore with `id.ids()`, just use `id('id_name')`
+  - you don't need to pass the `id.ids` generated ids dictionary to the `coffeescript` section, it will be done behond the scene.
+
+
+i.e., **local usage**: 
+
+        sample_interface = new Interface.Web.Html 
+            render: ->
+                input "##{id 'input'}", value:'Ok'
+                coffeescript ->
+                    element = document.getElementById(id 'input')
+                    alert element.value
+
+i.e., **module usage:**
+
+        extern_interface = new Interface.Web.Html 
+            render: ->
+                coffeescript ->
+                    element = document.getElementById(id.module 'input')
+                    alert element.value
+                    
+        sample_interface = new Interface.Web.Html
+            use: -> {extern_interface}
+            render: ->
+                input "##{id.module 'input'}", value:'Ok'
+                extern_interface()
 &nbsp;
 
 ---
