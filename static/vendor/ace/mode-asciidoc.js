@@ -120,7 +120,7 @@ var AsciidocHighlightRules = function() {
         "innerTableBlock": [
             {token: "tableBlock", regex: /^\s*!={3,}\s*$/, next: "tableBlock"},
             {token: "tableBlock", regex: /^\s*|={3,}\s*$/, next: "dissallowDelimitedBlock"},
-            {token: "tableBlock", regex: /\!/}
+            {token: "tableBlock", regex: /!/}
         ],
         "macros": [
             {token: "macro", regex: /{[\w\-$]+}/},
@@ -210,7 +210,7 @@ oop.inherits(FoldMode, BaseFoldMode);
     this.getFoldWidget = function(session, foldStyle, row) {
         var line = session.getLine(row);
         if (!this.foldingStartMarker.test(line))
-            return ""
+            return "";
 
         if (line[0] == "=") {
             if (this.singleLineHeadingRe.test(line))
@@ -339,4 +339,11 @@ oop.inherits(Mode, TextMode);
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
-});
+});                (function() {
+                    window.require(["ace/mode/asciidoc"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

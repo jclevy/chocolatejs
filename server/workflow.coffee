@@ -56,7 +56,7 @@ class Sessions
         createSession = true ; session = null
         
         # Did we receive a cookie ?
-        if cookies.bsid?
+        if (browser_session_id = cookies.bsid)?
             # Checks if we already have a session in `store`
             if (session = @store[cookies.bsid])?
                 # Is the remoteAddress the same as it was when we created the session ?
@@ -74,7 +74,7 @@ class Sessions
         # If we didn't find a session in store
         # we create a new Session with a new id and store it in `store`
         if createSession
-            browser_session_id = _.Uuid()
+            browser_session_id ?= _.Uuid()
             session = @store[browser_session_id] ?= new Session(browser_session_id, remoteAddress)
 
         session
@@ -113,14 +113,47 @@ class Session
 class WebSockets
     constructor: ->
         @clients = {}
+        @rooms = do ->
+            rooms = {}
+                
+            register = (id, ws) ->
+                list = rooms[id] ?= []
+                list.push ws unless list.indexOf(ws) >= 0
+                return
+            
+            unregister = (id, ws) ->
+                if not ws? then ws = id; id = null
+                
+                if not id? and ws?
+                    rooms_to_delete = []
+                    for name, list of rooms
+                        if (index = list.indexOf(ws)) >= 0
+                            list.splice index, 1
+                            if list.length is 0 then rooms_to_delete.push id
+                    for room_id in rooms_to_delete then delete rooms[room_id]
+                else
+                    return unless (list = rooms[id])? and (index = list.indexOf(ws)) >= 0
+                    list.splice index, 1
+                    if list.length is 0 then delete rooms[id]
+                return
+                
+            broadcast = (from_ws, id, message, send_to_self = false) ->
+                return unless (list = rooms[id])? and list.indexOf(from_ws) >= 0
+                for to_ws in list when to_ws isnt from_ws or send_to_self then to_ws.send message
+                return
+            
+            {register, unregister, broadcast}
         
     get: (request) ->
         # Get the cookies and the remote ip address from the `request`
         cookies = Interface.cook request
         
         if cookies.bsid?
-            wss = @clients[cookies.bsid]
-            do (wss) ->
+            wss = @clients[cookies.bsid] ?= []
+            do (wss, rooms=@rooms) ->
+                register: -> rooms.register.apply null, arguments
+                unregister: -> rooms.unregister.apply null, arguments
+                broadcast: -> rooms.broadcast.apply null, arguments
                 close: -> for ws in wss then ws.close.apply ws, arguments
                 send: -> for ws in wss then ws.send.apply ws, arguments
         else
@@ -130,7 +163,7 @@ class WebSockets
         cookies = Interface.cook ws.upgradeReq
         if cookies.bsid?
             #if @clients[cookies.bsid]? then console.log "client with bsid:#{cookies.bsid} has already a registered websocket"
-            array = @clients[cookies.bsid] ?= [] 
+            array = @clients[cookies.bsid] ?= []
             array.push ws
         return
     
@@ -138,8 +171,16 @@ class WebSockets
         cookies = Interface.cook ws.upgradeReq
         if cookies.bsid?
             array = @clients[cookies.bsid]
+            return unless array?
+            
+            @rooms.unregister ws
+            
             for item, i in array when item is ws
                 array.splice i, 1
+        
+            if array.length is 0
+                delete @clients[cookies.bsid]
+        return
         
 
 #### `Sni-callback` to manage SSL
@@ -500,8 +541,9 @@ class World
                             if config.proxy.log
                                 console.log 'proxyReq event:', 'host:' + request.headers.host, 'ip:' + request.connection?.remoteAddress, (k + ':' + v for k,v of request when k in ['method', 'url']).join ', '
                             return yes
-                        unless proxy_infos?.port? then response.end('') ; return no 
-                        proxy.web request, response, { target: "#{if config.http_only then 'http' else 'https'}://127.0.0.1:#{proxy_infos.port}", secure:false }                        
+                        unless proxy_infos?.port? then response.end('') ; return no
+                        proxy_port = parseInt(proxy_infos.port) + if Url.parse(request.url).pathname.indexOf('/-/server/monitor') is 0 then 2 else 0
+                        proxy.web request, response, { target: "#{if config.http_only then 'http' else 'https'}://127.0.0.1:#{proxy_port}", secure:false }                        
                         no
 
             middleware
@@ -613,7 +655,7 @@ class World
             session = sessions.get(request)
             websocket = websockets.get(request)
 
-            {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket}
+            {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, session, websocket, websockets:websocket}
 
         exchange = (bin, request, response) ->
             Interface.exchange bin, (result) ->
@@ -749,6 +791,7 @@ class World
             ws.on 'message', (str) ->
                 message = JSON.parse str
                 bin = extract ws.upgradeReq, message.url
+                bin.websocket = ws
                 bin.how = how = 'json'
 
                 Interface.exchange bin, (result) ->
@@ -762,6 +805,10 @@ class World
 # The main workflow service.
 exports.start = (appdir, port) ->
     world = new World(appdir, port)
+
+# Services from server/Interface
+exports.Sessions = Sessions
+exports.Session = Session
 
 #### Temporary experiments
 

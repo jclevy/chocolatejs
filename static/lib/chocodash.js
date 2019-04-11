@@ -375,13 +375,16 @@
     return serialize.join('&');
   };
 
-  _.serialize = _.flow = function(options, fn) {
+  _.serialize = _.flow = _.async = function(options, fn) {
     var async, defer, deferred, fn_self, local, next, ref, self, undefer;
     if (fn == null) {
       fn = options;
       options = {};
     }
-    self = options.self, local = options.local, async = options.async;
+    self = options.self, local = options.local;
+    if (self == null) {
+      self = {};
+    }
     if (local == null) {
       local = {};
     }
@@ -398,7 +401,6 @@
       undefered = deferred.shift();
       if (deferred.length === 0 && async === false && (options != null ? options.async : void 0) !== false) {
         return function(next) {
-          self = this;
           return setTimeout((function() {
             return undefered != null ? undefered.call(self, next) : void 0;
           }), 0);
@@ -426,7 +428,10 @@
         return next.later;
       }
     };
-    fn_self = self;
+    if (options.self == null) {
+      self.next = next;
+    }
+    fn_self = options.self;
     if (fn_self == null) {
       fn_self = fn;
     }

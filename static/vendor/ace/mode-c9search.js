@@ -64,7 +64,7 @@ var C9SearchHighlightRules = function() {
                     if (parts.length < 3)
                         return "text";
 
-                    var options, search, replace;
+                    var options, search;
                     
                     var i = 0;
                     var tokens = [{
@@ -78,7 +78,6 @@ var C9SearchHighlightRules = function() {
                         type: "text"
                     }];
                     if (parts[2] !== " in") {
-                        replace = parts[i];
                         tokens.push({
                             value: "'" + parts[i++] + "'",
                             type: "text"
@@ -106,11 +105,6 @@ var C9SearchHighlightRules = function() {
                             value: parts[i],
                             type: "text"
                         });
-                    }
-                    
-                    if (replace) {
-                        search = replace;
-                        options = "";
                     }
                     
                     if (search) {
@@ -213,20 +207,20 @@ oop.inherits(FoldMode, BaseFoldMode);
 
 (function() {
 
-    this.foldingStartMarker = /^(\S.*\:|Searching for.*)$/;
+    this.foldingStartMarker = /^(\S.*:|Searching for.*)$/;
     this.foldingStopMarker = /^(\s+|Found.*)$/;
     
     this.getFoldWidgetRange = function(session, foldStyle, row) {
         var lines = session.doc.getAllLines(row);
         var line = lines[row];
         var level1 = /^(Found.*|Searching for.*)$/;
-        var level2 = /^(\S.*\:|\s*)$/;
+        var level2 = /^(\S.*:|\s*)$/;
         var re = level1.test(line) ? level1 : level2;
         
         var startRow = row;
         var endRow = row;
 
-        if (this.foldingStartMarker.test(line)) {            
+        if (this.foldingStartMarker.test(line)) {
             for (var i = row + 1, l = session.getLength(); i < l; i++) {
                 if (re.test(lines[i]))
                     break;
@@ -289,4 +283,11 @@ oop.inherits(Mode, TextMode);
 
 exports.Mode = Mode;
 
-});
+});                (function() {
+                    window.require(["ace/mode/c9search"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

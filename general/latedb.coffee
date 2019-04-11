@@ -201,7 +201,7 @@ Log = ->
                 when '[object Undefined]' then write sep + 'void 0'
                 when '[object Null]' then write sep + 'null'
                 when '[object Buffer]', '[object SlowBuffer]'
-                    write sep + (if o.length is 16 then _.Uuid.unparse o else o.toString())
+                    write sep + (if o.length is 16 then  require('chocolate/general/chocodash').Uuid.unparse o else o.toString())
     
         doit(object)
         
@@ -388,25 +388,28 @@ Log = ->
                 _queue += "delete _m#{if p isnt '' then '["' + s + '"]' for s in p.split('.') else ''}[\"#{n}\"];\n"
     
             if m[n]? and f? then for own k of m[n] then do_remove k, f[k], p + (if p is '' then '' else '.') + n, m[n]
+            return
             
-        do_append = (n, f, p, m) ->
+        do_append = (n, f, p, m, force) ->
             unless f? 
                 if m[n] isnt req = require name
                     m[n] = req
                     unless timestamped then write() ; timestamped = yes
                     _queue += "_m#{if p isnt '' then '["' + s + '"]' for s in p.split('.') else ''}[\"#{n}\"] = require('#{name}');\n"
-            else if typeof f is 'function' 
-                if not m[n]? or (m[n].toString().replace(/^\/\/.*(\n)*/mg, '') isnt f.toString().replace(/^\/\/.*(\n)*/mg, ''))
+            else if typeof f is 'function'
+                if force or not m[n]? or (m[n].toString().replace(/(^\/\/.*(\n)*)|(\r)/mg, '') isnt f.toString().replace(/(^\/\/.*(\n)*)|(\r)/mg, ''))
                     m[n] = f
                     unless timestamped then write() ; timestamped = yes
                     _queue += "_m#{if p isnt '' then '["' + s + '"]' for s in p.split('.') else ''}[\"#{n}\"] = (function (#{name}) { return #{f.toString().replace /^\/\/.*(\n)*/mg, ''}; })(_m[\"#{name}\"])\n"
+                    force = yes
             else
                 unless m[n]?
                     m[n] = {}
                     unless timestamped then write() ; timestamped = yes
                     _queue += "_m#{if p isnt '' then '["' + s + '"]' for s in p.split('.') else ''}[\"#{n}\"] = {};\n"
             
-            if f? then for own k,v of f then do_append k, v, p + (if p is '' then '' else '.') + n, m[n]
+            if f? then for own k,v of f then do_append k, v, p + (if p is '' then '' else '.') + n, m[n], force
+            return
         
         do_remove name, service, "", _modules
         do_append name, service, "", _modules
@@ -598,6 +601,7 @@ Log.exists = (name, datadir, callback) ->
     return
 
 lateDB = (name, path) ->
+    path ?= process?.cwd() if name?
     name ?= _defaults.filename
     db = loadedDBs[name]
     
@@ -672,50 +676,63 @@ lateDB = (name, path) ->
 
     db.tables = do ->
         
-        Table = table_module =  log.module 'Table'
+        Table = ->
+            lines: {}
+            length: 0
         
-        unless Table?
-            Table = ->
-                lines: {}
-                length: 0
-            
-            Table.insert = (table, line) ->
-                return unless line.id?
-                inc = if table.lines[line.id]? then 0 else 1
-                table.lines[line.id] = line
-                table.length += inc
-                Table.notify table, 'insert', line
-    
-            Table.update = (table, update) ->
-                return unless update.id?
-                line = table.lines[update.id]
-                return unless line?
-                for k,v of update when k isnt 'id' then line[k] = v
-                Table.notify table, 'update', update
-            
-            Table.delete = (table, line) ->
-                return unless line?.id? or line?
-                dec = if table.lines[line.id ? line]? then 1 else 0
-                delete table.lines[line.id ? line]
-                table.length -= dec
-                Table.notify table, 'delete', line
-            
-            Table.notify = (table, event, line) ->
-                if (observers = table.observers?[event])? 
-                    for observer in observers
-                        observer table, line
-            
-            Table.observe = (table, event, observer) ->
-                table.observers ?= {}
-                observers = table.observers[event] ?= []
-                observers.push observer
-            
-            Table.toArray = (table) ->
-                arr = []
-                for id, line of table.lines then arr.push line
-                arr
+        Table.insert = (table, line) ->
+            return unless line.id?
+            inc = if table.lines[line.id]? then 0 else 1
+            table.lines[line.id] = line
+            table.length += inc
+            Table.notify table, 'insert', line
+
+        Table.patchLine = (line, patch, do_prune=no) ->
+            pruned = no
+            for k,v of patch
+                if v.constructor in [Object, Array] and line[k]? 
+                    if (pruned = Table.patchLine line[k], v, do_prune)
+                        has_one = no; for kk of line[k] then has_one = yes; break
+                        delete line[k] unless has_one
+                else 
+                    unless do_prune then line[k] = v
+                    else if v is true
+                        delete line[k]; pruned = yes
+                        if line.constructor is Array and not line[line.length-1]? then line.pop()
+                        
+            pruned
+
+        Table.update = (table, update, prune) ->
+            return unless update?.id? or prune?.id?
+            line = table.lines[update?.id ? prune?.id]
+            return unless line?
+            Table.patchLine line, update
+            Table.patchLine line, prune, on if prune?
+            Table.notify table, 'update', update
         
-        if table_module? then log.upgrade 'Table', Table
+        Table.delete = (table, line) ->
+            return unless line?.id? or line?
+            dec = if table.lines[line.id ? line]? then 1 else 0
+            delete table.lines[line.id ? line]
+            table.length -= dec
+            Table.notify table, 'delete', line
+        
+        Table.notify = (table, event, line) ->
+            if (observers = table.observers?[event])? 
+                for observer in observers
+                    observer table, line
+        
+        Table.observe = (table, event, observer) ->
+            table.observers ?= {}
+            observers = table.observers[event] ?= []
+            observers.push observer
+        
+        Table.toArray = (table) ->
+            arr = []
+            for id, line of table.lines then arr.push line
+            arr
+        
+        if (log.module 'Table')? then log.upgrade 'Table', Table
         
         List = ->
             items: {}
@@ -924,6 +941,20 @@ lateDB = (name, path) ->
         _query_defs = {}
         _helpers = {}
 
+        clone = (value) ->
+            return value unless value.constructor in [Object, Array]
+            
+            set = (o, val) ->
+                for own k,v of val then switch Object.prototype.toString.apply(v) 
+                    when '[object Object]'
+                        o[k] = {}; set o[k], v
+                    when '[object Array]'
+                        o[k] = []; set o[k], v
+                    else o[k] = v
+                o
+
+            set (if value.constructor is Object then {} else []), value
+
         extend = (object, values) ->
             set = (o, val) ->
                 for own k,v of val
@@ -933,7 +964,7 @@ lateDB = (name, path) ->
                 o
                
             set object, values
-        
+
         entity = (name) ->
             name_parts = name.split '_'
             entity_name = []
@@ -949,7 +980,7 @@ lateDB = (name, path) ->
         # name: 
         #   table name following this protocol `entities_linkedEntities/singularEntity_singularLinkedEntity`
         #   plural form is supposed to be one letter added at the end of singular form
-        #   if not, or if plral form is unregular, you must provide the singular entity name
+        #   if not, or if plural form is unregular, you must provide the singular entity name
         # 
         # so it can be something like:
         #  `books`
@@ -975,6 +1006,7 @@ lateDB = (name, path) ->
                 table.options = o.options
                 table.options.history ?= off
                 table.options.index ?= on
+                table.options.identity ?= off
             
             List.upgrade db("tables.#{name}")
             
@@ -989,12 +1021,20 @@ lateDB = (name, path) ->
                 table.options = o.options
                 table.options.history ?= off
                 table.options.index ?= on
+                table.options.identity ?= off
 
             return            
+        
+        drop = (table_name) ->
+            table = db("tables.#{table_name}")
+            db 'entities', {entity_name:table.entity_name}, (o) -> delete @[o.entity_name]
+            db 'tables', {name:table_name}, (o) -> delete @[o.name]
+            return
 
         insert = (table_name, line) ->
             table = db("tables.#{table_name}")
             throw "can't insert line into non-existing table '#{table_name}'" unless table? and Object.prototype.toString.call(table) is '[object Object]'
+            if table.options.identity is on and not line.id? then line.id = db.tables.id(table_name)
             throw "can't insert a line without an `id` field into table '#{table_name}'" unless line?.id?
 
             db "tables.#{table_name}", line, (line, {Table}) -> Table.insert @, line
@@ -1004,23 +1044,51 @@ lateDB = (name, path) ->
 
             unless table.options.history is off
                 History.insert table, line
-            
+
+            return line.id if table.options.identity is on
             return
         
-        update = (table_name, line_update) ->
+        diff_update = (line, update, level) ->
+            u = {}; d = {}
+            level ?= 0
+            if level is 0 then if update.id? then u.id = d.id = update.id
+            
+            found = u:no, d:no
+            for k,v of update when k isnt 'id' or level > 0
+                if v.constructor in [Object, Array]
+                    unless line[k]? then u[k] = clone(v); found.u = on
+                    else 
+                        {u:uu, d:dd} = diff_update line[k], v, level + 1
+                        if uu? then u[k] = uu; found.u = on
+                        if dd? then d[k] = dd; found.d = on
+                else if v isnt line[k] then u[k] = v; found.u = on
+
+            if level > 0 then for k of line then unless update[k]? then d[k] = on; found.d = on
+            
+            return {u:(if found.u then u else null), d:(if found.d then d else null)}
+
+        update = (table_name, line_update, options) ->
             table = db("tables.#{table_name}")
             throw "can not update line into non-existing table '#{table_name}'" unless table? and Object.prototype.toString.call(table) is '[object Object]'
 
             line = table.lines[line_update?.id]
             throw "can't update a non existing line (id:#{line_update?.id}) in #{table_name}'" unless line?
             
-            unless table.options.index is off
-                Index.delete_line table, line
-            
-            db "tables.#{table_name}", line_update, (line_update, {Table}) -> Table.update @, line_update
+            if options?.diff
+                {u:line_update, d:line_prune} = diff_update line, line_update
 
-            unless table.index is off
-                Index.insert_line table, line
+            if line_update? or line_prune?
+                unless table.options.index is off
+                    Index.delete_line table, line
+                
+                unless line_prune?
+                    db "tables.#{table_name}", line_update, (line_update, {Table}) -> Table.update @, line_update
+                else
+                    db "tables.#{table_name}", {line_update, line_prune}, ({line_update, line_prune}, {Table}) -> Table.update @, line_update, line_prune
+                    
+                unless table.index is off
+                    Index.insert_line table, line
+
             return
 
         delete_ = (table_name, line_to_delete) ->
@@ -1056,8 +1124,10 @@ lateDB = (name, path) ->
             table = db("tables.#{table_name}")
             throw "can not get an item from non-existing table '#{table_name}'" unless table? and Object.prototype.toString.call(table) is '[object Object]'
             
-            table.lines[id]
-            
+            if id?.at?
+                idx = 0; for k,v of table.lines when idx++ is id.at then return v
+            else table.lines[id]
+        
         QueryIterator = class
             constructor: (@table) -> 
                 if @table?
@@ -1076,15 +1146,17 @@ lateDB = (name, path) ->
                 else
                     if (index = field_def.indexOf '.') >= 0 then null else field_def
         
-            next: (filter, keys, table_name) ->
+            next: (filter, keys, params, table_name, filter_is_where) ->
                 next = @iterator.next()
                 @continue = no unless @iterator.has_next()
                 
                 return next if @filtered
                 return next unless filter?
                 
-                if typeof filter is 'function' 
-                    return if filter.call({helpers:_helpers}, next, keys, table_name) then next else null
+                if typeof filter is 'function'
+                    return if filter.call(next, next, keys, table_name, _helpers) then next else null
+                else if filter_is_where
+                    return if not (filter = filter[table_name])? or filter.call(next, params, _helpers) then next else null
                 
                 joined_lines = @table
                 key_values = {}
@@ -1140,11 +1212,12 @@ lateDB = (name, path) ->
             
             if typeof entity_name isnt 'string' then query_name = keys ; keys = entity_name ; entity_name = null
             if Object.prototype.toString.apply(keys) isnt '[object Array]' then query_name = keys ; keys = null
-            keys ?= [] ; query_name ?= ''
-                
-            (query_def = query_name)  if query_name? and typeof query_name isnt 'string'
+            query_name ?= ''
             
+            (query_def = query_name) if query_name? and typeof query_name isnt 'string'
             if typeof query_def is 'function' then query_def = filter:query_def
+            keys ?= query_def?.keys ? []
+            params = query_def?.params ? {}
             
             unless entity_name?
                 name = query_def?.table ? query_def?.select.split('.')[0] ? ''
@@ -1164,36 +1237,35 @@ lateDB = (name, path) ->
         
             has_query_def_field = -> 
                 result = no 
-                for k of query_def.fields then result = yes ; break
+                for k of query_def.fields_selected then result = yes ; break
                 result
                 
-            tableExtend = (line, line_num) -> 
+            tableExtend = (line, line_as_object, line_num) ->
                 if line_num is 0
-                    remove = (field) -> 
-                        if query_def.map?.remove? then ( if field in query_def.map.remove then yes else no )
-                        else no
-            
                     fields_existing = {} ; for k of line then fields_existing[k] = on
-                    
-                o = {} ; o[if query_def.map?.rename? and query_def.map?.rename[k]? then query_def.map?.rename[k] else k] = v for k, v of line
                 
-                if query_def.map?.name?
-                    [dst, src] = query_def.map.name.split '-'
+                unless query_def.fields?
+                    o = {} ; o[if query_def.map?.rename? and query_def.map?.rename[k]? then query_def.map?.rename[k] else k] = v for k, v of line when not query_def.map?.remove?[k]
                     
-                    if query_def.select? then o[entity_table + '.' + 'name'] = line[entity_table + '.' + "name#{dst}"] + (if src? and line[entity_table + '.' + "name#{src}"] isnt null then ' - ' + line[entity_table + '.' + "name#{src}"] else '')
-                    else o.name = line["name#{dst}"] + (if src? and line["name#{src}"] isnt null then ' - ' + line["name#{src}"] else '')
-                
-                if query_def.map?.add? then query_def.map.add.call({helpers:_helpers}, o, line, keys)
+                    if query_def.map?.name?
+                        [dst, src] = query_def.map.name.split '-'
+                        
+                        if query_def.select? then o[entity_table + '.' + 'name'] = line[entity_table + '.' + "name#{dst}"] + (if src? and line[entity_table + '.' + "name#{src}"] isnt null then ' - ' + line[entity_table + '.' + "name#{src}"] else '')
+                        else o.name = line["name#{dst}"] + (if src? and line["name#{src}"] isnt null then ' - ' + line["name#{src}"] else '')
+                    
+                    if query_def.map?.add? then query_def.map.add.call({map:o, line}, o, line, keys, _helpers)
+                else if line_as_object?
+                    o = query_def.fields.call(line_as_object, line_as_object) if line_as_object?
         
                 if line_num is 0
-                    query_def.fields[k] = on for k of o when not Object.prototype.hasOwnProperty.call(fields_existing, k)
+                    query_def.fields_selected[k] = on for k of o when not Object.prototype.hasOwnProperty.call(fields_existing, k) or query_def.fields?
                     
                 o
         
             tableFilter = (line) ->
                 return yes unless has_query_def_field()
                 
-                hash = "" ; for k,v of line when query_def.fields[k] is on then hash += (if hash isnt "" then ',' else '') + v
+                hash = "" ; for k,v of line when query_def.fields_selected[k] is on then hash += (if hash isnt "" then ',' else '') + v
                 unless result_unique[hash]?
                     result_unique[hash] = on
                     yes
@@ -1203,37 +1275,41 @@ lateDB = (name, path) ->
             result_unique = {}
             
             table = do ->
-                select_query_def = if typeof query_def.select is 'function' then query_def.select.call({helpers:_helpers}, keys) else (query_def.select ? entity_table)
+                select_query_def = if typeof query_def.select is 'function' then query_def.select.call({}, keys, _helpers) else (query_def.select ? entity_table)
                 result_table = []
                 result_table_is_full = no
                 path = select_query_def.split '.'
-                query_def.fields = {}
+                query_def.fields_selected = {}
                 query_def.fields_tables = []
-                
         
                 [table_name] = path[step = 0].split '('
         
                 iterator = new QueryIterator tables[table_name]
                 while iterator.continue and not result_table_is_full
                     selected = has_fields:no, values:{}, first_line:on, line_ids:{}
+                    if query_def.fields? then selected.values_as_object = {}
                     do next_step = (iterator, step) ->
                         [table_name, field_infos] = path[step].split '(' ; if step+1 < path.length then [joined_table_name] = path[step+1].split '(' else joined_table_name = undefined
                         field_infos = field_infos[...-1] if field_infos? and field_infos[-1..] is ')'
                         table_name = table_name[1...-1] if table_name[0] is '['
                         table_name_prefix = if query_def.select? then table_name + '.' else ''
                         
-                        line = iterator.next query_def.filter, keys, table_name
+                        line = iterator.next (query_def.where ? query_def.filter), keys, params, table_name, query_def.where?
                         if line?
                             selected.line_ids[table_name] = line.id
-                            selected.values[table_name_prefix + k] = line[k] for k of line
+                            for k, v of line
+                                selected.values[table_name_prefix + k] = v
+                                if query_def.fields?
+                                    o = selected.values_as_object[table_name] ?= {}
+                                    o[k] = v
                             
                             if field_infos? and selected.first_line
                                 selected.has_fields = yes
                                 if field_infos is '*' 
-                                    query_def.fields[table_name_prefix + k] = on for k of line when (k[-3..] isnt '_id') and (k[-4..] isnt '_ref') and (k[-6..] isnt '_joins')
+                                    query_def.fields_selected[table_name_prefix + k] = on for k of line when (k[-3..] isnt '_id') and (k[-4..] isnt '_ref') and (k[-6..] isnt '_joins')
                                     query_def.fields_tables.push table_name
                                 else 
-                                    (k = k.trim() ; query_def.fields[table_name_prefix + k] = on) for k in field_infos.split ','
+                                    (k = k.trim() ; query_def.fields_selected[table_name_prefix + k] = on) for k in field_infos.split ','
                                     query_def.fields_tables.push table_name
                             
                             if joined_table_name?[0] is '{'
@@ -1242,13 +1318,12 @@ lateDB = (name, path) ->
                                 virtual_line = tables[joined_table_name].index.id[selected.line_ids[joined_table_name]]
                                 [joined_table_name] = path[step+1].split '('
                                 
-                            link_type_is_many = no ; if joined_table_name?[0] is '[' then joined_table_name = joined_table_name[1...-1] ; link_type_is_many = yes
+                            link_type_is_many = no; if joined_table_name?[0] is '[' then joined_table_name = joined_table_name[1...-1] ; link_type_is_many = yes
+                            unless (virtual_line ? line)[joined_table_name + "_ref"] then link_type_is_many = yes
                             
                             if step+1 < path.length
                                 if link_type_is_many is no
-                                    ref_field_name = joined_table_name + "_ref"
-                                    ref_line = (virtual_line ? line)[ref_field_name]
-                                    if ref_line?
+                                    if (ref_line = (virtual_line ? line)[joined_table_name + "_ref"])?
                                         ref_line_table = TransientTable [ref_line]
                                         next_step new QueryIterator(ref_line_table), step+1 
                                 else
@@ -1256,22 +1331,24 @@ lateDB = (name, path) ->
                                         joins_field_name = joined_table_name + "_joins"
                                         joins_lines = (virtual_line ? line)[joins_field_name]
                                     else
-                                        joins_lines = TransientTable.fromTable tables[joined_table_name], (joined_line) -> join.call({helpers:_helpers}, line, joined_line)
+                                        joins_lines = TransientTable.fromTable tables[joined_table_name], (joined_line) -> join.call({joined:joined_line, line}, line, joined_line, _helpers)
                                     
                                     if joins_lines?
                                         selected_ = selected
                                         join_iterator = new QueryIterator joins_lines
                                         while join_iterator.continue
-                                            selected = has_fields:selected.has_fields, values:extend({}, selected.values), first_line:selected.first_line, line_ids:extend(selected.line_ids)
+                                            selected__ = has_fields:selected.has_fields, values:extend({}, selected.values), first_line:selected.first_line, line_ids:extend({}, selected.line_ids)
+                                            if query_def.fields? then selected__.values_as_object = extend({}, selected.values_as_object)
+                                            selected = selected__
                                             next_step join_iterator, step+1
                                         selected = selected_
                             else 
                                 unless selected.has_fields or not selected.first_line or query_def.select? or query_def.map?.alias
                                     selected.has_fields = yes
-                                    query_def.fields[table_name_prefix + k] = on for k,v of line when (k[-3..] isnt '_id') and (k[-4..] isnt '_ref') and (k[-6..] isnt '_joins')
+                                    query_def.fields_selected[table_name_prefix + k] = on for k,v of line when (k[-3..] isnt '_id') and (k[-4..] isnt '_ref') and (k[-6..] isnt '_joins')
                                     query_def.fields_tables.push table_name
         
-                                result_line = tableExtend selected.values, result_table.length
+                                result_line = tableExtend selected.values, selected.values_as_object, result_table.length
                                 result_table.push result_line if tableFilter result_line
                                 
                                 if query_def.fields_tables.length is 1
@@ -1290,15 +1367,15 @@ lateDB = (name, path) ->
             tableReduce = (line) ->
                 return {} unless has_query_def_field()
                 
-                o = {} ; o[k] = v for k, v of line when query_def.fields[k] is on
+                o = {} ; o[k] = clone(v) for k, v of line when query_def.fields_selected[k] is on
                 
                 for k, v of o when k.indexOf('.') >= 0
                     keep_field = no
                     [table_name, field_name] = k.split '.'
                     if query_def.map?.alias is on 
-                        o[tables[table_name].alias + field_name] = v 
+                        o[tables[table_name].alias + field_name] = clone(v) 
                     else 
-                        unless o[field_name]? then o[field_name] = v else keep_field = yes
+                        unless o[field_name]? then o[field_name] = clone(v) else keep_field = yes
                     delete o[k] unless keep_field
         
                 o
@@ -1367,7 +1444,7 @@ lateDB = (name, path) ->
         
         if count() > 0 then init()
                         
-        {init, count, list, exists, create, alter, insert, update, delete:delete_, id, get, query}
+        {init, count, list, exists, create, alter, drop, insert, update, delete:delete_, id, get, query}
 
     db.cells = do ->
         
@@ -1385,9 +1462,7 @@ lateDB = (name, path) ->
         unless Cell?
             Cell = ->
                 value: null
-        
-        
-
+    
     loadedDBs[log.filename()] = db
 
     db

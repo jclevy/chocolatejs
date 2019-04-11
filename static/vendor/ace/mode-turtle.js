@@ -1,36 +1,130 @@
-define("ace/mode/mipsassembler_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(require, exports, module) {
+define("ace/mode/turtle_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(require, exports, module) {
 "use strict";
 
 var oop = require("../lib/oop");
 var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
 
-var mipsassemblerHighlightRules = function() {
+var TurtleHighlightRules = function() {
 
     this.$rules = {
-            start: [{
-                token: "string.start",
-                regex: '"',
-                next: "qstring"
-            }],
-            qstring: [{
-                token: "escape",
-                regex: /\\./,
+        start: [{
+            include: "#comments"
+        }, {
+            include: "#strings"
+        }, {
+            include: "#base-prefix-declarations"
+        }, {
+            include: "#string-language-suffixes"
+        }, {
+            include: "#string-datatype-suffixes"
+        }, {
+            include: "#relative-urls"
+        }, {
+            include: "#xml-schema-types"
+        }, {
+            include: "#rdf-schema-types"
+        }, {
+            include: "#owl-types"
+        }, {
+            include: "#qnames"
+        }, {
+            include: "#punctuation-operators"
+        }],
+        "#base-prefix-declarations": [{
+            token: "keyword.other.prefix.turtle",
+            regex: /@(?:base|prefix)/
+        }],
+        "#comments": [{
+            token: [
+                "punctuation.definition.comment.turtle",
+                "comment.line.hash.turtle"
+            ],
+            regex: /(#)(.*$)/
+        }],
+        "#owl-types": [{
+            token: "support.type.datatype.owl.turtle",
+            regex: /owl:[a-zA-Z]+/
+        }],
+        "#punctuation-operators": [{
+            token: "keyword.operator.punctuation.turtle",
+            regex: /;|,|\.|\(|\)|\[|\]/
+        }],
+        "#qnames": [{
+            token: "entity.name.other.qname.turtle",
+            regex: /(?:[a-zA-Z][-_a-zA-Z0-9]*)?:(?:[_a-zA-Z][-_a-zA-Z0-9]*)?/
+        }],
+        "#rdf-schema-types": [{
+            token: "support.type.datatype.rdf.schema.turtle",
+            regex: /rdfs?:[a-zA-Z]+|(?:^|\s)a(?:\s|$)/
+        }],
+        "#relative-urls": [{
+            token: "string.quoted.other.relative.url.turtle",
+            regex: /</,
+            push: [{
+                token: "string.quoted.other.relative.url.turtle",
+                regex: />/,
+                next: "pop"
             }, {
-                token: "string.end",
-                regex: '"',
-                next: "start"
-            }],
-        }
+                defaultToken: "string.quoted.other.relative.url.turtle"
+            }]
+        }],
+        "#string-datatype-suffixes": [{
+            token: "keyword.operator.datatype.suffix.turtle",
+            regex: /\^\^/
+        }],
+        "#string-language-suffixes": [{
+            token: [
+                "keyword.operator.language.suffix.turtle",
+                "constant.language.suffix.turtle"
+            ],
+            regex: /(?!")(@)([a-z]+(?:\-[a-z0-9]+)*)/
+        }],
+        "#strings": [{
+            token: "string.quoted.triple.turtle",
+            regex: /"""/,
+            push: [{
+                token: "string.quoted.triple.turtle",
+                regex: /"""/,
+                next: "pop"
+            }, {
+                defaultToken: "string.quoted.triple.turtle"
+            }]
+        }, {
+            token: "string.quoted.double.turtle",
+            regex: /"/,
+            push: [{
+                token: "string.quoted.double.turtle",
+                regex: /"/,
+                next: "pop"
+            }, {
+                token: "invalid.string.newline",
+                regex: /$/
+            }, {
+                token: "constant.character.escape.turtle",
+                regex: /\\./
+            }, {
+                defaultToken: "string.quoted.double.turtle"
+            }]
+        }],
+        "#xml-schema-types": [{
+            token: "support.type.datatype.xml.schema.turtle",
+            regex: /xsd?:[a-z][a-zA-Z]+/
+        }]
+    };
     
     this.normalizeRules();
 };
 
-mipsassemblerHighlightRules.metaData = 
+TurtleHighlightRules.metaData = {
+    fileTypes: ["ttl", "nt"],
+    name: "Turtle",
+    scopeName: "source.turtle"
+};
 
 
-oop.inherits(mipsassemblerHighlightRules, TextHighlightRules);
+oop.inherits(TurtleHighlightRules, TextHighlightRules);
 
-exports.mipsassemblerHighlightRules = mipsassemblerHighlightRules;
+exports.TurtleHighlightRules = TurtleHighlightRules;
 });
 
 define("ace/mode/folding/cstyle",["require","exports","module","ace/lib/oop","ace/range","ace/mode/folding/fold_mode"], function(require, exports, module) {
@@ -54,11 +148,11 @@ oop.inherits(FoldMode, BaseFoldMode);
 
 (function() {
     
-    this.foldingStartMarker = /(\{|\[)[^\}\]]*$|^\s*(\/\*)/;
-    this.foldingStopMarker = /^[^\[\{]*(\}|\])|^[\s\*]*(\*\/)/;
+    this.foldingStartMarker = /([\{\[\(])[^\}\]\)]*$|^\s*(\/\*)/;
+    this.foldingStopMarker = /^[^\[\{\(]*([\}\]\)])|^[\s\*]*(\*\/)/;
     this.singleLineBlockCommentRe= /^\s*(\/\*).*\*\/\s*$/;
     this.tripleStarBlockCommentRe = /^\s*(\/\*\*\*).*\*\/\s*$/;
-    this.startRegionRe = /^\s*(\/\*|\/\/)#region\b/;
+    this.startRegionRe = /^\s*(\/\*|\/\/)#?region\b/;
     this._getFoldWidgetBase = this.getFoldWidget;
     this.getFoldWidget = function(session, foldStyle, row) {
         var line = session.getLine(row);
@@ -146,13 +240,12 @@ oop.inherits(FoldMode, BaseFoldMode);
         
         return new Range(startRow, startColumn, endRow, session.getLine(endRow).length);
     };
-    
     this.getCommentRegionBlock = function(session, line, row) {
         var startColumn = line.search(/\s*$/);
         var maxRow = session.getLength();
         var startRow = row;
         
-        var re = /^\s*(?:\/\*|\/\/)#(end)?region\b/;
+        var re = /^\s*(?:\/\*|\/\/|--)#?(end)?region\b/;
         var depth = 1;
         while (++row < maxRow) {
             line = session.getLine(row);
@@ -174,23 +267,30 @@ oop.inherits(FoldMode, BaseFoldMode);
 
 });
 
-define("ace/mode/mipsassembler",["require","exports","module","ace/lib/oop","ace/mode/text","ace/mode/mipsassembler_highlight_rules","ace/mode/folding/cstyle"], function(require, exports, module) {
+define("ace/mode/turtle",["require","exports","module","ace/lib/oop","ace/mode/text","ace/mode/turtle_highlight_rules","ace/mode/folding/cstyle"], function(require, exports, module) {
 "use strict";
 
 var oop = require("../lib/oop");
 var TextMode = require("./text").Mode;
-var HighlightRules = require("./mipsassembler_highlight_rules").HighlightRules;
+var TurtleHighlightRules = require("./turtle_highlight_rules").TurtleHighlightRules;
 var FoldMode = require("./folding/cstyle").FoldMode;
 
 var Mode = function() {
-    this.HighlightRules = HighlightRules;
+    this.HighlightRules = TurtleHighlightRules;
     this.foldingRules = new FoldMode();
 };
 oop.inherits(Mode, TextMode);
 
 (function() {
-    this.$id = "ace/mode/mipsassembler"
+    this.$id = "ace/mode/turtle";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
-});
+});                (function() {
+                    window.require(["ace/mode/turtle"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

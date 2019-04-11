@@ -13,7 +13,7 @@ define("ace/mode/coffee_highlight_rules",["require","exports","module","ace/lib/
             "this|throw|then|try|typeof|super|switch|return|break|by|continue|" +
             "catch|class|in|instanceof|is|isnt|if|else|extends|for|own|" +
             "finally|function|while|when|new|no|not|delete|debugger|do|loop|of|off|" +
-            "or|on|unless|until|and|yes"
+            "or|on|unless|until|and|yes|yield|export|import|default"
         );
 
         var langConstant = (
@@ -21,9 +21,8 @@ define("ace/mode/coffee_highlight_rules",["require","exports","module","ace/lib/
         );
 
         var illegal = (
-            "case|const|default|function|var|void|with|enum|export|implements|" +
-            "interface|let|package|private|protected|public|static|yield|" +
-            "__hasProp|slice|bind|indexOf"
+            "case|const|function|var|void|with|enum|implements|" +
+            "interface|let|package|private|protected|public|static"
         );
 
         var supportClass = (
@@ -54,7 +53,7 @@ define("ace/mode/coffee_highlight_rules",["require","exports","module","ace/lib/
 
         var functionRule = {
             token: ["paren.lparen", "variable.parameter", "paren.rparen", "text", "storage.type"],
-            regex: /(?:(\()((?:"[^")]*?"|'[^')]*?'|\/[^\/)]*?\/|[^()\"'\/])*?)(\))(\s*))?([\-=]>)/.source
+            regex: /(?:(\()((?:"[^")]*?"|'[^')]*?'|\/[^\/)]*?\/|[^()"'\/])*?)(\))(\s*))?([\-=]>)/.source
         };
 
         var stringEscape = /\\(?:x[0-9a-fA-F]{2}|u[0-9a-fA-F]{4}|[0-2][0-7]{0,2}|3[0-6][0-7]?|37[0-7]?|[4-7][0-7]?|.)/;
@@ -390,4 +389,11 @@ oop.inherits(Mode, TextMode);
 
 exports.Mode = Mode;
 
-});
+});                (function() {
+                    window.require(["ace/mode/coffee"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

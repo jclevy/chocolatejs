@@ -96,7 +96,7 @@ var LuaHighlightRules = function() {
             stateName: "bracketedString",
             onMatch : function(value, currentState, stack){
                 stack.unshift(this.next, value.length, currentState);
-                return "comment";
+                return "string.start";
             },
             regex : /\[=*\[/,
             next  : [
@@ -109,13 +109,13 @@ var LuaHighlightRules = function() {
                         } else {
                             this.next = "";
                         }
-                        return "comment";
+                        return "string.end";
                     },
                     
                     regex : /\]=*\]/,
                     next  : "start"
                 }, {
-                    defaultToken : "comment"
+                    defaultToken : "string"
                 }
             ]
         },
@@ -150,7 +150,7 @@ var LuaHighlightRules = function() {
     };
     
     this.normalizeRules();
-}
+};
 
 oop.inherits(LuaHighlightRules, TextHighlightRules);
 
@@ -305,6 +305,7 @@ var Mode = function() {
     this.HighlightRules = LuaHighlightRules;
     
     this.foldingRules = new LuaFoldMode();
+    this.$behaviour = this.$defaultBehaviour;
 };
 oop.inherits(Mode, TextMode);
 
@@ -395,7 +396,7 @@ oop.inherits(Mode, TextMode);
         var tabLength = session.getTabString().length;
         var expectedIndent = prevIndent + tabLength * getNetIndentLevel(prevTokens);
         var curIndent = this.$getIndent(session.getLine(row)).length;
-        if (curIndent < expectedIndent) {
+        if (curIndent <= expectedIndent) {
             return;
         }
         session.outdentRows(new Range(row, 0, row + 2, 0));
@@ -420,4 +421,11 @@ oop.inherits(Mode, TextMode);
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
-});
+});                (function() {
+                    window.require(["ace/mode/lua"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

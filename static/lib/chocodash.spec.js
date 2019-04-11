@@ -4,7 +4,7 @@
 
   _ = require('../general/chocodash');
 
-  describe('prototype', function() {
+  xdescribe('prototype', function() {
     var CopiedDocument, DocWithCons, DocWithInst, Document, InheritedDocument, cop, doc, inh;
     Document = _.prototype();
     DocWithCons = DocWithInst = null;
@@ -250,7 +250,7 @@
     });
   });
 
-  xdescribe('Flow', function() {
+  describe('Flow', function() {
     var f1, f2, f3;
     f1 = function(cb) {
       return setTimeout((function() {
@@ -388,21 +388,21 @@
         return expect(data.sum).toBe(3);
       });
     });
-    it('should serialize synced tasks as asynced code', function() {
+    it('should serialize synced tasks as asynced code with _.async', function() {
       var i, j;
       i = 0;
       j = false;
       runs(function() {
-        _.flow(function(run) {
-          run(function(end) {
+        _.async(function(await) {
+          await(function() {
             i++;
-            return end();
+            return this.next();
           });
-          run(function(end) {
+          await(function() {
             i++;
-            return end();
+            return this.next();
           });
-          return run(function() {
+          return await(function() {
             i++;
             return j = true;
           });
@@ -411,7 +411,7 @@
       });
       waitsFor((function() {
         return j === true;
-      }), '_.flow()', 1000);
+      }), '_.async()', 1000);
       return runs(function() {
         return expect(i).toBe(3);
       });
@@ -444,51 +444,57 @@
       });
       return expect(i).toBe(3);
     });
-    it('should serialize synced and asynced functions', function() {
+    it('should serialize synced and asynced functions with _.async', function() {
       var i, j, k, l;
       i = 0;
       j = false;
       k = false;
       l = false;
       runs(function() {
-        _.flow(function(run) {
-          run(function(end) {
+        _.async(function(await) {
+          await(function() {
             i++;
-            return end();
+            return this.next();
           });
-          run(function(end) {
-            setTimeout((function() {
-              i++;
-              j = true;
-              return end();
-            }), 150);
-            return end.later;
+          await(function() {
+            setTimeout(((function(_this) {
+              return function() {
+                i++;
+                j = true;
+                return _this.next();
+              };
+            })(this)), 150);
+            return this.next.later;
           });
-          run(function(end) {
+          await(function() {
             i++;
-            return end();
+            return this.next();
           });
-          run(function(end) {
-            return setTimeout((function() {
-              i++;
-              k = true;
-              return end();
-            }), 150);
+          await(function() {
+            return setTimeout(((function(_this) {
+              return function() {
+                i++;
+                k = true;
+                return _this.next();
+              };
+            })(this)), 150);
           });
-          run(function(end) {
+          await(function() {
             i++;
-            return end();
+            return this.next();
           });
-          run(function(end) {
+          await(function() {
             i++;
-            return end();
+            return this.next();
           });
-          return run(function(end) {
-            return setTimeout((function() {
-              i++;
-              l = true;
-              return task.done();
-            }), 150);
+          return await(function() {
+            return setTimeout(((function(_this) {
+              return function() {
+                i++;
+                l = true;
+                return task.done();
+              };
+            })(this)), 150);
           });
         });
         return expect(i).toBe(1);

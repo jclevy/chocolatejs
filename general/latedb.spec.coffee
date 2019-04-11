@@ -331,6 +331,12 @@ describe 'lateDB', ->
         expect(lines.length).toBe 1
         expect(lines[0].id).toBe 8
 
+    it 'can query and directly filter with a function, getting line in this', ->
+        lines = db.tables.query 'cars', -> @name is 'Honda Jazz'
+
+        expect(lines.length).toBe 1
+        expect(lines[0].id).toBe 8
+
     it 'can directly query and sort cars on multiple fields', ->
         lines = db.tables.query
             select: 'cars(*).brands(name)'
@@ -379,6 +385,37 @@ describe 'lateDB', ->
         expect(lines.length).toBe 3
         expect(lines[0].name).toBe 'SL 600'
         expect(lines[2].brand).toBe 'Honda'
+
+    it 'can query and join tables using a straightforward syntax to get brand names used by cars with a color_id 2', ->
+        lines = db.tables.query
+            select: 'colors.cars.brands'
+            fields: ({cars, brands}) ->
+                id: cars.id
+                name: cars.name
+                brand: brands.name
+            where: 
+                colors: -> @id is 2
+
+        expect(lines.length).toBe 3
+        expect(lines[0].name).toBe 'SL 600'
+        expect(lines[2].brand).toBe 'Honda'
+
+    it 'can query and join tables using a straightforward syntax to get brand names used by cars with a color_id 2 and brand is Honda', ->
+        lines = db.tables.query
+            select: 'colors.cars.brands'
+            fields: ({cars, brands}) ->
+                id: cars.id
+                name: cars.name
+                brand: brands.name
+            params: 
+                color: 2,
+                brand: 'Honda'
+            where: 
+                colors: ({color}) -> @id is color
+                brands: ({brand}) -> @name is brand
+
+        expect(lines.length).toBe 1
+        expect(lines[0].brand).toBe 'Honda'
 
     it 'should flush the tables\‘ modifications to localStorage or to disk', ->
         flushed = no
@@ -442,6 +479,11 @@ describe 'lateDB', ->
 
         expect(lines.length).toBe 4
         expect(lines[3].name).toBe 'Toyota Motors'
+
+    it 'can drop a table', ->
+        expect(db('tables.brands')).not.toBeNull()
+        db.tables.drop 'brands'
+        expect(db('tables.brands')).toBeNull()
 
     it 'can not update an object in the world space before creating it', ->
         db.world.update 'users', "1ae2c4de", country:'spain'

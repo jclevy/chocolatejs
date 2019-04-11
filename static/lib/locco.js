@@ -550,9 +550,13 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
             };
             stack = (new Error).stack;
             Error.prepareStackTrace = oldPST;
-            for (i = 0, len = stack.length; i < len; i++) {
-              line = stack[i];
-              files_stack.push(line.getFileName());
+            if (typeof stack === 'string') {
+              files_stack = stack.split('\n');
+            } else {
+              for (i = 0, len = stack.length; i < len; i++) {
+                line = stack[i];
+                files_stack.push(line.getFileName());
+              }
             }
           } else {
             stack = (new Error).stack;
@@ -746,8 +750,16 @@ if (typeof window !== "undefined" && window !== null) { window.previousExports =
           };
         };
         run(function(end) {
-          var result, self;
+          var ref, result, self;
           this.review(bin, reaction);
+          if (reaction.certified && ((ref = this.embedded) != null ? ref.steps : void 0)) {
+            self = getSelf.call(this.embedded, end);
+            result = this.embedded.steps.call(self, bin);
+          }
+          return end["with"](result);
+        });
+        run(function(end) {
+          var result, self;
           if (reaction.certified && (this.steps != null)) {
             self = getSelf.call(this, end);
             result = this.steps.call(self, bin);

@@ -555,6 +555,14 @@
       expect(lines.length).toBe(1);
       return expect(lines[0].id).toBe(8);
     });
+    it('can query and directly filter with a function, getting line in this', function() {
+      var lines;
+      lines = db.tables.query('cars', function() {
+        return this.name === 'Honda Jazz';
+      });
+      expect(lines.length).toBe(1);
+      return expect(lines[0].id).toBe(8);
+    });
     it('can directly query and sort cars on multiple fields', function() {
       var lines;
       lines = db.tables.query({
@@ -629,6 +637,62 @@
       expect(lines.length).toBe(3);
       expect(lines[0].name).toBe('SL 600');
       return expect(lines[2].brand).toBe('Honda');
+    });
+    it('can query and join tables using a straightforward syntax to get brand names used by cars with a color_id 2', function() {
+      var lines;
+      lines = db.tables.query({
+        select: 'colors.cars.brands',
+        fields: function(arg) {
+          var brands, cars;
+          cars = arg.cars, brands = arg.brands;
+          return {
+            id: cars.id,
+            name: cars.name,
+            brand: brands.name
+          };
+        },
+        where: {
+          colors: function() {
+            return this.id === 2;
+          }
+        }
+      });
+      expect(lines.length).toBe(3);
+      expect(lines[0].name).toBe('SL 600');
+      return expect(lines[2].brand).toBe('Honda');
+    });
+    it('can query and join tables using a straightforward syntax to get brand names used by cars with a color_id 2 and brand is Honda', function() {
+      var lines;
+      lines = db.tables.query({
+        select: 'colors.cars.brands',
+        fields: function(arg) {
+          var brands, cars;
+          cars = arg.cars, brands = arg.brands;
+          return {
+            id: cars.id,
+            name: cars.name,
+            brand: brands.name
+          };
+        },
+        params: {
+          color: 2,
+          brand: 'Honda'
+        },
+        where: {
+          colors: function(arg) {
+            var color;
+            color = arg.color;
+            return this.id === color;
+          },
+          brands: function(arg) {
+            var brand;
+            brand = arg.brand;
+            return this.name === brand;
+          }
+        }
+      });
+      expect(lines.length).toBe(1);
+      return expect(lines[0].brand).toBe('Honda');
     });
     it('should flush the tables\‘ modifications to localStorage or to disk', function() {
       var flushed;
@@ -714,6 +778,11 @@
       });
       expect(lines.length).toBe(4);
       return expect(lines[3].name).toBe('Toyota Motors');
+    });
+    it('can drop a table', function() {
+      expect(db('tables.brands')).not.toBeNull();
+      db.tables.drop('brands');
+      return expect(db('tables.brands')).toBeNull();
     });
     it('can not update an object in the world space before creating it', function() {
       db.world.update('users', "1ae2c4de", {

@@ -115,6 +115,7 @@ class Cache extends Structure
 
         # We register ourself to be called when our main process ends
         if @datadir? and options?.autosave isnt off then @callbackOnFinal = (=> @hibernate()) ; Intention.callbackOnFinal @callbackOnFinal
+        if options?.filename? then @filename = options?.filename
         
         return
 

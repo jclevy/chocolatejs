@@ -23,8 +23,8 @@ class Chocokup
             
             found = no
             for line in files_stack
-                if line.indexOf('/chocokup.') >= 0 then found = yes
-                else if line.indexOf('\\chocokup.') >= 0 then found = yes
+                if line? and line.indexOf('/chocokup.') >= 0 then found = yes
+                else if line? and line.indexOf('\\chocokup.') >= 0 then found = yes
                 else if found then return line
             'global'
 

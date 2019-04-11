@@ -1,6 +1,6 @@
 _ = require '../general/chocodash'
 
-describe 'prototype', ->
+xdescribe 'prototype', ->
     Document = _.prototype()
     DocWithCons = DocWithInst = null
     doc = null
@@ -163,7 +163,7 @@ xdescribe 'Data', ->
             a = _.param {u:1, v:2}
             expect(a).toBe 'u=1&v=2'
 
-xdescribe 'Flow', ->
+describe 'Flow', ->
     f1 = (cb) -> setTimeout (-> cb new Date().getTime()), 250
     f2 = (cb) -> setTimeout (-> cb new Date().getTime()), 150
     f3 = (cb) -> setTimeout (-> cb new Date().getTime()), 350
@@ -226,18 +226,18 @@ xdescribe 'Flow', ->
             expect(end - start).toBeLessThan 10
             expect(data.sum).toBe 3
 
-    it 'should serialize synced tasks as asynced code', ->
+    it 'should serialize synced tasks as asynced code with _.async', ->
         i = 0; j = off
 
-        runs -> 
-            _.flow (run) ->
-                run (end) -> i++ ; end()
-                run (end) -> i++ ; end()
-                run -> i++ ; j = on
+        runs ->
+            _.async (await) ->
+                await -> i++ ; @next()
+                await -> i++ ; @next()
+                await -> i++ ; j = on
         
             expect(i).toBe 2
 
-        waitsFor (-> j is on), '_.flow()', 1000
+        waitsFor (-> j is on), '_.async()', 1000
         
         runs -> 
             expect(i).toBe 3
@@ -258,26 +258,26 @@ xdescribe 'Flow', ->
         
         expect(i).toBe 3 
 
-    it 'should serialize synced and asynced functions', ->
+    it 'should serialize synced and asynced functions with _.async', ->
         i = 0; j = off; k = off; l = off
         runs -> 
-            _.flow (run) ->
-                run (end) -> i++ ; end()
-                run (end) -> 
-                    setTimeout (-> i++ ; j = on; end()), 150
-                    end.later  # will tell the task that 
+            _.async (await) ->
+                await -> i++ ; @next()
+                await -> 
+                    setTimeout (=> i++ ; j = on; @next()), 150
+                    @next.later # will tell the task that 
                                 # one of its runs is async
                                 # and that task is not forced 
                                 # to run its last run as async
-                                # `end` or `end.later` can be returned
+                                # `@next` or `@next.later` can be returned
                                 # to achieve this
-                run (end) -> i++ ; end()
-                run (end) ->
-                    setTimeout (-> i++ ; k = on; end()), 150
-                run (end) -> i++ ; end()
-                run (end) -> i++ ; end()
-                run (end) -> 
-                    setTimeout (-> i++ ; l = on; task.done()), 150
+                await -> i++ ; @next()
+                await ->
+                    setTimeout (=> i++ ; k = on; @next()), 150
+                await -> i++ ; @next()
+                await -> i++ ; @next()
+                await -> 
+                    setTimeout (=> i++ ; l = on; task.done()), 150
                 
             expect(i).toBe 1
 

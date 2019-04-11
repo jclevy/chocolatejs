@@ -27,7 +27,7 @@ exports.cook = (request) ->
 #### Exchange
 # `exchange` operates the interface
 exports.exchange = (bin, send) ->
-    {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, response, session, websocket} = bin
+    {space, workflow, so, what, how, where, region, params, sysdir, appdir, datadir, backdoor_key, request, response, session, websocket, websockets} = bin
 
     config = require('./config')(datadir)
     where = where.replace(/\.\.[\/]*/g, '')
@@ -37,7 +37,7 @@ exports.exchange = (bin, send) ->
             console.log.apply console, arguments
             try websocket?.send JSON.stringify console:log:(if arguments.length is 1 then arguments[0] else arguments)
 
-    context = {space, workflow, request, response, region, where, what, params, arguments:[], websocket, session, sysdir, appdir, datadir, config, console:console_}
+    context = {space, workflow, request, response, region, where, what, params, arguments:[], websocket, websockets, session, sysdir, appdir, datadir, config, console:console_}
 
     config = config.clone()
     
@@ -516,7 +516,7 @@ exports.register_key = (__) ->
             __.session.addKey Crypto.createHash('sha256').update(fields.key).digest('hex')
             
             event.emit 'end', new Chocokup.Document 'Key registration', kups:{key:entered_kup}, Chocokup.Kups.Tablet
-        
+
         event
 
 # `forgetKey` provides a UI to clear keys from browser session cache
@@ -562,3 +562,11 @@ exports.create_hash = (__) ->
             event.emit 'end', new Chocokup.Document 'Key registration', kups:{key:entered_kup}, hash:key, Chocokup.Kups.Tablet
         
         event
+        
+exports.crash = ->
+    while true
+        setTimeout ->
+            throw new Error('We crashed!!!!!')
+        , 100
+    'done'
+        

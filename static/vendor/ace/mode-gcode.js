@@ -73,6 +73,7 @@ define("ace/mode/gcode",["require","exports","module","ace/lib/oop","ace/mode/te
 
     var Mode = function() {
         this.HighlightRules = GcodeHighlightRules;
+        this.$behaviour = this.$defaultBehaviour;
     };
     oop.inherits(Mode, TextMode);
 
@@ -82,4 +83,11 @@ define("ace/mode/gcode",["require","exports","module","ace/lib/oop","ace/mode/te
 
     exports.Mode = Mode;
 
-});
+});                (function() {
+                    window.require(["ace/mode/gcode"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

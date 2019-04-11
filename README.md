@@ -65,69 +65,100 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.30 - (2018-11-14)**
+**Chocolate v0.0.31 - (2018-04-11)**
 ---
 
 NEW FEATURES
 
- - `general/chocokup` and `general/locco/interface`: new `id` and `id.class` feature.
- 
-    When building HTML documents using Chocokup you may already use the `id()`, `id.ids()` and `id.classes()` functions.  
-    `id()` gives you a new unique id to be used to define a DOM element id and `id.ids()` gives you a local id generator to get ids by name, like in:
+ - in `server/monitor` added a web server
+   - will be usefull in dev mode to restart the app if it becomes unresponsive
+   - activated through `app.config.json` option `"monitor":{ "interface": true }` 
+   - will wait for https requests at application's `port + 2`
+   - can only handle `/-/server/monitor?register_key`, `/-/server/monitor?action=restart` and `/-/server/monitor` request
+     - use `/-/server/monitor?register_key` to enter your master access key
+     - use `/-/server/monitor` to see the current process pid and and button to restart the app
+     - use `/-/server/monitor?action=restart` or press the button to restart the app 
+   - if used with Chocolate's proxy service, all request to `/-/server/monitor` will be redirected to that web server
+ - in `server/studio` added two commands to convert document and switch to 2 spaces or 4 spaces indent:
+   - Alt-Shift-2
+   - Alt-Shift-4
+ - in `server/workflow` add websocket group management:
+   - use `__.websocket.subscribe(group_id)` to subscribe to bradcast message for this `group_id`
+   - use `__.websocket.broadcast(group_id, message)` to broadcast `message` to `group_id` subscribers
+ - in `general/latedb`:
+   - added `identity` service to `db.tables`:
 
-            ids = id.ids()
-            ids('ok_button')
+            db.tables.create 'cars', identity:on
+            db.tables.insert 'cars', name:'Toyota'  # an autoincrment id field is automatically inserted unless an id field is already present in line
 
-    Now, you can define named ids in three different scopes (`local`, `module` and `general`) using `id('id_name')`, `id.module('id_name')` and `id.global('id_name')`.
-    
-    Using Coffeekup, `id('id_name')`, `id.module('id_name')` and `id.global('id_name')` refer to three distinct global scopes.
-    
-    Using Chockup, `id('id_name')` has a `global` scope, but you can define a module scope for a given kup using  
-    the `Chocokup.scope(kup, module_path)` and then get a module's scoped id using `id.module('id_name')`.
-    
-    Using Locco/Interface.Web: 
-      - `id('id_name')` has a local scope (local to the Interface.Web's `render` code
-      - `id.module('id_name')` has a module scope (local to the module file in which the Interface is defined)
-      - `id.global('id_name')` has a global scope (global in all `render` code used in the page/document rendered
-    
-    So, using Locco/Interface.Web:
-      - you can share unique ids between different Interfaces' `render` code
-      - you don't need to get a local id generatore with `id.ids()`, just use `id('id_name')`
-      - you don't need to pass the `id.ids` generated ids dictionary to the `coffeescript` section, it will be done behond the scene.
-    
-    
-    i.e., **local usage**: 
-    
-            sample_interface = new Interface.Web.Html 
-                render: ->
-                    input "##{id 'input'}", value:'Ok'
-                    coffeescript ->
-                        element = document.getElementById(id 'input')
-                        alert element.value
-    
-    i.e., **module usage:**
-    
-            extern_interface = new Interface.Web.Html 
-                render: ->
-                    coffeescript ->
-                        element = document.getElementById(id.module 'input')
-                        alert element.value
-                        
-            sample_interface = new Interface.Web.Html
-                use: -> {extern_interface}
-                render: ->
-                    input "##{id.module 'input'}", value:'Ok'
-                    extern_interface()
+   - `db.tables.update` now has an optional `diff` option that will remove fields with same value as original line in the provided `line_update`. Of course this can not be used with Array or Object fields.
 
+            db.tables.update 'cars', modified_line, diff:on # non modified fields in modified_line will not be sent to the table's update
+   - added `db.tables.drop` to remove a table you don't need anymore
 
 UPDATES
 
- - Added missing chocomake.bat file to `bin` directory
+ - `general/coffeekup`:
+   - in `coffeescript` tag section, where `id` functions are read only:
+     - `id(name)` will look first in `local` scope then in `module` and `global` scopes to find the id's value
+     - `id.module(name)` will look first in `module` scope then in `global` scopes to find the id's value
+   - in other tag sections, `id` function will look only in their scope
+   - added `main` tag in known HTML5 tags
+
+  - `server/workflow`:
+    - in a service called from a WebSocket request, the `__.websocket` refers to the calling websocket and `__.websockets` refers the meta-websocket that corresponds to all websockets registered with the current session.  
+    - in a service called from an HTTP(S) request, the `__.websocket` and `__.websockets` refer to the meta-websocket
+
+  - `general/chocodash`:
+    - added `_.async` as `_.serialize` / `_.flow` synonym and `this` passed to deferred function now contains `next` function
+    
+        You can use it this way:
+
+            _.async (await) ->
+                await ->
+                    my_first_async_func ->
+                        # ...
+                        @next()
+                    @next.later
+                await ->
+                    sync_func()
+                    @next()
+        
+        or
+        
+            _.async (await) ->
+                await (next) ->
+                    my_first_async_func ->
+                        # ...
+                        next()
+                    next.later
+                await (next) ->
+                    sync_func()
+                    next()
+
+ - `general/latedb`:
+   - allowed simple dot notation to do a one-to-many relationship in query syntax
+   
+            db.tables.query('table.linked_table') // many-to-one or one-to-many between table and linked_table
+            db.tables.query('table.[linked_table]') // one-to-many only
+
+   - `db.tables.insert` will return line.id if `options.identity` is on
+
+ - `server/studio`:
+   - added find, fold all and unfold all commands in the toolbar to facilitate editor usage for tablets
+ 
+ - updated Ace to v1.4.2 (21.11.18)
 
 FIXED BUGS
 
- - `server/studio` and `server/file`: `grep` search service was not working well on Linux after Windows compatibility update
- - `server/monitor`: faulty datadir introduced in 0.0.29
+ - in `general/chocokup`, in some situations Chockup crashed due to a bug introduced by scope management
+ - in `general/interface` when using `masterInterface` service on an interface that used the `steps` service, this `steps` servcice was not called
+ - in `general/coffeekup`, `key` parameter missing in `ids.toJSONString`
+ - in `general/latedb` 
+   - log.upgrade was not properly called for db.tables Table type
+   - log.upgrade was not filtering carriage return characters, leading to unnecessary upgrades
+ - in `server/file` resolve_repo was not handling relative paths
+
 
 See history in **CHANGELOG.md** file
 
@@ -389,7 +420,7 @@ and `Chocolate` will use the domains defined in
 
 **Javascript Bundle service**
 
-You can define Javascript bundles to be build when source files are saved.  
+You can define Javascript bundles to be built when source files are saved.  
 If you have some client side Coffeescript/Javascript files (in Client or General folders) with the same prefix (or in the same subfolder), they can be bundled in the same file.
     
 In the `app.config.json` file, add a `build:{bundles:[]}` section, with the following parameters:
@@ -831,7 +862,7 @@ will put an object in the database in two different places with two different fu
         
 And voilà, that's bascially all...
 
-Oh, there is one thing more...
+Oh, there is one more thing...
 
 ## LateDB().tables
 
@@ -868,6 +899,12 @@ In the following line, the table's name will be `colors` and the corresponding e
         table = db "tables.cars"
         expect(table.entity_name).toBe('car')
 
+### drop table
+
+You can delete a table if you no longer need it:
+
+        db.tables.drop 'colors'
+
 ### insert data
 
 Primary key has to be called `id`
@@ -893,7 +930,12 @@ Primary key `ìd` can be given by LateDB
         db.tables.insert 'colors', id:id, name:'grey'
 
         expect(db('tables.colors').lines[id].name).toBe 'grey'
-        
+
+Primary key `id` can be automatically given by LateDB
+
+        db.tables.create 'colors', identity:on
+        db.tables.insert 'colors', name:'grey' # id field is automatically inserted
+
 ### automatic index creation
 
         expect(db('tables.colors').index.id[1].id).toBe 1
@@ -929,6 +971,39 @@ Foreign keys' name have to end with `_id` and use the sigular version of the tab
         expect(db('tables.cars')[7].color_id).toBe 1
 
 ### query a table
+
+You can query using a straightforward syntax
+
+        lines = db.tables.query
+            select: 'colors.cars.brands'
+            fields: ({cars, brands}) ->
+                id: cars.id
+                name: cars.name
+                brand: brands.name
+            params: 
+                color: 2,
+                brand: 'Honda'
+            where: 
+                colors: ({color}) -> @id is color
+                brands: ({brand}) -> @name is brand
+
+        expect(lines.length).toBe 1
+        expect(lines[0].brand).toBe 'Honda'
+
+or
+
+        lines = db.tables.query 'colors.cars.brands'
+            fields: ({cars, brands}) ->
+                id: cars.id
+                name: cars.name
+                brand: brands.name
+            params: 
+                color: 2,
+                brand: 'Honda'
+            where: 
+                colors: ({color}) -> @id is color
+                brands: ({brand}) -> @name is brand
+
 
 You can directly query using the table's name and sort cars in reverse order
 
@@ -1025,15 +1100,16 @@ You can provide directly the query definition instead of the name of a previousl
 
 Use the `select` clause in the query definition to define a join between tables.
 
-Simply put a dot between tables' name to define a n -> 1 relationship: 
+Simply put a dot between tables' name to define a n -> 1 or a 1 -> n relationship: 
 
         cars.brands
         
-will join `cars` and `brands` on 
+will join, by default, `cars` and `brands` on 
     
         cars.brand_id = brands.id 
         
-This will work if the `cars` table has a `brand_id` field.
+This will work if the `cars` table has a `brand_id` field.  
+If the `cars` table has no `brand_id` field, it will try to look for a 1 -> n relationship (see below)
 
 You can also specify which field you want to take in each table. Simply put the fileds' name in parenthesis just after the table's name.
 If you don't specify fields' name, no field will be selected. To select all fields, put a star `*`
@@ -1073,7 +1149,7 @@ The filter function you provide will receive three parameters: the `line` to acc
 
 ### query with a join and select fields using a function
 
-When you want to define a 1 -> n join, you have to put the table on the right side of the relationship inside brackets `[]`
+When you want to define a 1 -> n join, you have to put the table on the right side of the relationship inside brackets `[]`. But you can omit it if no n -> 1 relationship exists between the two tables.
 
 In the following example
 
@@ -1101,6 +1177,26 @@ In the `input` object, every field is prefixed by its corresponding table's name
         expect(lines[2].brand).toBe 'Honda'
 
 There is also a `map.remove` clause that can be used to remove fields from the selected ones (i.e. if you use the star `*` in the `select` clause.
+
+### query with a join, filter unsing a where clause and select fields using a a fields clause
+
+This example is close to the preceeding one except it has a more straightforward syntax. 
+
+The `fields` clause replaces the `map` one and the `where` clause replaces the `filter` one. The `where` clause does not (yet) use existing index on foreign keys.
+
+        lines = db.tables.query
+            select: 'colors.cars.brands'
+            fields: ({cars, brands}) ->
+                id: cars.id
+                name: cars.name
+                brand: brands.name
+            where: 
+                colors: -> @id is 2
+                brands: -> @name is 'Honda'
+
+        expect(lines.length).toBe 3
+        expect(lines[0].name).toBe 'SL 600'
+        expect(lines[2].brand).toBe 'Honda'
 
 &nbsp;
 
@@ -1355,7 +1451,7 @@ They use one internal pair of Signal and Observer
         
         asyncFunc().subscribe(function(answer) { // do something when notified });
 
-### <a name="Choco-Dash-Async"></a> _.serialize, _.parallelize [⌂](#Choco-Summary) 
+### <a name="Choco-Dash-Async"></a> _.async (or _.serialize ), _.parallelize [⌂](#Choco-Summary) 
 
 Really simple tools to help manage asynchronous calls serialization.
 
@@ -1371,25 +1467,25 @@ You can change this javascript code:
 
 to this code:
 
-        _.serialize(function(defer, local) {
-          defer(function(next) {
+        _.async(function(await, local) {
+          await(function() {
             return db.createOrGetTable(function(table) {
               local.table = table;
-              return next();
+              return this.next();
             });
           });
-          defer(function(next) {
+          await(function(next) {
             return local.table.insertRow(row, function() {
-              return next();
+              return this.next();
             });
           });
-          defer(function(next) {
+          await(function(next) {
             return db.select(query(function(rows) {
               local.rows = rows;
-              return next();
+              return this.next();
             }));
           });
-          return defer(function() {
+          return await(function() {
             return console.log(local.rows.count);
           });
         });
@@ -1403,11 +1499,11 @@ or in Coffeescript, this code:
                     
 to this code:
 
-        _.serialize (defer, local) ->
-            defer (next) -> db.createOrGetTable (table) -> local.table = table; next()
-            defer (next) -> local.table.insertRow row,  -> next()
-            defer (next) -> db.select query (rows) -> local.rows = rows; next()
-            defer -> console.log local.rows.count
+        _.async (await, local) ->
+            await -> db.createOrGetTable (table) -> local.table = table; @next()
+            await -> local.table.insertRow row,  -> @next()
+            await > db.select query (rows) -> local.rows = rows; @next()
+            await -> console.log local.rows.count
 
 
 
@@ -2037,12 +2133,7 @@ Read the complete Newnotes reference in Chocolate Studio Newnotes help panel.
 
 ## <a name="Choco-RoadMap"></a> Road Map [⌂](#Choco-Summary) 
 
-Chocolate is still currently (2016/05) an experimental framework that needs to be completed and polished, so I'm working on:
-
- - user interface generation using locco/interface and chocokup
- - data storage using server/document and/or server/reserve
- - putting this framework live on a real use case
- - ...
+Chocolate is still currently (2019/04) an experimental framework that needs to be completed and polished.
 
 &nbsp;
 

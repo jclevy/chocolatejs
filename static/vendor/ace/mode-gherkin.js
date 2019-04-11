@@ -103,7 +103,7 @@ var GherkinHighlightRules = function() {
         }]
     };
     this.normalizeRules();
-}
+};
 
 oop.inherits(GherkinHighlightRules, TextHighlightRules);
 
@@ -118,6 +118,7 @@ var GherkinHighlightRules = require("./gherkin_highlight_rules").GherkinHighligh
 
 var Mode = function() {
     this.HighlightRules = GherkinHighlightRules;
+    this.$behaviour = this.$defaultBehaviour;
 };
 oop.inherits(Mode, TextMode);
 
@@ -132,7 +133,7 @@ oop.inherits(Mode, TextMode);
         var tokenizedLine = this.getTokenizer().getLineTokens(line, state);
         var tokens = tokenizedLine.tokens;
         
-        console.log(state)
+        console.log(state);
         
         if(line.match("[ ]*\\|")) {
             indent += "| ";
@@ -144,7 +145,7 @@ oop.inherits(Mode, TextMode);
         
 
         if (state == "start") {
-            if (line.match("Scenario:|Feature:|Scenario\ Outline:|Background:")) {
+            if (line.match("Scenario:|Feature:|Scenario Outline:|Background:")) {
                 indent += space2;
             } else if(line.match("(Given|Then).+(:)$|Examples:")) {
                 indent += space2;
@@ -159,4 +160,11 @@ oop.inherits(Mode, TextMode);
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
-});
+});                (function() {
+                    window.require(["ace/mode/gherkin"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

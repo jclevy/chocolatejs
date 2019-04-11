@@ -247,7 +247,7 @@
             return write(sep + 'null');
           case '[object Buffer]':
           case '[object SlowBuffer]':
-            return write(sep + (o.length === 16 ? _.Uuid.unparse(o) : o.toString()));
+            return write(sep + (o.length === 16 ? require('chocolate/general/chocodash').Uuid.unparse(o) : o.toString()));
         }
       };
       return doit(object);
@@ -527,7 +527,7 @@
       current = _modules[name];
       timestamped = false;
       do_remove = function(n, f, p, m) {
-        var k, ref, results, s;
+        var k, ref, s;
         if ((m[n] != null) && (f == null)) {
           delete m[n];
           if (!timestamped) {
@@ -551,16 +551,14 @@
         }
         if ((m[n] != null) && (f != null)) {
           ref = m[n];
-          results = [];
           for (k in ref) {
             if (!hasProp.call(ref, k)) continue;
-            results.push(do_remove(k, f[k], p + (p === '' ? '' : '.') + n, m[n]));
+            do_remove(k, f[k], p + (p === '' ? '' : '.') + n, m[n]);
           }
-          return results;
         }
       };
-      do_append = function(n, f, p, m) {
-        var k, req, results, s, v;
+      do_append = function(n, f, p, m, force) {
+        var k, req, s, v;
         if (f == null) {
           if (m[n] !== (req = require(name))) {
             m[n] = req;
@@ -584,7 +582,7 @@
             })()) + "[\"" + n + "\"] = require('" + name + "');\n";
           }
         } else if (typeof f === 'function') {
-          if ((m[n] == null) || (m[n].toString().replace(/^\/\/.*(\n)*/mg, '') !== f.toString().replace(/^\/\/.*(\n)*/mg, ''))) {
+          if (force || (m[n] == null) || (m[n].toString().replace(/(^\/\/.*(\n)*)|(\r)/mg, '') !== f.toString().replace(/(^\/\/.*(\n)*)|(\r)/mg, ''))) {
             m[n] = f;
             if (!timestamped) {
               write();
@@ -604,6 +602,7 @@
                 return '';
               }
             })()) + "[\"" + n + "\"] = (function (" + name + ") { return " + (f.toString().replace(/^\/\/.*(\n)*/mg, '')) + "; })(_m[\"" + name + "\"])\n";
+            force = true;
           }
         } else {
           if (m[n] == null) {
@@ -629,13 +628,11 @@
           }
         }
         if (f != null) {
-          results = [];
           for (k in f) {
             if (!hasProp.call(f, k)) continue;
             v = f[k];
-            results.push(do_append(k, v, p + (p === '' ? '' : '.') + n, m[n]));
+            do_append(k, v, p + (p === '' ? '' : '.') + n, m[n], force);
           }
-          return results;
         }
       };
       do_remove(name, service, "", _modules);
@@ -944,6 +941,11 @@
 
   lateDB = function(name, path) {
     var db, log;
+    if (name != null) {
+      if (path == null) {
+        path = typeof process !== "undefined" && process !== null ? process.cwd() : void 0;
+      }
+    }
     if (name == null) {
       name = _defaults.filename;
     }
@@ -1090,83 +1092,111 @@
       };
     })();
     db.tables = (function() {
-      var History, Index, IndexTable, Iterator, List, QueryIterator, Table, TransientTable, _helpers, _query_defs, alter, count, create, delete_, entity, exists, extend, get, id, init, insert, list, query, table_module, update;
-      Table = table_module = log.module('Table');
-      if (Table == null) {
-        Table = function() {
-          return {
-            lines: {},
-            length: 0
-          };
+      var History, Index, IndexTable, Iterator, List, QueryIterator, Table, TransientTable, _helpers, _query_defs, alter, clone, count, create, delete_, diff_update, drop, entity, exists, extend, get, id, init, insert, list, query, update;
+      Table = function() {
+        return {
+          lines: {},
+          length: 0
         };
-        Table.insert = function(table, line) {
-          var inc;
-          if (line.id == null) {
-            return;
-          }
-          inc = table.lines[line.id] != null ? 0 : 1;
-          table.lines[line.id] = line;
-          table.length += inc;
-          return Table.notify(table, 'insert', line);
-        };
-        Table.update = function(table, update) {
-          var k, line, v;
-          if (update.id == null) {
-            return;
-          }
-          line = table.lines[update.id];
-          if (line == null) {
-            return;
-          }
-          for (k in update) {
-            v = update[k];
-            if (k !== 'id') {
+      };
+      Table.insert = function(table, line) {
+        var inc;
+        if (line.id == null) {
+          return;
+        }
+        inc = table.lines[line.id] != null ? 0 : 1;
+        table.lines[line.id] = line;
+        table.length += inc;
+        return Table.notify(table, 'insert', line);
+      };
+      Table.patchLine = function(line, patch, do_prune) {
+        var has_one, k, kk, pruned, ref, v;
+        if (do_prune == null) {
+          do_prune = false;
+        }
+        pruned = false;
+        for (k in patch) {
+          v = patch[k];
+          if (((ref = v.constructor) === Object || ref === Array) && (line[k] != null)) {
+            if ((pruned = Table.patchLine(line[k], v, do_prune))) {
+              has_one = false;
+              for (kk in line[k]) {
+                has_one = true;
+                break;
+              }
+              if (!has_one) {
+                delete line[k];
+              }
+            }
+          } else {
+            if (!do_prune) {
               line[k] = v;
+            } else if (v === true) {
+              delete line[k];
+              pruned = true;
+              if (line.constructor === Array && (line[line.length - 1] == null)) {
+                line.pop();
+              }
             }
           }
-          return Table.notify(table, 'update', update);
-        };
-        Table["delete"] = function(table, line) {
-          var dec, ref, ref1;
-          if (!(((line != null ? line.id : void 0) != null) || (line != null))) {
-            return;
+        }
+        return pruned;
+      };
+      Table.update = function(table, update, prune) {
+        var line, ref;
+        if (!(((update != null ? update.id : void 0) != null) || ((prune != null ? prune.id : void 0) != null))) {
+          return;
+        }
+        line = table.lines[(ref = update != null ? update.id : void 0) != null ? ref : prune != null ? prune.id : void 0];
+        if (line == null) {
+          return;
+        }
+        Table.patchLine(line, update);
+        if (prune != null) {
+          Table.patchLine(line, prune, true);
+        }
+        return Table.notify(table, 'update', update);
+      };
+      Table["delete"] = function(table, line) {
+        var dec, ref, ref1;
+        if (!(((line != null ? line.id : void 0) != null) || (line != null))) {
+          return;
+        }
+        dec = table.lines[(ref = line.id) != null ? ref : line] != null ? 1 : 0;
+        delete table.lines[(ref1 = line.id) != null ? ref1 : line];
+        table.length -= dec;
+        return Table.notify(table, 'delete', line);
+      };
+      Table.notify = function(table, event, line) {
+        var j, len, observer, observers, ref, results;
+        if ((observers = (ref = table.observers) != null ? ref[event] : void 0) != null) {
+          results = [];
+          for (j = 0, len = observers.length; j < len; j++) {
+            observer = observers[j];
+            results.push(observer(table, line));
           }
-          dec = table.lines[(ref = line.id) != null ? ref : line] != null ? 1 : 0;
-          delete table.lines[(ref1 = line.id) != null ? ref1 : line];
-          table.length -= dec;
-          return Table.notify(table, 'delete', line);
-        };
-        Table.notify = function(table, event, line) {
-          var j, len, observer, observers, ref, results;
-          if ((observers = (ref = table.observers) != null ? ref[event] : void 0) != null) {
-            results = [];
-            for (j = 0, len = observers.length; j < len; j++) {
-              observer = observers[j];
-              results.push(observer(table, line));
-            }
-            return results;
-          }
-        };
-        Table.observe = function(table, event, observer) {
-          var base, observers;
-          if (table.observers == null) {
-            table.observers = {};
-          }
-          observers = (base = table.observers)[event] != null ? base[event] : base[event] = [];
-          return observers.push(observer);
-        };
-        Table.toArray = function(table) {
-          var arr, id, line, ref;
-          arr = [];
-          ref = table.lines;
-          for (id in ref) {
-            line = ref[id];
-            arr.push(line);
-          }
-          return arr;
-        };
-      }
-      if (table_module != null) {
+          return results;
+        }
+      };
+      Table.observe = function(table, event, observer) {
+        var base, observers;
+        if (table.observers == null) {
+          table.observers = {};
+        }
+        observers = (base = table.observers)[event] != null ? base[event] : base[event] = [];
+        return observers.push(observer);
+      };
+      Table.toArray = function(table) {
+        var arr, id, line, ref;
+        arr = [];
+        ref = table.lines;
+        for (id in ref) {
+          line = ref[id];
+          arr.push(line);
+        }
+        return arr;
+      };
+      if ((log.module('Table')) != null) {
         log.upgrade('Table', Table);
       }
       List = function() {
@@ -1476,6 +1506,33 @@
       History.insert = function(table, line) {};
       _query_defs = {};
       _helpers = {};
+      clone = function(value) {
+        var ref, set;
+        if ((ref = value.constructor) !== Object && ref !== Array) {
+          return value;
+        }
+        set = function(o, val) {
+          var k, v;
+          for (k in val) {
+            if (!hasProp.call(val, k)) continue;
+            v = val[k];
+            switch (Object.prototype.toString.apply(v)) {
+              case '[object Object]':
+                o[k] = {};
+                set(o[k], v);
+                break;
+              case '[object Array]':
+                o[k] = [];
+                set(o[k], v);
+                break;
+              default:
+                o[k] = v;
+            }
+          }
+          return o;
+        };
+        return set((value.constructor === Object ? {} : []), value);
+      };
       extend = function(object, values) {
         var set;
         set = function(o, val) {
@@ -1562,7 +1619,7 @@
           alias: alias,
           options: options
         }, function(o) {
-          var base, base1, table;
+          var base, base1, base2, table;
           table = this[o.name];
           table.name = o.name;
           table.entity_name = o.entity_name;
@@ -1571,7 +1628,10 @@
           if ((base = table.options).history == null) {
             base.history = false;
           }
-          return (base1 = table.options).index != null ? base1.index : base1.index = true;
+          if ((base1 = table.options).index == null) {
+            base1.index = true;
+          }
+          return (base2 = table.options).identity != null ? base2.identity : base2.identity = false;
         });
         List.upgrade(db("tables." + name));
       };
@@ -1586,13 +1646,30 @@
           name: name,
           options: options
         }, function(o) {
-          var base, base1, table;
+          var base, base1, base2, table;
           table = this[o.name];
           table.options = o.options;
           if ((base = table.options).history == null) {
             base.history = false;
           }
-          return (base1 = table.options).index != null ? base1.index : base1.index = true;
+          if ((base1 = table.options).index == null) {
+            base1.index = true;
+          }
+          return (base2 = table.options).identity != null ? base2.identity : base2.identity = false;
+        });
+      };
+      drop = function(table_name) {
+        var table;
+        table = db("tables." + table_name);
+        db('entities', {
+          entity_name: table.entity_name
+        }, function(o) {
+          return delete this[o.entity_name];
+        });
+        db('tables', {
+          name: table_name
+        }, function(o) {
+          return delete this[o.name];
         });
       };
       insert = function(table_name, line) {
@@ -1600,6 +1677,9 @@
         table = db("tables." + table_name);
         if (!((table != null) && Object.prototype.toString.call(table) === '[object Object]')) {
           throw "can't insert line into non-existing table '" + table_name + "'";
+        }
+        if (table.options.identity === true && (line.id == null)) {
+          line.id = db.tables.id(table_name);
         }
         if ((line != null ? line.id : void 0) == null) {
           throw "can't insert a line without an `id` field into table '" + table_name + "'";
@@ -1615,9 +1695,65 @@
         if (table.options.history !== false) {
           History.insert(table, line);
         }
+        if (table.options.identity === true) {
+          return line.id;
+        }
       };
-      update = function(table_name, line_update) {
-        var line, table;
+      diff_update = function(line, update, level) {
+        var d, dd, found, k, ref, ref1, u, uu, v;
+        u = {};
+        d = {};
+        if (level == null) {
+          level = 0;
+        }
+        if (level === 0) {
+          if (update.id != null) {
+            u.id = d.id = update.id;
+          }
+        }
+        found = {
+          u: false,
+          d: false
+        };
+        for (k in update) {
+          v = update[k];
+          if (k !== 'id' || level > 0) {
+            if ((ref = v.constructor) === Object || ref === Array) {
+              if (line[k] == null) {
+                u[k] = clone(v);
+                found.u = true;
+              } else {
+                ref1 = diff_update(line[k], v, level + 1), uu = ref1.u, dd = ref1.d;
+                if (uu != null) {
+                  u[k] = uu;
+                  found.u = true;
+                }
+                if (dd != null) {
+                  d[k] = dd;
+                  found.d = true;
+                }
+              }
+            } else if (v !== line[k]) {
+              u[k] = v;
+              found.u = true;
+            }
+          }
+        }
+        if (level > 0) {
+          for (k in line) {
+            if (update[k] == null) {
+              d[k] = true;
+              found.d = true;
+            }
+          }
+        }
+        return {
+          u: (found.u ? u : null),
+          d: (found.d ? d : null)
+        };
+      };
+      update = function(table_name, line_update, options) {
+        var line, line_prune, ref, table;
         table = db("tables." + table_name);
         if (!((table != null) && Object.prototype.toString.call(table) === '[object Object]')) {
           throw "can not update line into non-existing table '" + table_name + "'";
@@ -1626,16 +1762,33 @@
         if (line == null) {
           throw "can't update a non existing line (id:" + (line_update != null ? line_update.id : void 0) + ") in " + table_name + "'";
         }
-        if (table.options.index !== false) {
-          Index.delete_line(table, line);
+        if (options != null ? options.diff : void 0) {
+          ref = diff_update(line, line_update), line_update = ref.u, line_prune = ref.d;
         }
-        db("tables." + table_name, line_update, function(line_update, arg) {
-          var Table;
-          Table = arg.Table;
-          return Table.update(this, line_update);
-        });
-        if (table.index !== false) {
-          Index.insert_line(table, line);
+        if ((line_update != null) || (line_prune != null)) {
+          if (table.options.index !== false) {
+            Index.delete_line(table, line);
+          }
+          if (line_prune == null) {
+            db("tables." + table_name, line_update, function(line_update, arg) {
+              var Table;
+              Table = arg.Table;
+              return Table.update(this, line_update);
+            });
+          } else {
+            db("tables." + table_name, {
+              line_update: line_update,
+              line_prune: line_prune
+            }, function(arg, arg1) {
+              var Table, line_prune, line_update;
+              line_update = arg.line_update, line_prune = arg.line_prune;
+              Table = arg1.Table;
+              return Table.update(this, line_update, line_prune);
+            });
+          }
+          if (table.index !== false) {
+            Index.insert_line(table, line);
+          }
         }
       };
       delete_ = function(table_name, line_to_delete) {
@@ -1687,12 +1840,23 @@
         return id;
       };
       get = function(table_name, id) {
-        var table;
+        var idx, k, ref, table, v;
         table = db("tables." + table_name);
         if (!((table != null) && Object.prototype.toString.call(table) === '[object Object]')) {
           throw "can not get an item from non-existing table '" + table_name + "'";
         }
-        return table.lines[id];
+        if ((id != null ? id.at : void 0) != null) {
+          idx = 0;
+          ref = table.lines;
+          for (k in ref) {
+            v = ref[k];
+            if (idx++ === id.at) {
+              return v;
+            }
+          }
+        } else {
+          return table.lines[id];
+        }
       };
       QueryIterator = (function() {
         function _Class(table1) {
@@ -1728,7 +1892,7 @@
           }
         };
 
-        _Class.prototype.next = function(filter, keys, table_name) {
+        _Class.prototype.next = function(filter, keys, params, table_name, filter_is_where) {
           var clause, filter_field, i, j, joined_lines, key, key_value, key_values, l, len, len1, new_joined_lines, next, ref, ref1, ref2, ref3, ref4, ref5, ref6, ref7, ref8, ref9, value, vtable;
           next = this.iterator.next();
           if (!this.iterator.has_next()) {
@@ -1741,9 +1905,13 @@
             return next;
           }
           if (typeof filter === 'function') {
-            if (filter.call({
-              helpers: _helpers
-            }, next, keys, table_name)) {
+            if (filter.call(next, next, keys, table_name, _helpers)) {
+              return next;
+            } else {
+              return null;
+            }
+          } else if (filter_is_where) {
+            if (((filter = filter[table_name]) == null) || filter.call(next, params, _helpers)) {
               return next;
             } else {
               return null;
@@ -1823,7 +1991,7 @@
 
       })();
       query = function(entity_name, keys, query_name) {
-        var char, entities, entity_table, has_query_def_field, i, module_table, query_def, ref, ref1, ref2, result_unique, table, tableExtend, tableFilter, tableReduce, tableSort, tables;
+        var char, entities, entity_table, has_query_def_field, i, module_table, params, query_def, ref, ref1, ref2, ref3, ref4, result_unique, table, tableExtend, tableFilter, tableReduce, tableSort, tables;
         tables = db('tables');
         entities = db('entities');
         if (typeof entity_name !== 'string') {
@@ -1834,9 +2002,6 @@
         if (Object.prototype.toString.apply(keys) !== '[object Array]') {
           query_name = keys;
           keys = null;
-        }
-        if (keys == null) {
-          keys = [];
         }
         if (query_name == null) {
           query_name = '';
@@ -1849,8 +2014,12 @@
             filter: query_def
           };
         }
+        if (keys == null) {
+          keys = (ref = query_def != null ? query_def.keys : void 0) != null ? ref : [];
+        }
+        params = (ref1 = query_def != null ? query_def.params : void 0) != null ? ref1 : {};
         if (entity_name == null) {
-          name = (ref = (ref1 = query_def != null ? query_def.table : void 0) != null ? ref1 : query_def != null ? query_def.select.split('.')[0] : void 0) != null ? ref : '';
+          name = (ref2 = (ref3 = query_def != null ? query_def.table : void 0) != null ? ref3 : query_def != null ? query_def.select.split('.')[0] : void 0) != null ? ref2 : '';
           entity_name = entity(name);
         } else {
           if (entity_name[0] === entity_name[0].toLowerCase()) {
@@ -1861,7 +2030,7 @@
         if (query_def == null) {
           query_def = _query_defs[entity_name + '_' + keys.length + (query_name !== '' ? '_' + query_name : '')];
         }
-        entity_table = (ref2 = query_def != null ? query_def.table : void 0) != null ? ref2 : entities[((function() {
+        entity_table = (ref4 = query_def != null ? query_def.table : void 0) != null ? ref4 : entities[((function() {
           var j, len, results;
           results = [];
           for (i = j = 0, len = entity_name.length; j < len; i = ++j) {
@@ -1880,54 +2049,51 @@
         has_query_def_field = function() {
           var k, result;
           result = false;
-          for (k in query_def.fields) {
+          for (k in query_def.fields_selected) {
             result = true;
             break;
           }
           return result;
         };
-        tableExtend = function(line, line_num) {
-          var dst, fields_existing, k, o, ref3, ref4, ref5, ref6, ref7, ref8, remove, src, v;
+        tableExtend = function(line, line_as_object, line_num) {
+          var dst, fields_existing, k, o, ref10, ref11, ref12, ref5, ref6, ref7, ref8, ref9, src, v;
           if (line_num === 0) {
-            remove = function(field) {
-              var ref3;
-              if (((ref3 = query_def.map) != null ? ref3.remove : void 0) != null) {
-                if (indexOf.call(query_def.map.remove, field) >= 0) {
-                  return true;
-                } else {
-                  return false;
-                }
-              } else {
-                return false;
-              }
-            };
             fields_existing = {};
             for (k in line) {
               fields_existing[k] = true;
             }
           }
-          o = {};
-          for (k in line) {
-            v = line[k];
-            o[(((ref3 = query_def.map) != null ? ref3.rename : void 0) != null) && (((ref4 = query_def.map) != null ? ref4.rename[k] : void 0) != null) ? (ref5 = query_def.map) != null ? ref5.rename[k] : void 0 : k] = v;
-          }
-          if (((ref6 = query_def.map) != null ? ref6.name : void 0) != null) {
-            ref7 = query_def.map.name.split('-'), dst = ref7[0], src = ref7[1];
-            if (query_def.select != null) {
-              o[entity_table + '.' + 'name'] = line[entity_table + '.' + ("name" + dst)] + ((src != null) && line[entity_table + '.' + ("name" + src)] !== null ? ' - ' + line[entity_table + '.' + ("name" + src)] : '');
-            } else {
-              o.name = line["name" + dst] + ((src != null) && line["name" + src] !== null ? ' - ' + line["name" + src] : '');
+          if (query_def.fields == null) {
+            o = {};
+            for (k in line) {
+              v = line[k];
+              if (!((ref5 = query_def.map) != null ? (ref6 = ref5.remove) != null ? ref6[k] : void 0 : void 0)) {
+                o[(((ref7 = query_def.map) != null ? ref7.rename : void 0) != null) && (((ref8 = query_def.map) != null ? ref8.rename[k] : void 0) != null) ? (ref9 = query_def.map) != null ? ref9.rename[k] : void 0 : k] = v;
+              }
             }
-          }
-          if (((ref8 = query_def.map) != null ? ref8.add : void 0) != null) {
-            query_def.map.add.call({
-              helpers: _helpers
-            }, o, line, keys);
+            if (((ref10 = query_def.map) != null ? ref10.name : void 0) != null) {
+              ref11 = query_def.map.name.split('-'), dst = ref11[0], src = ref11[1];
+              if (query_def.select != null) {
+                o[entity_table + '.' + 'name'] = line[entity_table + '.' + ("name" + dst)] + ((src != null) && line[entity_table + '.' + ("name" + src)] !== null ? ' - ' + line[entity_table + '.' + ("name" + src)] : '');
+              } else {
+                o.name = line["name" + dst] + ((src != null) && line["name" + src] !== null ? ' - ' + line["name" + src] : '');
+              }
+            }
+            if (((ref12 = query_def.map) != null ? ref12.add : void 0) != null) {
+              query_def.map.add.call({
+                map: o,
+                line: line
+              }, o, line, keys, _helpers);
+            }
+          } else if (line_as_object != null) {
+            if (line_as_object != null) {
+              o = query_def.fields.call(line_as_object, line_as_object);
+            }
           }
           if (line_num === 0) {
             for (k in o) {
-              if (!Object.prototype.hasOwnProperty.call(fields_existing, k)) {
-                query_def.fields[k] = true;
+              if (!Object.prototype.hasOwnProperty.call(fields_existing, k) || (query_def.fields != null)) {
+                query_def.fields_selected[k] = true;
               }
             }
           }
@@ -1941,7 +2107,7 @@
           hash = "";
           for (k in line) {
             v = line[k];
-            if (query_def.fields[k] === true) {
+            if (query_def.fields_selected[k] === true) {
               hash += (hash !== "" ? ',' : '') + v;
             }
           }
@@ -1954,14 +2120,12 @@
         };
         result_unique = {};
         table = (function() {
-          var iterator, next_step, ref3, result_table, result_table_is_full, select_query_def, selected, step, table_name;
-          select_query_def = typeof query_def.select === 'function' ? query_def.select.call({
-            helpers: _helpers
-          }, keys) : (ref3 = query_def.select) != null ? ref3 : entity_table;
+          var iterator, next_step, ref5, result_table, result_table_is_full, select_query_def, selected, step, table_name;
+          select_query_def = typeof query_def.select === 'function' ? query_def.select.call({}, keys, _helpers) : (ref5 = query_def.select) != null ? ref5 : entity_table;
           result_table = [];
           result_table_is_full = false;
           path = select_query_def.split('.');
-          query_def.fields = {};
+          query_def.fields_selected = {};
           query_def.fields_tables = [];
           table_name = path[step = 0].split('(')[0];
           iterator = new QueryIterator(tables[table_name]);
@@ -1972,9 +2136,12 @@
               first_line: true,
               line_ids: {}
             };
+            if (query_def.fields != null) {
+              selected.values_as_object = {};
+            }
             (next_step = function(iterator, step) {
-              var field_infos, j, join, join_iterator, joined_table_name, joins_field_name, joins_lines, k, len, line, link_type_is_many, ref4, ref5, ref6, ref_field_name, ref_line, ref_line_table, result_line, selected_, table_name_prefix, v, virtual_line;
-              ref4 = path[step].split('('), table_name = ref4[0], field_infos = ref4[1];
+              var base, field_infos, j, join, join_iterator, joined_table_name, joins_field_name, joins_lines, k, len, line, link_type_is_many, o, ref6, ref7, ref8, ref9, ref_line, ref_line_table, result_line, selected_, selected__, table_name_prefix, v, virtual_line;
+              ref6 = path[step].split('('), table_name = ref6[0], field_infos = ref6[1];
               if (step + 1 < path.length) {
                 joined_table_name = path[step + 1].split('(')[0];
               } else {
@@ -1987,27 +2154,32 @@
                 table_name = table_name.slice(1, -1);
               }
               table_name_prefix = query_def.select != null ? table_name + '.' : '';
-              line = iterator.next(query_def.filter, keys, table_name);
+              line = iterator.next((ref7 = query_def.where) != null ? ref7 : query_def.filter, keys, params, table_name, query_def.where != null);
               if (line != null) {
                 selected.line_ids[table_name] = line.id;
                 for (k in line) {
-                  selected.values[table_name_prefix + k] = line[k];
+                  v = line[k];
+                  selected.values[table_name_prefix + k] = v;
+                  if (query_def.fields != null) {
+                    o = (base = selected.values_as_object)[table_name] != null ? base[table_name] : base[table_name] = {};
+                    o[k] = v;
+                  }
                 }
                 if ((field_infos != null) && selected.first_line) {
                   selected.has_fields = true;
                   if (field_infos === '*') {
                     for (k in line) {
                       if ((k.slice(-3) !== '_id') && (k.slice(-4) !== '_ref') && (k.slice(-6) !== '_joins')) {
-                        query_def.fields[table_name_prefix + k] = true;
+                        query_def.fields_selected[table_name_prefix + k] = true;
                       }
                     }
                     query_def.fields_tables.push(table_name);
                   } else {
-                    ref5 = field_infos.split(',');
-                    for (j = 0, len = ref5.length; j < len; j++) {
-                      k = ref5[j];
+                    ref8 = field_infos.split(',');
+                    for (j = 0, len = ref8.length; j < len; j++) {
+                      k = ref8[j];
                       k = k.trim();
-                      query_def.fields[table_name_prefix + k] = true;
+                      query_def.fields_selected[table_name_prefix + k] = true;
                     }
                     query_def.fields_tables.push(table_name);
                   }
@@ -2023,11 +2195,12 @@
                   joined_table_name = joined_table_name.slice(1, -1);
                   link_type_is_many = true;
                 }
+                if (!(virtual_line != null ? virtual_line : line)[joined_table_name + "_ref"]) {
+                  link_type_is_many = true;
+                }
                 if (step + 1 < path.length) {
                   if (link_type_is_many === false) {
-                    ref_field_name = joined_table_name + "_ref";
-                    ref_line = (virtual_line != null ? virtual_line : line)[ref_field_name];
-                    if (ref_line != null) {
+                    if ((ref_line = (virtual_line != null ? virtual_line : line)[joined_table_name + "_ref"]) != null) {
                       ref_line_table = TransientTable([ref_line]);
                       next_step(new QueryIterator(ref_line_table), step + 1);
                     }
@@ -2038,37 +2211,42 @@
                     } else {
                       joins_lines = TransientTable.fromTable(tables[joined_table_name], function(joined_line) {
                         return join.call({
-                          helpers: _helpers
-                        }, line, joined_line);
+                          joined: joined_line,
+                          line: line
+                        }, line, joined_line, _helpers);
                       });
                     }
                     if (joins_lines != null) {
                       selected_ = selected;
                       join_iterator = new QueryIterator(joins_lines);
                       while (join_iterator["continue"]) {
-                        selected = {
+                        selected__ = {
                           has_fields: selected.has_fields,
                           values: extend({}, selected.values),
                           first_line: selected.first_line,
-                          line_ids: extend(selected.line_ids)
+                          line_ids: extend({}, selected.line_ids)
                         };
+                        if (query_def.fields != null) {
+                          selected__.values_as_object = extend({}, selected.values_as_object);
+                        }
+                        selected = selected__;
                         next_step(join_iterator, step + 1);
                       }
                       selected = selected_;
                     }
                   }
                 } else {
-                  if (!(selected.has_fields || !selected.first_line || (query_def.select != null) || ((ref6 = query_def.map) != null ? ref6.alias : void 0))) {
+                  if (!(selected.has_fields || !selected.first_line || (query_def.select != null) || ((ref9 = query_def.map) != null ? ref9.alias : void 0))) {
                     selected.has_fields = true;
                     for (k in line) {
                       v = line[k];
                       if ((k.slice(-3) !== '_id') && (k.slice(-4) !== '_ref') && (k.slice(-6) !== '_joins')) {
-                        query_def.fields[table_name_prefix + k] = true;
+                        query_def.fields_selected[table_name_prefix + k] = true;
                       }
                     }
                     query_def.fields_tables.push(table_name);
                   }
-                  result_line = tableExtend(selected.values, result_table.length);
+                  result_line = tableExtend(selected.values, selected.values_as_object, result_table.length);
                   if (tableFilter(result_line)) {
                     result_table.push(result_line);
                   }
@@ -2092,15 +2270,15 @@
           return [];
         }
         tableReduce = function(line) {
-          var field_name, k, keep_field, o, ref3, ref4, table_name, v;
+          var field_name, k, keep_field, o, ref5, ref6, table_name, v;
           if (!has_query_def_field()) {
             return {};
           }
           o = {};
           for (k in line) {
             v = line[k];
-            if (query_def.fields[k] === true) {
-              o[k] = v;
+            if (query_def.fields_selected[k] === true) {
+              o[k] = clone(v);
             }
           }
           for (k in o) {
@@ -2109,12 +2287,12 @@
               continue;
             }
             keep_field = false;
-            ref3 = k.split('.'), table_name = ref3[0], field_name = ref3[1];
-            if (((ref4 = query_def.map) != null ? ref4.alias : void 0) === true) {
-              o[tables[table_name].alias + field_name] = v;
+            ref5 = k.split('.'), table_name = ref5[0], field_name = ref5[1];
+            if (((ref6 = query_def.map) != null ? ref6.alias : void 0) === true) {
+              o[tables[table_name].alias + field_name] = clone(v);
             } else {
               if (o[field_name] == null) {
-                o[field_name] = v;
+                o[field_name] = clone(v);
               } else {
                 keep_field = true;
               }
@@ -2127,10 +2305,10 @@
         };
         table = table.map(tableReduce);
         tableSort = query_def.sort != null ? function(line1, line2) {
-          var item, j, k, len, ref3, v;
-          ref3 = query_def.sort;
-          for (i = j = 0, len = ref3.length; j < len; i = ++j) {
-            item = ref3[i];
+          var item, j, k, len, ref5, v;
+          ref5 = query_def.sort;
+          for (i = j = 0, len = ref5.length; j < len; i = ++j) {
+            item = ref5[i];
             if (((item != null ? item.length : void 0) != null) && typeof item === 'string') {
               query_def.sort[i] = {};
               query_def.sort[i][k = item] = (v = 1);
@@ -2228,6 +2406,7 @@
         exists: exists,
         create: create,
         alter: alter,
+        drop: drop,
         insert: insert,
         update: update,
         "delete": delete_,

@@ -59,7 +59,7 @@ elements =
   regular: 'a abbr address article aside audio b bdi bdo blockquote body button
  canvas caption cite code colgroup datalist dd del details dfn div dl dt em
  fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hgroup
- html i iframe ins kbd label legend li map mark menu meter nav noscript object
+ html i iframe ins kbd label legend li main map mark menu meter nav noscript object
  ol optgroup option output p pre progress q rp rt ruby s samp script section
  select small span strong style sub summary sup table tbody td textarea tfoot
  th thead time title tr u ul video'
@@ -220,6 +220,7 @@ skeleton = (__data = {}) ->
 
   _global_ids = {}
   _modules_ids = {}
+  _coffeescript_ids_done = global: null, module: {}
   
   id = (db, value) ->
     if typeof db is 'string' then value = db ; db = null
@@ -244,16 +245,31 @@ skeleton = (__data = {}) ->
         _ids[value] ? _ids[value] = id(value)
 
     ids.toJSONString = (var_name) ->
-        empty = """
-        (function () {return ''})
-        """
-        full = """
+        func = """
         (function (key) {
-            var _ids = #{JSON.stringify _ids};
-            return _ids[key];
+        """
+        func += "var _id = " + switch var_name 
+            when 'id.module' then """
+                document.querySelector("script[data-coffeekup-ids-module-#{__data.hash(__data.module_path)}-" + key.replace(/[\.\#]/g, '-') + "]" ).getAttribute("data-coffeekup-ids-module-#{__data.hash(__data.module_path)}-" + key.replace(/[\.\#]/g, '-'));
+            """
+            when 'id.general' then """
+                document.querySelector("script[data-coffeekup-ids-general-" + key.replace(/[\.\#]/g, '-') + "]").getAttribute("data-coffeekup-ids-general-" + key.replace(/[\.\#]/g, '-'));
+            """
+            else "(#{JSON.stringify _ids})[key];"
+        
+        if var_name is 'id'
+            func += """
+                if (_id == null && id.module != null) _id = id.module(key);
+            """
+        if var_name in ['id', 'id.module']
+            func += """
+                if (_id == null && id.global != null) _id = id.global(key);
+            """
+        func += """
+            return (_id != null ? _id : '');
         })
         """
-        func = empty; for k of _ids then func = full; break
+        
         """
         #{func}#{(for own k, v of @ when k isnt 'toJSONString' then ";#{var_name}.#{k}=#{if v.toJSONString then v.toJSONString(var_name + '.' + k) else v.toString()}").join('')}
         """
@@ -299,13 +315,34 @@ skeleton = (__data = {}) ->
       func = func?.toString()
       unless param?.id? or not func?
           if (idx = func.indexOf('id')) >= 0 then (param ?= {}).id = id.ids.local() ? {}
-          if idx > 0 and func.indexOf('module') >= 0 then param.id.module = id.ids.module() ? {}
-          if idx > 0 and func.indexOf('global') >= 0 then param.id.global = id.ids.global() ? {}
+          if idx > 0
+              ids_module = id.ids.module()
+              if func.indexOf('module') >= 0 then param.id.module = ids_module ? {}
+              else if ids_module? then param.id.module = ids_module
+
+              ids_global = id.ids.global()
+              if func.indexOf('global') >= 0 then param.id.global = ids_global ? {}
+              else if ids_global? then param.id.global = ids_global
+              
+              script_data = null
+              if param.id?.module? and _coffeescript_ids_done.module[__data.module_path] isnt yes
+                  module_hash = __data.hash(__data.module_path)
+                  for key, value of _modules_ids[__data.module_path]
+                      script_data ?= data:{coffeekup:ids:module:{}}
+                      script_data.data.coffeekup.ids.module[module_hash] ?= {}
+                      script_data.data.coffeekup.ids.module[module_hash][key.replace(/[\.\#]/g, '-')] = value
+                      _coffeescript_ids_done.module[__data.module_path] = yes
+              if param.id?.global? and _coffeescript_ids_done.global isnt yes
+                  for key, value of _global_ids
+                      script_data ?= data:{coffeekup:ids:{}}
+                      script_data.data.coffeekup.ids.global ?= {}
+                      script_data.data.coffeekup.ids.global[key.replace(/[\.\#]/g, '-')] = value
+                      _coffeescript_ids_done.global = yes
     
     if (func)
       # `coffeescript {value:"sample"} -> alert value'` becomes:
       # `<script>var value="sample";(function () {return alert(value);})();</script>`
-      script "#{__ck.coffeescript_helpers}" + (if param? then "\n(function() {var " + ("#{k}=" + (if typeof v is 'function' then (if v.toJSONString? then v.toJSONString(k) else "#{v.toString()}") else JSON.stringify(v)) for k,v of param).join(',') + ";\n" else '') + "(#{func}).call(this)" + if param? then "}).call(this);" else ";"
+      script script_data, "#{__ck.coffeescript_helpers}" + (if param? then "\n(function() {var " + ("#{k}=" + (if typeof v is 'function' then (if v.toJSONString? then v.toJSONString(k) else "#{v.toString()}") else JSON.stringify(v)) for k,v of param).join(',') + ";\n" else '') + "(#{func}).call(this)" + if param? then "}).call(this);" else ";"
       __ck.coffeescript_helpers = "" # needed only once in a `render`
     else switch typeof param
       # `coffeescript -> alert 'hi'` becomes:
@@ -425,6 +462,62 @@ cache = {}
 coffeekup.render = (template, data = {}, options = {}) ->
   data[k] = v for k, v of options
   data.cache ?= off
+  data.hash = (b) ->
+      c = (a, b) ->
+        a >>> b | a << 32 - b
+    
+      d = undefined; e = undefined
+      f = Math.pow; g = f(2, 32); h = 'length'; i = ''; j = []; k = 8 * b[h]; l = []; m = []; n = m[h]; o = {}; p = 2
+      while 64 > n
+        if !o[p]
+          d = 0
+          while 313 > d
+            o[d] = p
+            d += p
+          l[n] = f(p, .5) * g | 0
+          m[n++] = f(p, 1 / 3) * g | 0
+        p++
+      b += '\x80'
+      while b[h] % 64 - 56
+        b += '\x00'
+      d = 0
+      while d < b[h]
+        if (e = b.charCodeAt(d); e >> 8)
+          return
+        j[d >> 2] |= e << (3 - d) % 4 * 8
+        d++
+      j[j[h]] = k / g | 0
+      j[j[h]] = k
+      e = 0
+      while e < j[h]
+        q = j.slice(e, e += 16)
+        r = l
+        l = l.slice(0, 8)
+        d = 0
+        while 64 > d
+          s = q[d - 15]
+          t = q[d - 2]
+          u = l[0]
+          v = l[4]
+          w = l[7] + (c(v, 6) ^ c(v, 11) ^ c(v, 25)) + (v & l[5] ^ ~v & l[6]) + m[d] + (q[d] = if 16 > d then q[d] else q[d - 16] + (c(s, 7) ^ c(s, 18) ^ s >>> 3) + q[d - 7] + (c(t, 17) ^ c(t, 19) ^ t >>> 10) | 0)
+          x = (c(u, 2) ^ c(u, 13) ^ c(u, 22)) + (u & l[1] ^ u & l[2] ^ l[1] & l[2])
+          l = [ w + x | 0 ].concat(l)
+          l[4] = l[4] + w | 0
+          d++
+        d = 0
+        while 8 > d
+          l[d] = l[d] + r[d] | 0
+          d++
+      d = 0
+      while 8 > d
+        e = 3
+        while e + 1
+          y = l[d] >> 8 * e & 255
+          i += (if 16 > y then 0 else '') + y.toString(16)
+          e--
+        d++
+      i
+
   data.id = do ->
       c = 0 ; blockSize = 4 ; base = 36 ; discreteValues = Math.pow base, blockSize
     

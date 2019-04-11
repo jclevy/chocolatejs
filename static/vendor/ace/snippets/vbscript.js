@@ -4,4 +4,11 @@ define("ace/snippets/vbscript",["require","exports","module"], function(require,
 exports.snippetText =undefined;
 exports.scope = "vbscript";
 
-});
+});                (function() {
+                    window.require(["ace/snippets/vbscript"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

@@ -291,56 +291,58 @@ _.param = (parameters) ->
         serialize.push "#{encodeURIComponent parameter}=#{encodeURIComponent parameters[parameter]}"
     serialize.join '&'
         
-# `_.serialize` helps manage asynchronous calls serialization.  
-    #
-    # - use **self** to pass an object to which **this** will be binded when deferred functions will be called
-    # - use **local** to share variables between the deferred functions
-    # - **fn** is a function in which you declare the asynchronous functions you want to defer and serialize
-    # - use **option** with value `async:off` to ask **_.serialize** not to enforce async call on the last `run`
-    #
-    # Here is a simple example:
-    #
-    #      _.serialize (run) ->
-    #          run (end) ->
-    #              my_first_async_func ->
-    #                  # ...
-    #                  end()
-    #          run (end) ->
-    #              my_second_async_func ->
-    #                  # ...
-    #                  end()
-    #
-    # Each run can return one of the following values that will tell the _.serialize service that 
-    # one of its runs is async and that it is not forced to run its last run as async
-    #
-    # 
-    #     run (end) -> end  
-    #
-    # or
-    #
-    #     run (end) -> end.later
-    #
-    # Here is an example with async and sync runs mixed:
-    #
-    #     _.serialize (run) ->
-    #         run (end) ->
-    #             my_first_async_func ->
-    #                 # ...
-    #                 end()
-    #             end
-    #
-    #         run (end) ->
-    #             sync_func()
-    #             end()
-    #
-    #         run (end) ->
-    #             my_second_async_func ->
-    #                 # ...
-    #                 end()
-    #             end
-_.serialize = _.flow = (options, fn) ->
+# `_.serialize` helps manage asynchronous calls serialization.
+# `_.async` and `_.run` are synonyms to `_.serialize`
+#
+# - use **self** to pass an object to which **this** will be binded when deferred functions will be called
+# - use **local** to share variables between the deferred functions
+# - **fn** is a function in which you declare the asynchronous functions you want to defer and serialize
+# - use **option** with value `async:off` to ask **_.serialize** not to enforce async call on the last `run`
+#
+# Here is a simple example:
+#
+#      _.serialize (run) ->
+#          run (end) ->
+#              my_first_async_func ->
+#                  # ...
+#                  end()
+#          run (end) ->
+#              my_second_async_func ->
+#                  # ...
+#                  end()
+#
+# Each run can return one of the following values that will tell the _.serialize service that 
+# one of its runs is async and that it is not forced to run its last run as async
+#
+# 
+#     run (end) -> end  
+#
+# or
+#
+#     run (end) -> end.later
+#
+# Here is an example with async and sync runs mixed, using the _.async syntax:
+#
+#     _.async (await) ->
+#         await (next) ->
+#             my_first_async_func ->
+#                 # ...
+#                 next()
+#             next.later
+#
+#         await (next) ->
+#             sync_func()
+#             next()
+#
+#         await (next) ->
+#             my_second_async_func ->
+#                 # ...
+#                 next()
+#             next.later
+_.serialize = _.flow = _.async = (options, fn) ->
     unless fn? then fn = options; options = {}
-    {self, local, async} = options
+    {self, local} = options
+    self ?= {}
     local ?= {}
 
     deferred = []
@@ -354,10 +356,11 @@ _.serialize = _.flow = (options, fn) ->
         undefered = deferred.shift()
     
         if deferred.length is 0 and async is off and options?.async isnt off 
-            (next) -> self = this; setTimeout (-> undefered?.call self, next), 0 
+            (next) ->
+                setTimeout (-> undefered?.call self, next), 0 
         else 
             undefered
-        
+    
     next = ->
         if deferred.length
             result = undefer().call self, next
@@ -367,8 +370,9 @@ _.serialize = _.flow = (options, fn) ->
 
     next.later = next
     next.with = (result) -> if result isnt next.later then next() else next.later
+    self.next = next unless options.self?
 
-    fn_self = self
+    fn_self = options.self
     fn_self ?= fn
     
     fn.call fn_self, defer, local
@@ -396,7 +400,6 @@ _.parallelize = (self, fn) ->
 # return A new function that wraps the `func` function passed in.
 # 
 # Thanks to: https://github.com/component/throttle
-
 _.throttle = (options, func) ->
     unless func? then func = options ; options = {}
     {wait, reset, accumulate} = options

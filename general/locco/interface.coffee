@@ -42,7 +42,10 @@ Interface = _.prototype
                     Error.prepareStackTrace = (err, stack) -> stack
                     stack = (new Error).stack
                     Error.prepareStackTrace = oldPST
-                    for line in stack then files_stack.push line.getFileName()
+                    if typeof stack is 'string' 
+                        files_stack = stack.split '\n'
+                    else
+                        for line in stack then files_stack.push line.getFileName()
                 else
                     stack = (new Error).stack
                     files_stack = stack.toString().split('\n')
@@ -137,6 +140,12 @@ Interface = _.prototype
             run (end) ->
                 @review bin, reaction
                 
+                if reaction.certified and @embedded?.steps
+                    self = getSelf.call @embedded, end
+                    result = @embedded.steps.call self, bin
+                end.with result
+                        
+            run (end) ->
                 if reaction.certified and @steps?
                     self = getSelf.call this, end
                     result = @steps.call self, bin

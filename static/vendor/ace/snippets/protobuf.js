@@ -4,4 +4,11 @@ define("ace/snippets/protobuf",["require","exports","module"], function(require,
 exports.snippetText = "";
 exports.scope = "protobuf";
 
-});
+});                (function() {
+                    window.require(["ace/snippets/protobuf"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

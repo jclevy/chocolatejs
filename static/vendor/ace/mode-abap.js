@@ -67,13 +67,13 @@ var AbapHighlightRules = function() {
             {token : "doc.comment", regex : /^\*.+/},
             {token : "comment",  regex : /".+$/},
             {token : "invalid", regex: "\\.{2,}"},
-            {token : "keyword.operator", regex: /\W[\-+\%=<>*]\W|\*\*|[~:,\.&$]|->*?|=>/},
+            {token : "keyword.operator", regex: /\W[\-+%=<>*]\W|\*\*|[~:,\.&$]|->*?|=>/},
             {token : "paren.lparen", regex : "[\\[({]"},
             {token : "paren.rparen", regex : "[\\])}]"},
             {token : "constant.numeric", regex: "[+-]?\\d+\\b"},
             {token : "variable.parameter", regex : /sy|pa?\d\d\d\d\|t\d\d\d\.|innnn/}, 
             {token : "keyword", regex : compoundKeywords}, 
-            {token : "variable.parameter", regex : /\w+-\w+(?:-\w+)*/}, 
+            {token : "variable.parameter", regex : /\w+-\w[\-\w]*/},
             {token : keywordMapper, regex : "\\b\\w+\\b"},
             {caseInsensitive: true}
         ],
@@ -199,7 +199,7 @@ oop.inherits(Mode, TextMode);
 
 (function() {
     
-    this.lineCommentStart = '"'
+    this.lineCommentStart = '"';
     
     this.getNextLineIndent = function(state, line, tab) {
         var indent = this.$getIndent(line);
@@ -211,4 +211,11 @@ oop.inherits(Mode, TextMode);
 
 exports.Mode = Mode;
 
-});
+});                (function() {
+                    window.require(["ace/mode/abap"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

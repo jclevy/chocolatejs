@@ -60,14 +60,14 @@ var AssemblyX86HighlightRules = function() {
          { token: 'entity.name.function.assembly', regex: '^[\\w.]+?:' },
          { token: 'entity.name.function.assembly', regex: '^[\\w.]+?\\b' },
          { token: 'comment.assembly', regex: ';.*$' } ] 
-    }
+    };
     
     this.normalizeRules();
 };
 
 AssemblyX86HighlightRules.metaData = { fileTypes: [ 'asm' ],
       name: 'Assembly x86',
-      scopeName: 'source.assembly' }
+      scopeName: 'source.assembly' };
 
 
 oop.inherits(AssemblyX86HighlightRules, TextHighlightRules);
@@ -173,13 +173,21 @@ var FoldMode = require("./folding/coffee").FoldMode;
 var Mode = function() {
     this.HighlightRules = AssemblyX86HighlightRules;
     this.foldingRules = new FoldMode();
+    this.$behaviour = this.$defaultBehaviour;
 };
 oop.inherits(Mode, TextMode);
 
 (function() {
-    this.lineCommentStart = ";";
+    this.lineCommentStart = [";"];
     this.$id = "ace/mode/assembly_x86";
 }).call(Mode.prototype);
 
 exports.Mode = Mode;
-});
+});                (function() {
+                    window.require(["ace/mode/assembly_x86"], function(m) {
+                        if (typeof module == "object" && typeof exports == "object" && module) {
+                            module.exports = m;
+                        }
+                    });
+                })();
+            

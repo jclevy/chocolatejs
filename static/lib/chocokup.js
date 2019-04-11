@@ -40,9 +40,9 @@
         found = false;
         for (l = 0, len1 = files_stack.length; l < len1; l++) {
           line = files_stack[l];
-          if (line.indexOf('/chocokup.') >= 0) {
+          if ((line != null) && line.indexOf('/chocokup.') >= 0) {
             found = true;
-          } else if (line.indexOf('\\chocokup.') >= 0) {
+          } else if ((line != null) && line.indexOf('\\chocokup.') >= 0) {
             found = true;
           } else if (found) {
             return line;

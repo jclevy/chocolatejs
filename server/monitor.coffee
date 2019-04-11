@@ -7,10 +7,16 @@
 # information, please see the LICENSE file in the root folder.
 
 Child_process = require('child_process')
+Https = require 'https'
 Fs = require 'fs'
 Util = require 'util'
 Path = require 'path'
+Events = require 'events'
 File = require './file'
+Document = require './document'
+Interface = require './interface'
+{Sessions} = require './workflow'
+Url = require 'url'
 Chokidar = require 'chokidar'
 _ = require '../general/chocodash' 
 Chocokup = require '../general/chocokup' 
@@ -25,6 +31,9 @@ monitor_server = new class
     config: null
     user: null
     group: null
+    key:null
+    cert:null
+    server:null
     sep: if process.platform is 'win32' then '\\' else '/'
     dir:
         node_modules:if process.platform is 'win32' then '\\node_modules\\' else '/node_modules/'
@@ -50,14 +59,13 @@ monitor_server = new class
         check()
         setInterval check, 100
 
-
-    "restart": ->
+    "restart": (signal) ->
         self = this
         
         @throttled_restart ?= _.throttle wait:1000, reset:on, ->
             @restarting = true
             self.log 'CHOCOLATEJS: Stopping server for restart'
-            self.killProcesses()
+            self.killProcesses(signal)
         
         @throttled_restart()
 
@@ -97,15 +105,18 @@ monitor_server = new class
         this.log 'CHOCOLATEJS: Starting server'
         this.watchFiles()
 
+
+        if @config.debug or @config.monitor?['interface']
+            @key = @config.key
+            @key ?= if @config.letsencrypt?.published is on then 'privkey.pem' else 'privatekey.pem'
+            @cert = @config.cert
+            @cert ?= if @config.letsencrypt?.published is on then 'fullchain.pem' else 'certificate.pem'
+
         if @config.debug
             hostname = @config.letsencrypt.domains[0] if @config.letsencrypt?.domains?
             dir = @datadir + if hostname? and @config.letsencrypt?.published is on then "#{self.dir.letsencrypt}live#{self.sep}" + hostname else ''
-            key = @config.key
-            key ?= if @config.letsencrypt?.published is on then 'privkey.pem' else 'privatekey.pem'
-            cert = @config.cert
-            cert ?= if @config.letsencrypt?.published is on then 'fullchain.pem' else 'certificate.pem'
             
-            debug_ssl = unless @config.http_only then  ['--ssl-key', dir + self.sep + key, '--ssl-cert', dir + self.sep + cert] else []
+            debug_ssl = unless @config.http_only then  ['--ssl-key', dir + self.sep + @key, '--ssl-cert', dir + self.sep + @cert] else []
             
             @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', @config.debug_port ? "8081"].concat debug_ssl)
 
@@ -132,6 +143,9 @@ monitor_server = new class
                 self.unwatchFiles()
                 self.start()
                 self.restarting = false
+        
+        if @config.monitor?['interface']
+            this.interface()
 
     "convertFile": _.throttle wait:500, reset:on, (file, file_path, file_ext, file_base, curdir) ->
         file_dest_name = file_path + file_base + if file_ext in ['.scss'] then '.css' else '.html'
@@ -291,7 +305,6 @@ monitor_server = new class
         @watcher = Chokidar.watch appdir, ignored: filter, persistent: yes, ignoreInitial:yes
         @watcher.on 'add', on_add
         @watcher.on 'change', on_change
-        
 
     "unwatchFiles": ->
         @watcher.close()
@@ -318,16 +331,15 @@ monitor_server = new class
             return callback()
         return
     
-    
     "killPid": (pid, signal) ->
         try
-            this.log "kill #{pid} #{signal ? ''}"
+            this.log "kill #{signal ? ''} #{pid}"
+            
             process.kill parseInt(pid, 10), signal
         catch err
             if err.code != 'ESRCH'
                 throw err
         return
-    
     
     "buildProcessTree": (parentPid, tree, pidsToProcess, spawnChildProcessesList, cb) ->
         ps = spawnChildProcessesList(parentPid)
@@ -355,10 +367,10 @@ monitor_server = new class
     
         return
     
-    "killProcesses": ->
+    "killProcesses": (signal) ->
         @process.kill 'SIGINT' if @process? and process.platform is 'win32'
-        this.kill(@process.pid) if @process?
-        this.kill(@debug_process.pid) if @debug_process?
+        this.kill(@process.pid, signal) if @process?
+        this.kill(@debug_process.pid, signal) if @debug_process?
         
     "kill": (pid, signal, callback) ->
         tree = {}
@@ -392,5 +404,82 @@ monitor_server = new class
                     return
                 break
         return
+    
+    "interface": ->
+        unless @server? or not @config.monitor?['interface']
+            Document.datadir = @datadir
+            cache = new Document.Cache async:off, filename: 'document-monitor.cache'
+            sessions = new Sessions cache
+                
+            options = do =>
+                dir = @datadir + if @config.letsencrypt?.published is on then '/letsencrypt/live/' + @config.letsencrypt.domains[0] else ''
+                option = 
+                    key: Fs.readFileSync dir + '/' + @key
+                    cert: Fs.readFileSync dir + '/' + @cert
+                [option]
+                
+            @server = Https.createServer.apply Https, options.concat (request, response) =>
+                session = sessions.get(request)
 
-monitor_server.start()
+                menu_kup = ->
+                    form method:"get", ->
+                        if @bin?.process? then div "process.pid: " + @bin.process.pid
+                        if @bin?.debug_process? then div "debug_process.pid: " + @bin.debug_process.pid
+                        if @bin?.process? or @bin?.debug_process? then div '&nbsp;'
+                        input name:"action", type:"submit", value:"restart"
+
+                restarted_kup = ->
+                    form method:"get", ->
+                        div 'Restarted'
+                        div '&nbsp;'
+                        div ->
+                            input type:"submit", value:"OK"
+
+                respond = (produced) ->
+                    body = ""
+                
+                    if produced instanceof Chocokup
+                        try body = produced.render()
+                    else
+                        body = produced
+                        
+                    result =
+                        status: '200'
+                        headers: {}
+                        body: body
+                        
+                    result.headers['Set-Cookie'] = 'bsid=' + session.id + ';path=/;secure;httponly;expires=' + session.expires.toUTCString()
+                    response.writeHead result.status, result.headers
+                    response.end result.body
+                
+                url = Url.parse request.url
+                if url.query is 'register_key'
+                    produced = Interface.register_key {request, session}
+                    
+                    if produced instanceof Events.EventEmitter
+                        produced.on 'end', => 
+                            respond new Chocokup.Document 'Monitor', {kups:{key:menu_kup}, bin:{process:@process, debug_process:@debug_process}}, Chocokup.Kups.Tablet
+                    else
+                        respond produced
+                else if url.query is 'action=restart'
+                    respond if @config.sofkey of session.keys
+                        do =>
+                            this.restart('SIGKILL')
+                            new Chocokup.Document 'Monitor', kups:{key:restarted_kup}, Chocokup.Kups.Tablet
+                    else ''
+                    
+                else
+                    respond if @config.sofkey of session.keys 
+                        new Chocokup.Document 'Monitor', {kups:{key:menu_kup}, bin:{process:@process, debug_process:@debug_process}}, Chocokup.Kups.Tablet
+                    else ''
+                
+    
+            port_https = parseInt(@port ? @config.port_https ? @config.port ? 8026)
+            @server.listen port_https + 2
+
+        'Monitor Interface'
+
+if process.argv[1] is __filename
+    monitor_server.start()
+
+

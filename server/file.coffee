@@ -512,14 +512,25 @@ resolve = (where, __) ->
 
 # `resolve_repo` adapts given path if in sysdir repository.
 resolve_repo = (path, __) ->
-    if path.charAt(0) isnt '/' then path = '/' + path
     appdir_abs = Path.resolve(__?.appdir ? '.')
-    git_dirname = appdir_abs + path
+    
+    switch path.charAt(0)
+        when '.'
+            git_dirname = Path.resolve path
+            git_path = if git_dirname.indexOf(appdir_abs) is 0 then git_dirname.substr appdir_abs.length + 1 else path
+        when '/' 
+            git_path = path.substr 1
+            git_dirname = appdir_abs + path
+        else 
+            git_path = path
+            path = '/' + path
+            git_dirname = appdir_abs + path
+
     while not Fs.existsSync(git_dirname + (if git_dirname[git_dirname.length - 1] isnt '/' then '/' else '') +  '.git')
         new_dirname = Path.resolve(git_dirname, '..')
         if new_dirname is git_dirname or new_dirname is appdir_abs
             cwd = __?.appdir ? '.'
-            path = path.substr 1
+            path = git_path
             return {cwd, path}
         else
             git_dirname = new_dirname
@@ -568,6 +579,9 @@ clientInterface = ->
                     left: 0;
                     right: 0;
                     font-size: 14px;
+                    }
+                #editor * {
+                    -webkit-overflow-scrolling: touch;
                     }
                 """
         body ->
