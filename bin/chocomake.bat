@@ -15,7 +15,7 @@ IF  "%1" == "" (
     ECHO exports.interface = ^-^>> %1\default.coffee
     ECHO.    ''>> %1\default.coffee
     ECHO {"by": {"id":{}, "root":[], "Priority":{}, "Scope":{}, "Action":{}, "Intention":{}, "Wish":{}, "Need":{}, "Share":{}}} > %1\data\newnotes_data.json
-    openssl genrsa -out %1\data\privatekey.pem 1024
+    openssl genrsa -out %1\data\privatekey.pem 2048
     openssl req -new -key %1\data\privatekey.pem -out %1\data\certrequest.csr
     openssl x509 -req -in %1\data\certrequest.csr -signkey %1\data\privatekey.pem -out %1\data\certificate.pem
     ECHO.

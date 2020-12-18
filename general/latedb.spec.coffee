@@ -480,6 +480,31 @@ describe 'lateDB', ->
         expect(lines.length).toBe 4
         expect(lines[3].name).toBe 'Toyota Motors'
 
+    it 'can list tables in LateDB', ->
+        expect(db.tables.list()?[1]).toBe("cars")
+
+    it 'can list fields in a Table', ->
+        expect(db.tables.list('cars')?[1]).toBe("name")
+
+    it 'can list fields in a Table when upgrading from a Table without fields list', ->
+        delete db('tables.cars').fields
+        expect(db.tables.list('cars')?[1]).toBe("name")
+
+    it 'can add a field in a Table', ->
+        db.tables.alter 'cars', add:'model'
+        expect(db.tables.list('cars')?[6]).toBe("model")
+
+    it 'can get field value from a Table', ->
+        db.tables.update 'cars', id:5, model:'Prius'
+        line = db.tables.get 'cars', 5
+        expect(line.model).toBe("Prius")
+        
+    it 'can drop a field from a Table', ->
+        db.tables.alter 'cars', drop:'model'
+        expect(db.tables.list('cars')?[6]).toBe undefined
+        line = db.tables.get 'cars', 5
+        expect(line.model).toBe undefined
+
     it 'can drop a table', ->
         expect(db('tables.brands')).not.toBeNull()
         db.tables.drop 'brands'

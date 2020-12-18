@@ -401,7 +401,7 @@ exports.logConsoleAndErrors = (path) ->
     stdout_write = process.stdout.write
     stderr_write = process.stderr.write
     
-    write_stream = Fs.createWriteStream(path, {'flags': 'a'})
+    write_stream = Fs.createWriteStream(path, { flags: 'a' })
     
     log = (chunk) ->
         chunk_ = switch 
@@ -427,16 +427,17 @@ exports.unlogConsoleAndErrors = ->
 
 exports.logWithTimestamp = ->
     funcs = 
-        log: console.log.bind console
-        info: console.info.bind console
-        warn: console.warn.bind console
-        error: console.error.bind console
+        log: console.log
+        info: console.info
+        warn: console.warn
+        error: console.error
     
     timestamp = -> '[' + (new Date).toISOString() + ']'
     
     Object.keys(funcs).forEach (k) ->
         console[k] = ->
-            arguments[0] = Util.format(timestamp(), arguments[0])
+            arguments0 = arguments[0]
+            arguments[0] = Util.format(timestamp(), arguments0)
             funcs[k].apply console, arguments
             return
     return

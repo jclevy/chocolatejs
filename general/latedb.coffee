@@ -484,14 +484,16 @@ Log = ->
             context = log: ''
             current = localStorage.getItem keyname()
             lines = current.split '\n'
-            context.found = no
+            context.compacted = no
             only_after = no
             for line, i in lines
                 context.line = line
                 context.index = i
-                unless parse context, time, only_after
-                    unless context.found
-                        context.found = yes
+                should_compact = not parse context, time, only_after
+                should_compact = yes if not time? and i+1 is lines.length
+                if should_compact 
+                    unless context.compacted
+                        context.compacted = yes
                         context.log = init eval init(context.log, module:on)
                         only_after = yes
                         parse context, time, only_after
@@ -690,7 +692,7 @@ lateDB = (name, path) ->
         Table.patchLine = (line, patch, do_prune=no) ->
             pruned = no
             for k,v of patch
-                if v.constructor in [Object, Array] and line[k]? 
+                if v? and v.constructor in [Object, Array] and line[k]? 
                     if (pruned = Table.patchLine line[k], v, do_prune)
                         has_one = no; for kk of line[k] then has_one = yes; break
                         delete line[k] unless has_one
@@ -837,6 +839,13 @@ lateDB = (name, path) ->
                         @current = table[@index++]
             }
 
+        Field = {}
+        
+        Field.insert_from_line = (table, line) ->
+            for k, v of line
+                unless table.fields?[k] then alter table.name, add:k
+            return
+        
         Index = {}
 
         Index.create = (table, fields_only) ->
@@ -942,7 +951,7 @@ lateDB = (name, path) ->
         _helpers = {}
 
         clone = (value) ->
-            return value unless value.constructor in [Object, Array]
+            return value unless value? and value.constructor in [Object, Array]
             
             set = (o, val) ->
                 for own k,v of val then switch Object.prototype.toString.apply(v) 
@@ -971,10 +980,36 @@ lateDB = (name, path) ->
             for part in name_parts then entity_name.push part[...-1]
             entity_name = entity_name.join '_'
             
-        list = ->
+        list = (table_name) ->
             tables = db 'tables'
             return [] unless tables?
-            (k for k of tables).sort()
+            
+            if table_name?
+                table = tables[table_name]
+                unless table.fields?
+                    fields = {}
+                    for id, line of table.lines
+                        for k of line then fields[k] ?= on
+                    alter table_name, {add: (k for k of fields)}
+            
+                (k for k of table.fields)
+            else
+                (k for k of tables).sort()
+        
+        get = (table_name, id, index) ->
+            table = db("tables.#{table_name}")
+            throw "can not get an item from non-existing table '#{table_name}'" unless table? and Object.prototype.toString.call(table) is '[object Object]'
+            
+            if index? 
+                table.index["#{index}_id"]?[id]?.lines
+            else 
+                if id?.at?
+                    idx = 0; for k,v of table.lines when idx++ is id.at then return v
+                else 
+                    if id?
+                        table.lines[id]
+                    else
+                        table.lines
         
         # create a table in lateDB
         # name: 
@@ -1002,6 +1037,7 @@ lateDB = (name, path) ->
                 table = @[o.name]
                 table.name = o.name
                 table.entity_name = o.entity_name
+                table.fields = {}
                 table.alias = o.alias
                 table.options = o.options
                 table.options.history ?= off
@@ -1016,12 +1052,36 @@ lateDB = (name, path) ->
             db("tables.#{table_name}")?
             
         alter = (name, options = {}) ->
-            db 'tables', {name, options}, (o) -> 
-                table = @[o.name]
-                table.options = o.options
-                table.options.history ?= off
-                table.options.index ?= on
-                table.options.identity ?= off
+            if options.add?
+                db 'tables', {name, add:options.add}, (o) -> 
+                    table = @[o.name]
+                    table.fields ?= {}
+                    if o.add.constructor is Array
+                        for add in o.add then table.fields[add] = on
+                    else table.fields[o.add] = on
+                delete options.add
+                
+            if options.drop?
+                db 'tables', {name, drop:options.drop}, (o) -> 
+                    table = @[o.name]
+                    delete table.fields[o.drop] if table.fields?
+                    for id, line of table.lines
+                        unless table.options.index is off
+                            Index.delete_line table, line
+                        delete line[o.drop]
+                        unless table.options.index is off
+                            Index.insert_line table, line
+                delete options.drop
+            
+            count = 0; for k of options then count++; break
+            
+            if count > 0
+                db 'tables', {name, options}, (o) -> 
+                    table = @[o.name]
+                    table.options = o.options
+                    table.options.history ?= off
+                    table.options.index ?= on
+                    table.options.identity ?= off
 
             return            
         
@@ -1039,6 +1099,8 @@ lateDB = (name, path) ->
 
             db "tables.#{table_name}", line, (line, {Table}) -> Table.insert @, line
             
+            Field.insert_from_line table, line
+            
             unless table.options.index is off
                 Index.insert_line table, line
 
@@ -1055,7 +1117,7 @@ lateDB = (name, path) ->
             
             found = u:no, d:no
             for k,v of update when k isnt 'id' or level > 0
-                if v.constructor in [Object, Array]
+                if v? and v.constructor in [Object, Array]
                     unless line[k]? then u[k] = clone(v); found.u = on
                     else 
                         {u:uu, d:dd} = diff_update line[k], v, level + 1
@@ -1078,6 +1140,8 @@ lateDB = (name, path) ->
                 {u:line_update, d:line_prune} = diff_update line, line_update
 
             if line_update? or line_prune?
+                Field.insert_from_line table, line
+
                 unless table.options.index is off
                     Index.delete_line table, line
                 
@@ -1086,7 +1150,7 @@ lateDB = (name, path) ->
                 else
                     db "tables.#{table_name}", {line_update, line_prune}, ({line_update, line_prune}, {Table}) -> Table.update @, line_update, line_prune
                     
-                unless table.index is off
+                unless table.options.index is off
                     Index.insert_line table, line
 
             return
@@ -1120,14 +1184,6 @@ lateDB = (name, path) ->
             
             id
 
-        get = (table_name, id) ->
-            table = db("tables.#{table_name}")
-            throw "can not get an item from non-existing table '#{table_name}'" unless table? and Object.prototype.toString.call(table) is '[object Object]'
-            
-            if id?.at?
-                idx = 0; for k,v of table.lines when idx++ is id.at then return v
-            else table.lines[id]
-        
         QueryIterator = class
             constructor: (@table) -> 
                 if @table?

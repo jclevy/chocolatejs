@@ -779,6 +779,44 @@
       expect(lines.length).toBe(4);
       return expect(lines[3].name).toBe('Toyota Motors');
     });
+    it('can list tables in LateDB', function() {
+      var ref;
+      return expect((ref = db.tables.list()) != null ? ref[1] : void 0).toBe("cars");
+    });
+    it('can list fields in a Table', function() {
+      var ref;
+      return expect((ref = db.tables.list('cars')) != null ? ref[1] : void 0).toBe("name");
+    });
+    it('can list fields in a Table when upgrading from a Table without fields list', function() {
+      var ref;
+      delete db('tables.cars').fields;
+      return expect((ref = db.tables.list('cars')) != null ? ref[1] : void 0).toBe("name");
+    });
+    it('can add a field in a Table', function() {
+      var ref;
+      db.tables.alter('cars', {
+        add: 'model'
+      });
+      return expect((ref = db.tables.list('cars')) != null ? ref[6] : void 0).toBe("model");
+    });
+    it('can get field value from a Table', function() {
+      var line;
+      db.tables.update('cars', {
+        id: 5,
+        model: 'Prius'
+      });
+      line = db.tables.get('cars', 5);
+      return expect(line.model).toBe("Prius");
+    });
+    it('can drop a field from a Table', function() {
+      var line, ref;
+      db.tables.alter('cars', {
+        drop: 'model'
+      });
+      expect((ref = db.tables.list('cars')) != null ? ref[6] : void 0).toBe(void 0);
+      line = db.tables.get('cars', 5);
+      return expect(line.model).toBe(void 0);
+    });
     it('can drop a table', function() {
       expect(db('tables.brands')).not.toBeNull();
       db.tables.drop('brands');

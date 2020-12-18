@@ -845,7 +845,11 @@ exports.enter = (__) ->
               _ide.check_online()
 
             if onoff
-              _ide.debug.window = window.open "#{protocol}://#{window.location.hostname}:#{port}/debug?port=5858"
+              _ide.debug.window = window.open()
+              _ide.debug.window.document.body.innerHTML = """
+                <div>establish ssh connection: ssh -L 9229:localhost:9229 user@remote.example.com</div>
+                <div>then open chrome://inspect#devices</div>
+              """
             else
               _ide.debug.window.close()
           onFailure: (xhr) ->
@@ -1303,16 +1307,18 @@ exports.enter = (__) ->
         new Request.JSON
           url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getFileDiff&' + path + '&how=raw'
           onSuccess: (diff) ->
-            document.id('code-git-diff').set 'html', '<pre>' + diff.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
-            
-            if not _ide.has_spec_file sources.current then return
+            if not _ide.has_spec_file sources.current 
+                document.id('code-git-diff').set 'html', '<pre>' + diff.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
+                return
             
             spec_filename = _ide.get_spec_filename path
             
             new Request.JSON
               url: (if sofkey? then '/!/' + sofkey else '') + '/-/server/file?getFileDiff&' + spec_filename + '&how=raw'
-              onSuccess: (diff) ->
-                document.id('code-git-diff').set 'html', '<pre>' + diff.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
+              onSuccess: (spec_diff) ->
+                document.id('code-git-diff').set 'html', 
+                    '<pre>' + diff.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>' + 
+                    '<pre>' + spec_diff.join('\n').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>'
                 
               onFailure: (xhr) ->
                 _ide.display_message "Error with _ide.get_file_diff(#{spec_filename}) : #{xhr.status}"

@@ -1,19 +1,19 @@
-             ())
-           ((  ) )                         _____ _                     
-          ( )(  ) )                       / ____| |                    
-      _ (.( ) .)(.( )) _                 | |    | |__   ___   ___ ___  
-    (  ( ).( ) (.)( ).)  )               | |    | '_ \ / _ \ / __/ _ \ 
-    |`-..___________ ..-'|               | |____| | | | (_) | (_| (_) |
-    \                   /                 \_____|_| |_|\___/ \___\___/ 
-     |                  ;---.
-     |                  (__  \           | |         | |       (_)     
-     |                  |  )  )          | |     __ _| |_ ___   _ ___  
-     |                  | /  /           | |    / _` | __/ _ \ | / __| 
-     |                   (  /            | |___| (_| | ||  __/_| \__ \ 
-     /                  \ _/             |______\__,_|\__\___(_) |___/ 
-    |                    |                                    _/ |     
-     `-..____________..-'                                    |__/      
-                                                     
+                 ())                                                           
+               ((  ) )                         _____ _                         
+              ( )(  ) )                       / ____| |                        
+          _ (.( ) .)(.( )) _                 | |    | |__   ___   ___ ___      
+        (  ( ).( ) (.)( ).)  )               | |    | '_ \ / _ \ / __/ _ \     
+        |`-..___________ ..-'|               | |____| | | | (_) | (_| (_) |    
+        \                   /                 \_____|_| |_|\___/ \___\___/     
+         |                  ;---.                                              
+         |                  (__  \           | |         | |       (_)         
+         |                  |  )  )          | |     __ _| |_ ___   _ ___      
+         |                  | /  /           | |    / _` | __/ _ \ | / __|     
+         |                   (  /            | |___| (_| | ||  __/_| \__ \     
+         /                  \ _/             |______\__,_|\__\___(_) |___/     
+        |                    |                                    _/ |         
+         `-..____________..-'                                    |__/          
+                                                                               
 
 ## Chocolate - Full stack Node.js framework
 
@@ -65,99 +65,62 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.31 - (2018-04-11)**
+**Chocolate v0.0.32 - (2020-12-18)**
 ---
 
-NEW FEATURES
-
- - in `server/monitor` added a web server
-   - will be usefull in dev mode to restart the app if it becomes unresponsive
-   - activated through `app.config.json` option `"monitor":{ "interface": true }` 
-   - will wait for https requests at application's `port + 2`
-   - can only handle `/-/server/monitor?register_key`, `/-/server/monitor?action=restart` and `/-/server/monitor` request
-     - use `/-/server/monitor?register_key` to enter your master access key
-     - use `/-/server/monitor` to see the current process pid and and button to restart the app
-     - use `/-/server/monitor?action=restart` or press the button to restart the app 
-   - if used with Chocolate's proxy service, all request to `/-/server/monitor` will be redirected to that web server
- - in `server/studio` added two commands to convert document and switch to 2 spaces or 4 spaces indent:
-   - Alt-Shift-2
-   - Alt-Shift-4
- - in `server/workflow` add websocket group management:
-   - use `__.websocket.subscribe(group_id)` to subscribe to bradcast message for this `group_id`
-   - use `__.websocket.broadcast(group_id, message)` to broadcast `message` to `group_id` subscribers
- - in `general/latedb`:
-   - added `identity` service to `db.tables`:
-
-            db.tables.create 'cars', identity:on
-            db.tables.insert 'cars', name:'Toyota'  # an autoincrment id field is automatically inserted unless an id field is already present in line
-
-   - `db.tables.update` now has an optional `diff` option that will remove fields with same value as original line in the provided `line_update`. Of course this can not be used with Array or Object fields.
-
-            db.tables.update 'cars', modified_line, diff:on # non modified fields in modified_line will not be sent to the table's update
-   - added `db.tables.drop` to remove a table you don't need anymore
-
 UPDATES
-
- - `general/coffeekup`:
-   - in `coffeescript` tag section, where `id` functions are read only:
-     - `id(name)` will look first in `local` scope then in `module` and `global` scopes to find the id's value
-     - `id.module(name)` will look first in `module` scope then in `global` scopes to find the id's value
-   - in other tag sections, `id` function will look only in their scope
-   - added `main` tag in known HTML5 tags
-
-  - `server/workflow`:
-    - in a service called from a WebSocket request, the `__.websocket` refers to the calling websocket and `__.websockets` refers the meta-websocket that corresponds to all websockets registered with the current session.  
-    - in a service called from an HTTP(S) request, the `__.websocket` and `__.websockets` refer to the meta-websocket
-
-  - `general/chocodash`:
-    - added `_.async` as `_.serialize` / `_.flow` synonym and `this` passed to deferred function now contains `next` function
-    
-        You can use it this way:
-
-            _.async (await) ->
-                await ->
-                    my_first_async_func ->
-                        # ...
-                        @next()
-                    @next.later
-                await ->
-                    sync_func()
-                    @next()
-        
-        or
-        
-            _.async (await) ->
-                await (next) ->
-                    my_first_async_func ->
-                        # ...
-                        next()
-                    next.later
-                await (next) ->
-                    sync_func()
-                    next()
-
- - `general/latedb`:
-   - allowed simple dot notation to do a one-to-many relationship in query syntax
-   
-            db.tables.query('table.linked_table') // many-to-one or one-to-many between table and linked_table
-            db.tables.query('table.[linked_table]') // one-to-many only
-
-   - `db.tables.insert` will return line.id if `options.identity` is on
-
- - `server/studio`:
-   - added find, fold all and unfold all commands in the toolbar to facilitate editor usage for tablets
+ - in `server/workflow`:
+    - we now are compatbile with Letsencrypt v2 through the use of ACME.js, a low-level client for Let's Encrypt built by Root (https://therootcompany.com/)
  
- - updated Ace to v1.4.2 (21.11.18)
+- in `server/monitor`:
+    - We do not use `node-inspector` anymore but we now uses V8's integrated debugging service
+    - So to start a debugging session you will now need to:
+      - open a ssh tunnel to your remote server (ssh -L 9229:localhost:9229 user@remote.example.com)
+      - open chrome tab with `chrome://inspect#devices`
+
+ - in `general/latedb`:
+    - You can now directly access the raw data stored in a lateDB table
+                
+                db.tables.get(table_name)
+        
+    - You can also directly query a field's index in a LatDB table:
+        
+                db.tables.get(table_name, id, index)
+    
+        Be carefull: `db.tables.get` returns the raw data stored in LateDB, you'd rather use `db.tables.query` that returns a filtered and cloned version of the data.
+    
+    - Tables' fields are now collected automatically in LateDB and can also be added, removed and listed manually
+    
+        To get a table's fields list:
+
+                db.tables.list(table_name)
+                
+        To add a field in a table's fields list:
+                
+                db.tables.alter(table_name, {add:'field'})
+                
+        To remove a field from a table's fields list:
+                
+                db.tables.alter(table_name, {drop:'field'})
 
 FIXED BUGS
 
- - in `general/chocokup`, in some situations Chockup crashed due to a bug introduced by scope management
- - in `general/interface` when using `masterInterface` service on an interface that used the `steps` service, this `steps` servcice was not called
- - in `general/coffeekup`, `key` parameter missing in `ids.toJSONString`
- - in `general/latedb` 
-   - log.upgrade was not properly called for db.tables Table type
-   - log.upgrade was not filtering carriage return characters, leading to unnecessary upgrades
- - in `server/file` resolve_repo was not handling relative paths
+ - in `server/monitor`:
+   - filtered dot files out of monitoring
+   - filtered files inside `node_modules` directory out of monitoring
+   - error messages received were wrongly and badly rerouted to stdout
+ - in `general/latedb`:
+   - was not able to compact client-side database when no timestamp was given
+   - was not able to clone null values (introduced in 0.0.31)
+ - in `server/studio`:
+   - `diff` tab was not displaying diff for source files with an associated spec file
+
+ - in bin/chocomake, ssl key length was increased to 2048
+
+UPDATES
+
+ - updated Chokidar to v 3.4.0
+ - updated Chocolate's logo in README.md file
 
 
 See history in **CHANGELOG.md** file

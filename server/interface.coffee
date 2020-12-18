@@ -142,8 +142,8 @@ exports.exchange = (bin, send) ->
                     method = method[name] for name in action.split('.') when method?
             
             if action? and method instanceof Function
-                infos = method.toString().match(/function\s+\w*\s*\((.*?)\)/)
-                args = infos[1].split(/\s*,\s*/) if infos?
+                infos = method.toString().match(/function(\s+\w*)*\s*\((.*?)\)/)
+                args = infos[2].split(/\s*,\s*/) if infos?
             else if method instanceof Interface
                     self = method
                     method = method.submit

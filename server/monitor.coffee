@@ -41,7 +41,7 @@ monitor_server = new class
         general:if process.platform is 'win32' then '\\general\\' else '/general/'
         server:if process.platform is 'win32' then '\\server\\' else '/server/'
         'static':if process.platform is 'win32' then '\\static\\' else '/static/'
-        letsencrypt:if process.platform is 'win32' then '\\letsencrypt\\' else '/letsencrypt/'
+        acme:if process.platform is 'win32' then '\\acme\\' else '/acme/'
 
     "log": (msg) ->
         Debugate.log "Time:#{new Date().toISOString()}: " + msg if @logging
@@ -95,7 +95,7 @@ monitor_server = new class
         @config = require('./config')(@datadir, reload:on).clone()
         if @config.letsencrypt?
             hostname = @config.letsencrypt.domains[0] if @config.letsencrypt.domains?
-            @cert_suffix = "#{self.dir.letsencrypt}live#{self.sep}#{hostname}#{self.sep}privkey.pem" if hostname?
+            @cert_suffix = "#{self.dir.acme}#{hostname}#{self.sep}fullchain.pem" if hostname?
         
         process.on 'uncaughtException', (err) ->
             console.error((err && err.stack) ? new Date() + '\n' + err.stack + '\n\n' : err);
@@ -112,20 +112,12 @@ monitor_server = new class
             @cert = @config.cert
             @cert ?= if @config.letsencrypt?.published is on then 'fullchain.pem' else 'certificate.pem'
 
-        if @config.debug
-            hostname = @config.letsencrypt.domains[0] if @config.letsencrypt?.domains?
-            dir = @datadir + if hostname? and @config.letsencrypt?.published is on then "#{self.dir.letsencrypt}live#{self.sep}" + hostname else ''
-            
-            debug_ssl = unless @config.http_only then  ['--ssl-key', dir + self.sep + @key, '--ssl-cert', dir + self.sep + @cert] else []
-            
-            @debug_process = Child_process.spawn("./node_modules/.bin/node-inspector", ['--web-port', @config.debug_port ? "8081"].concat debug_ssl)
-
         args = []
         args.push @appdir if @appdir?
         args.push @port if @port?
         cmds = []
         cmds = ['--nodejs', "--max-old-space-size=#{@memory}"] if @memory?
-        cmds = ['--nodejs', '--debug-brk'] if @config.debug
+        cmds = ['--nodejs', '--inspect'] if @config.debug
         cmds.push 'server/server.coffee'
         @process = Child_process.spawn("coffee#{if process.platform is 'win32' then '.cmd' else ''}", cmds.concat args)
 
@@ -133,7 +125,7 @@ monitor_server = new class
             process.stdout.write(data)
 
         @process.stderr.addListener 'data', (data) ->
-            Util.log(data)
+            process.stderr.write(data)
 
         @process.addListener 'exit', (code) ->
             self.log 'CHOCOLATEJS: Child process exited: ' + code
@@ -185,6 +177,8 @@ monitor_server = new class
         filter = (path) ->
             dotdot_re = if process.platform is 'win32' then /^\.[^\.\\]+/ else /^\.[^\.\/]+/
             if path.search(dotdot_re) isnt -1 then return yes
+            if path.search(/(^|[\/\\])\../) isnt -1 then return yes # dot files
+            if path.search(/[\/\\]node_modules[\/\\]/g) isnt -1 then return yes # node_module files
             for folder in ['static']
                 if path is folder then return yes
             try stats = Fs.statSync path catch then return yes
@@ -412,7 +406,7 @@ monitor_server = new class
             sessions = new Sessions cache
                 
             options = do =>
-                dir = @datadir + if @config.letsencrypt?.published is on then '/letsencrypt/live/' + @config.letsencrypt.domains[0] else ''
+                dir = @datadir + if @config.letsencrypt?.published is on then '/acme/' + @config.letsencrypt.domains[0] else ''
                 option = 
                     key: Fs.readFileSync dir + '/' + @key
                     cert: Fs.readFileSync dir + '/' + @cert
@@ -481,5 +475,4 @@ monitor_server = new class
 
 if process.argv[1] is __filename
     monitor_server.start()
-
 

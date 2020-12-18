@@ -1,3 +1,60 @@
+## v0.0.32 - (2020-12-18)
+
+--------------
+
+UPDATES
+ - in `server/workflow`:
+    - we now are compatbile with Letsencrypt v2 through the use of ACME.js, a low-level client for Let's Encrypt built by Root (https://therootcompany.com/)
+ 
+- in `server/monitor`:
+    - We do not use `node-inspector` anymore but we now uses V8's integrated debugging service
+    - So to start a debugging session you will now need to:
+      - open a ssh tunnel to your remote server (ssh -L 9229:localhost:9229 user@remote.example.com)
+      - open chrome tab with `chrome://inspect#devices`
+
+ - in `general/latedb`:
+    - You can now directly access the raw data stored in a lateDB table
+                
+                db.tables.get(table_name)
+        
+    - You can also directly query a field's index in a LatDB table:
+        
+                db.tables.get(table_name, id, index)
+    
+        Be carefull: `db.tables.get` returns the raw data stored in LateDB, you'd rather use `db.tables.query` that returns a filtered and cloned version of the data.
+    
+    - Tables' fields are now collected automatically in LateDB and can also be added, removed and listed manually
+    
+        To get a table's fields list:
+
+                db.tables.list(table_name)
+                
+        To add a field in a table's fields list:
+                
+                db.tables.alter(table_name, {add:'field'})
+                
+        To remove a field from a table's fields list:
+                
+                db.tables.alter(table_name, {drop:'field'})
+
+FIXED BUGS
+
+ - in `server/monitor`:
+   - filtered dot files out of monitoring
+   - filtered files inside `node_modules` directory out of monitoring
+   - error messages received were wrongly and badly rerouted to stdout
+ - in `general/latedb`:
+   - was not able to compact client-side database when no timestamp was given
+   - was not able to clone null values (introduced in 0.0.31)
+
+ - in bin/chocomake, ssl key length was increased to 2048
+
+UPDATES
+
+ - updated Chokidar to v 3.4.0
+ - updated Chocolate's logo in README.md file
+
+
 ## v0.0.31 - (2019-04-11)
 
 --------------
@@ -1515,4 +1572,3 @@ FIXED BUGS
 ----------------
 
 Initial public release
-

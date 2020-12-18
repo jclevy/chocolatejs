@@ -1585,7 +1585,7 @@
         }
         t = 16;
         while (t < 64) {
-          W[t] = Sha256.σ1(W[t - 2]) + W[t - 7] + Sha256.σ0(W[t - 15]) + W[t - 16] & 0xffffffff;
+          W[t] = Sha256.sigma1(W[t - 2]) + W[t - 7] + Sha256.sigma0(W[t - 15]) + W[t - 16] & 0xffffffff;
           t++;
         }
         a = H[0];
@@ -1598,8 +1598,8 @@
         h = H[7];
         t = 0;
         while (t < 64) {
-          T1 = h + Sha256.Σ1(e) + Sha256.Ch(e, f, g) + K[t] + W[t];
-          T2 = Sha256.Σ0(a) + Sha256.Maj(a, b, c);
+          T1 = h + Sha256.Sigma1(e) + Sha256.Ch(e, f, g) + K[t] + W[t];
+          T2 = Sha256.Sigma0(a) + Sha256.Maj(a, b, c);
           h = g;
           g = f;
           f = e;
@@ -1635,16 +1635,16 @@
      * Logical functions [§4.1.2].
      * @private
      */
-    Sha256.Σ0 = function(x) {
+    Sha256.Sigma0 = function(x) {
       return Sha256.ROTR(2, x) ^ Sha256.ROTR(13, x) ^ Sha256.ROTR(22, x);
     };
-    Sha256.Σ1 = function(x) {
+    Sha256.Sigma1 = function(x) {
       return Sha256.ROTR(6, x) ^ Sha256.ROTR(11, x) ^ Sha256.ROTR(25, x);
     };
-    Sha256.σ0 = function(x) {
+    Sha256.sigma0 = function(x) {
       return Sha256.ROTR(7, x) ^ Sha256.ROTR(18, x) ^ x >>> 3;
     };
-    Sha256.σ1 = function(x) {
+    Sha256.sigma1 = function(x) {
       return Sha256.ROTR(17, x) ^ Sha256.ROTR(19, x) ^ x >>> 10;
     };
     Sha256.Ch = function(x, y, z) {
