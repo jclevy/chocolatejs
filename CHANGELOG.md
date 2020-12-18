@@ -1,4 +1,4 @@
-## v0.0.32 - (2020-12-18)
+## v0.0.33 - (2020-12-18)
 
 --------------
 
@@ -53,6 +53,13 @@ UPDATES
 
  - updated Chokidar to v 3.4.0
  - updated Chocolate's logo in README.md file
+
+
+## v0.0.32 - (2019-12-18)
+
+--------------
+
+See version v0.0.33
 
 
 ## v0.0.31 - (2019-04-11)

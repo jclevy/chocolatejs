@@ -65,7 +65,7 @@ Chocolate integrates:
 
 ## Version
 
-**Chocolate v0.0.32 - (2020-12-18)**
+**Chocolate v0.0.33 - (2020-12-18)**
 ---
 
 UPDATES
